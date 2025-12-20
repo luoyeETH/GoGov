@@ -179,6 +179,7 @@ export default function LoginPage() {
       }
       setLoginState("success");
       setLoginMessage("登录成功。");
+      window.dispatchEvent(new Event("auth-change"));
       routeAfterLogin(data);
     } catch (err) {
       setLoginState("error");
@@ -270,6 +271,7 @@ export default function LoginPage() {
         setSessionExpiresAt(data.sessionExpiresAt ?? null);
       }
       setWalletMessage(`钱包已验证：${address}`);
+      window.dispatchEvent(new Event("auth-change"));
       routeAfterLogin(data);
     } catch (err) {
       setWalletMessage(err instanceof Error ? err.message : "钱包登录失败");
@@ -292,6 +294,7 @@ export default function LoginPage() {
       window.localStorage.removeItem(sessionKey);
       setCurrentUser(null);
       setSessionExpiresAt(null);
+      window.dispatchEvent(new Event("auth-change"));
     }
   };
 

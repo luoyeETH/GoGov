@@ -20,6 +20,10 @@ export async function updateProfile(userId: string, params: {
   gender?: string;
   age?: number;
   examStartDate?: string;
+  aiProvider?: string;
+  aiModel?: string;
+  aiBaseUrl?: string;
+  aiApiKey?: string;
 }) {
   let username: string | undefined;
   if (params.username !== undefined) {
@@ -50,13 +54,29 @@ export async function updateProfile(userId: string, params: {
     throw new Error("备考开始时间不合法");
   }
 
+  const provider = params.aiProvider?.trim().toLowerCase();
+  if (provider && !["openai", "anthropic", "custom", "none"].includes(provider)) {
+    throw new Error("AI 提供商不合法");
+  }
+  const aiModel = params.aiModel?.trim();
+  const aiBaseUrl = params.aiBaseUrl?.trim();
+  let aiApiKey: string | null | undefined;
+  if (params.aiApiKey !== undefined) {
+    const trimmed = params.aiApiKey.trim();
+    aiApiKey = trimmed.length > 0 ? trimmed : null;
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
       username,
       gender,
       age: age ?? undefined,
-      examStartDate: examStartDate ?? undefined
+      examStartDate: examStartDate ?? undefined,
+      aiProvider: provider ?? undefined,
+      aiModel: aiModel ?? undefined,
+      aiBaseUrl: aiBaseUrl ?? undefined,
+      aiApiKey: aiApiKey
     }
   });
 

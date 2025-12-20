@@ -60,6 +60,70 @@ export default function Home() {
           <span>学习建议</span>
         </div>
       </section>
+
+      <section className="module-section">
+        <div className="module-header">
+          <h2>后续模块占位</h2>
+          <p>这些模块将逐步开放，先展示整体路线与能力边界。</p>
+        </div>
+        <div className="module-grid">
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">常识学习</div>
+            <p>结构化知识卡片 + AI 解释，快速建立框架。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">错题整理</div>
+            <p>自动归因 + 复盘路径，AI 给出纠错建议。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">AI 答疑</div>
+            <p>随问随答，聚焦行测速算与资料分析。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">统计看板</div>
+            <p>题型正确率、速度曲线、近 7 天趋势。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">专项训练计划</div>
+            <p>按薄弱点自动生成训练目标与计划。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">AI 解析生成</div>
+            <p>每题给出速算捷径与口算路径。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">智能组卷</div>
+            <p>按薄弱点生成 10/20/50 题套卷。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">AI 学习建议</div>
+            <p>根据记录生成下一阶段训练策略。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">个性化预测</div>
+            <p>结合训练节奏与正确率进行趋势预测。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">题库质量分层</div>
+            <p>题目与解析分级，聚焦高价值题目。</p>
+            <span className="module-status">开发中</span>
+          </div>
+          <div className="module-card" data-tooltip="开发中">
+            <div className="module-title">学习社区</div>
+            <p>共享高赞解法与复盘路径。</p>
+            <span className="module-status">开发中</span>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

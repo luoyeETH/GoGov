@@ -13,6 +13,8 @@ import { loginWithWallet } from "./auth/wallet";
 import { createWalletChallenge, verifyWalletChallenge } from "./auth/wallet-challenge";
 import { revokeSession, verifySession } from "./auth/session";
 import { updateProfile } from "./auth/profile";
+import { changePassword } from "./auth/password-change";
+import { listModels } from "./ai/models";
 import {
   generateQuickBatch,
   generateQuickQuestion,
@@ -207,7 +209,12 @@ server.get("/auth/me", async (request, reply) => {
         walletAddress: session.user.walletAddress,
         gender: session.user.gender,
         age: session.user.age,
-        examStartDate: session.user.examStartDate?.toISOString() ?? null
+        examStartDate: session.user.examStartDate?.toISOString() ?? null,
+        aiProvider: session.user.aiProvider,
+        aiModel: session.user.aiModel,
+        aiBaseUrl: session.user.aiBaseUrl,
+        aiApiKeyConfigured: Boolean(session.user.aiApiKey),
+        hasPassword: Boolean(session.user.passwordHash)
       },
       sessionExpiresAt: session.expiresAt.toISOString()
     });
@@ -229,6 +236,10 @@ server.post("/profile", async (request, reply) => {
       gender?: string;
       age?: number;
       examStartDate?: string;
+      aiProvider?: string;
+      aiModel?: string;
+      aiBaseUrl?: string;
+      aiApiKey?: string;
     };
     const user = await updateProfile(session.user.id, body ?? {});
     reply.send({
@@ -239,11 +250,43 @@ server.post("/profile", async (request, reply) => {
         walletAddress: user.walletAddress,
         gender: user.gender,
         age: user.age,
-        examStartDate: user.examStartDate?.toISOString() ?? null
+        examStartDate: user.examStartDate?.toISOString() ?? null,
+        aiProvider: user.aiProvider,
+        aiModel: user.aiModel,
+        aiBaseUrl: user.aiBaseUrl,
+        aiApiKeyConfigured: Boolean(user.aiApiKey),
+        hasPassword: Boolean(user.passwordHash)
       }
     });
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.post("/ai/models", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body as {
+      provider?: string;
+      baseUrl?: string;
+      apiKey?: string;
+    };
+    const provider = body?.provider ?? session.user.aiProvider ?? "openai";
+    const baseUrl = body?.baseUrl ?? session.user.aiBaseUrl ?? undefined;
+    const apiKey = body?.apiKey ?? session.user.aiApiKey ?? undefined;
+    const models = await listModels({
+      provider,
+      baseUrl,
+      apiKey
+    });
+    reply.send({ provider, models });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "获取失败" });
   }
 });
 
@@ -258,6 +301,30 @@ server.post("/auth/logout", async (request, reply) => {
     reply.send({ status: "ok" });
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "退出失败" });
+  }
+});
+
+server.post("/auth/password/update", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body as { oldPassword?: string; newPassword?: string };
+    if (!body?.oldPassword || !body?.newPassword) {
+      reply.code(400).send({ error: "缺少必要参数" });
+      return;
+    }
+    const result = await changePassword({
+      userId: session.user.id,
+      oldPassword: body.oldPassword,
+      newPassword: body.newPassword
+    });
+    reply.send(result);
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "修改失败" });
   }
 });
 

@@ -22,6 +22,10 @@ model User {
   gender          Gender?  @default(hidden)
   age             Int?
   examStartDate   DateTime?
+  aiProvider      String?
+  aiModel         String?
+  aiBaseUrl       String?
+  aiApiKey        String?
   walletAddress   String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

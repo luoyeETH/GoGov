@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -27,7 +27,24 @@ type ProfileData = {
   gender: string;
   age: string;
   examStartDate: string;
+  aiProvider: string | null;
+  aiModel: string | null;
+  aiBaseUrl: string | null;
+  aiApiKeyConfigured: boolean;
+  hasPassword: boolean;
 };
+
+function maskKey(value: string) {
+  if (!value) {
+    return "";
+  }
+  if (value.length <= 6) {
+    return `${value.slice(0, 1)}****`;
+  }
+  const head = value.slice(0, 4);
+  const tail = value.slice(-4);
+  return `${head}****${tail}`;
+}
 
 export default function ProfilePage() {
   const [state, setState] = useState<ProfileState>("idle");
@@ -35,6 +52,13 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [draft, setDraft] = useState<ProfileData | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [aiApiKeyInput, setAiApiKeyInput] = useState("");
+  const [clearAiKey, setClearAiKey] = useState(false);
+  const [showAiKey, setShowAiKey] = useState(false);
+  const [aiModels, setAiModels] = useState<string[]>([]);
+  const [aiModelsState, setAiModelsState] = useState<ProfileState>("idle");
+  const [aiModelsMessage, setAiModelsMessage] = useState<string | null>(null);
+  const lastModelConfigRef = useRef<{ provider: string | null; baseUrl: string | null } | null>(null);
 
   const canSave = useMemo(() => {
     if (state === "saving") {
@@ -69,7 +93,12 @@ export default function ProfilePage() {
           username: data.user.username ?? "",
           gender: data.user.gender ?? "hidden",
           age: data.user.age ? String(data.user.age) : "",
-          examStartDate: data.user.examStartDate ?? ""
+          examStartDate: data.user.examStartDate ?? "",
+          aiProvider: data.user.aiProvider ?? null,
+          aiModel: data.user.aiModel ?? null,
+          aiBaseUrl: data.user.aiBaseUrl ?? null,
+          aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
+          hasPassword: Boolean(data.user.hasPassword)
         };
         setProfile(loaded);
         setDraft(loaded);
@@ -82,6 +111,32 @@ export default function ProfilePage() {
 
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!editMode || !draft) {
+      return;
+    }
+    const current = {
+      provider: draft.aiProvider ?? null,
+      baseUrl: draft.aiBaseUrl ?? null
+    };
+    const prev = lastModelConfigRef.current;
+    if (!prev) {
+      lastModelConfigRef.current = current;
+      return;
+    }
+    if (prev.provider !== current.provider || prev.baseUrl !== current.baseUrl) {
+      lastModelConfigRef.current = current;
+      if (aiModels.length > 0) {
+        setAiModels([]);
+      }
+      setAiModelsState("idle");
+      setAiModelsMessage(null);
+      if (draft.aiModel) {
+        setDraft({ ...draft, aiModel: "" });
+      }
+    }
+  }, [editMode, draft?.aiProvider, draft?.aiBaseUrl]);
 
   const save = async () => {
     const token = window.localStorage.getItem(sessionKey);
@@ -96,6 +151,8 @@ export default function ProfilePage() {
     setState("saving");
     setMessage(null);
     try {
+      const aiApiKey =
+        clearAiKey ? "" : aiApiKeyInput.trim() ? aiApiKeyInput.trim() : undefined;
       const res = await fetch(`${apiBase}/profile`, {
         method: "POST",
         headers: {
@@ -106,7 +163,11 @@ export default function ProfilePage() {
           username: draft.username.trim(),
           gender: draft.gender,
           age: draft.age ? Number(draft.age) : undefined,
-          examStartDate: draft.examStartDate || undefined
+          examStartDate: draft.examStartDate || undefined,
+          aiProvider: draft.aiProvider ?? undefined,
+          aiModel: draft.aiModel ?? undefined,
+          aiBaseUrl: draft.aiBaseUrl ?? undefined,
+          aiApiKey
         })
       });
       const data = await res.json();
@@ -119,11 +180,22 @@ export default function ProfilePage() {
         username: data.user.username ?? "",
         gender: data.user.gender ?? "hidden",
         age: data.user.age ? String(data.user.age) : "",
-        examStartDate: data.user.examStartDate ?? ""
+        examStartDate: data.user.examStartDate ?? "",
+        aiProvider: data.user.aiProvider ?? null,
+        aiModel: data.user.aiModel ?? null,
+        aiBaseUrl: data.user.aiBaseUrl ?? null,
+        aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
+        hasPassword: Boolean(data.user.hasPassword)
       };
       setProfile(updated);
       setDraft(updated);
+      setAiApiKeyInput("");
+      setClearAiKey(false);
+      setShowAiKey(false);
       setEditMode(false);
+      setAiModels([]);
+      setAiModelsState("idle");
+      setAiModelsMessage(null);
       setState("success");
       setMessage("资料已保存，正在跳转首页...");
       window.setTimeout(() => {
@@ -134,6 +206,7 @@ export default function ProfilePage() {
       setMessage(err instanceof Error ? err.message : "保存失败");
     }
   };
+
 
   return (
     <main className="main register-page">
@@ -171,6 +244,12 @@ export default function ProfilePage() {
                       className="ghost"
                       onClick={() => {
                         setDraft(profile);
+                        setAiApiKeyInput("");
+                        setClearAiKey(false);
+                        setAiModels([]);
+                        setAiModelsState("idle");
+                        setAiModelsMessage(null);
+                        setShowAiKey(false);
                         setEditMode(false);
                       }}
                     >
@@ -189,7 +268,17 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     className="ghost"
-                    onClick={() => setEditMode(true)}
+                    onClick={() => {
+                      setDraft({
+                        ...profile,
+                        aiProvider: profile.aiProvider ?? "openai"
+                      });
+                      setAiModels([]);
+                      setAiModelsState("idle");
+                      setAiModelsMessage(null);
+                      setShowAiKey(false);
+                      setEditMode(true);
+                    }}
                   >
                     编辑资料
                   </button>
@@ -261,6 +350,169 @@ export default function ProfilePage() {
                       }
                     />
                   </div>
+                  <div className="profile-section">
+                    <h4>AI 配置</h4>
+                    <div className="form-row">
+                      <label htmlFor="aiProvider">节点提供商</label>
+                      <select
+                        id="aiProvider"
+                        value={draft.aiProvider ?? "openai"}
+                        onChange={(event) =>
+                          setDraft({ ...draft, aiProvider: event.target.value })
+                        }
+                      >
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="custom">自定义</option>
+                        <option value="none">暂不配置</option>
+                      </select>
+                    </div>
+                    <div className="form-row">
+                      <label htmlFor="aiBaseUrl">节点地址</label>
+                      <input
+                        id="aiBaseUrl"
+                        value={draft.aiBaseUrl ?? ""}
+                        placeholder="可选，例如 https://api.openai.com"
+                        onChange={(event) =>
+                          setDraft({ ...draft, aiBaseUrl: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="form-row">
+                      <label htmlFor="aiKey">API Key</label>
+                      <div className="key-input-row">
+                        <input
+                          id="aiKey"
+                          type="text"
+                          value={showAiKey ? aiApiKeyInput : maskKey(aiApiKeyInput)}
+                          placeholder={
+                            draft.aiApiKeyConfigured
+                              ? "已配置，输入新 Key 将替换"
+                              : "请输入 key"
+                          }
+                          readOnly={!showAiKey}
+                          onFocus={() => setShowAiKey(true)}
+                          onChange={(event) => {
+                            setAiApiKeyInput(event.target.value);
+                            setClearAiKey(false);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => setShowAiKey((value) => !value)}
+                        >
+                          {showAiKey ? "隐藏" : "显示"}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="form-message key-hint">
+                      {aiApiKeyInput.trim()
+                        ? "将使用当前输入的 Key 获取模型。"
+                        : draft.aiApiKeyConfigured
+                          ? "将使用已保存的 Key 获取模型。"
+                          : "请先输入 Key 再获取模型。"}
+                    </p>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={async () => {
+                        if (!draft) {
+                          return;
+                        }
+                        const token = window.localStorage.getItem(sessionKey);
+                        if (!token) {
+                          setAiModelsMessage("请先登录后再获取模型。");
+                          return;
+                        }
+                        setAiModelsState("loading");
+                        setAiModelsMessage(null);
+                        try {
+                          const payload: Record<string, string> = {
+                            provider: draft.aiProvider ?? "openai"
+                          };
+                          if (draft.aiBaseUrl) {
+                            payload.baseUrl = draft.aiBaseUrl;
+                          }
+                          if (aiApiKeyInput.trim()) {
+                            payload.apiKey = aiApiKeyInput.trim();
+                          }
+                          const res = await fetch(`${apiBase}/ai/models`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              Authorization: `Bearer ${token}`
+                            },
+                            body: JSON.stringify(payload)
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            throw new Error(data?.error ?? "获取模型失败");
+                          }
+                          setAiModels(data.models ?? []);
+                          setAiModelsState("success");
+                        } catch (err) {
+                          setAiModelsState("error");
+                          setAiModelsMessage(
+                            err instanceof Error ? err.message : "获取模型失败"
+                          );
+                        }
+                      }}
+                    >
+                      {aiModelsState === "loading" ? "加载中..." : "获取模型列表"}
+                    </button>
+                    {aiModelsMessage ? (
+                      <p className="form-message">{aiModelsMessage}</p>
+                    ) : null}
+                    <div className="form-row">
+                      <label htmlFor="aiModel">模型名称</label>
+                      <select
+                        id="aiModel"
+                        value={draft.aiModel ?? ""}
+                        onChange={(event) =>
+                          setDraft({ ...draft, aiModel: event.target.value })
+                        }
+                        disabled={aiModels.length === 0 && !draft.aiModel}
+                      >
+                        {aiModels.length === 0 ? (
+                          <>
+                            {draft.aiModel ? (
+                              <option value={draft.aiModel}>
+                                当前：{draft.aiModel}
+                              </option>
+                            ) : (
+                              <option value="" disabled>
+                                请先获取模型列表
+                              </option>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <option value="" disabled>
+                              请选择模型
+                            </option>
+                            {aiModels.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                          </>
+                        )}
+                      </select>
+                    </div>
+                    {draft.aiApiKeyConfigured ? (
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          setAiApiKeyInput("");
+                          setClearAiKey(true);
+                        }}
+                      >
+                        清空已配置 Key
+                      </button>
+                    ) : null}
+                  </div>
                 </>
               ) : (
                 <div className="profile-summary">
@@ -298,8 +550,33 @@ export default function ProfilePage() {
                     <span>备考开始</span>
                     <strong>{profile.examStartDate || "未设置"}</strong>
                   </div>
+                  <div>
+                    <span>AI 提供商</span>
+                    <strong>
+                      {profile.aiProvider
+                        ? profile.aiProvider === "openai"
+                          ? "OpenAI"
+                          : profile.aiProvider
+                        : "未设置"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>模型名称</span>
+                    <strong>{profile.aiModel || "未设置"}</strong>
+                  </div>
+                  <div>
+                    <span>节点地址</span>
+                    <strong>{profile.aiBaseUrl || "未设置"}</strong>
+                  </div>
+                  <div>
+                    <span>API Key</span>
+                    <strong>
+                      {profile.aiApiKeyConfigured ? "已配置" : "未配置"}
+                    </strong>
+                  </div>
                 </div>
               )}
+
             </>
           ) : null}
         </div>

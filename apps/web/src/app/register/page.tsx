@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -26,6 +26,7 @@ type SubmitState = "idle" | "submitting" | "success" | "error";
 type GenderOption = "male" | "female" | "hidden";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [verifyState, setVerifyState] = useState<VerifyState>("idle");
@@ -106,8 +107,12 @@ export default function RegisterPage() {
       if (data.sessionToken) {
         window.localStorage.setItem(sessionKey, data.sessionToken);
       }
+      window.dispatchEvent(new Event("auth-change"));
       setSubmitState("success");
-      setMessage("注册成功，已自动登录。请返回首页开始训练。");
+      setMessage("注册成功，已自动登录。正在跳转首页...");
+      window.setTimeout(() => {
+        router.replace("/");
+      }, 800);
     } catch (err) {
       setSubmitState("error");
       setMessage(err instanceof Error ? err.message : "注册失败");

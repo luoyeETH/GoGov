@@ -41,15 +41,6 @@ export default function RootLayout({
               </Link>
               <nav className="nav">
                 <Link href="/practice/quick">速算练习</Link>
-                <span className="nav-disabled" title="正在开发中">
-                  常识学习
-                </span>
-                <span className="nav-disabled" title="正在开发中">
-                  错题整理
-                </span>
-                <span className="nav-disabled" title="正在开发中">
-                  AI 答疑
-                </span>
               </nav>
             </div>
             <div className="header-right">
