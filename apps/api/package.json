@@ -4,15 +4,24 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@gogov/shared": "file:../../packages/shared",
     "@fastify/cors": "^9.0.1",
+    "ethers": "^6.13.2",
+    "@prisma/client": "^5.18.0",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
-    "fastify": "^4.26.2"
+    "fastify": "^4.26.2",
+    "resend": "^3.5.0"
   },
   "devDependencies": {
+    "prisma": "^5.18.0",
+    "@types/bcryptjs": "^2.4.6",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4"
   }

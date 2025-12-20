@@ -1,12 +1,20 @@
 import Link from "next/link";
+import NavUser from "../components/nav-user";
 import "./globals.css";
 
 export const metadata = {
   title: "GoGov 公考助手",
   description: "AI 驱动的公考学习与训练平台",
   icons: {
-    icon: "/favicon.png",
-    apple: "/apple-touch-icon.png"
+    icon: [
+      { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/icon-96.png", sizes: "96x96", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
   }
 };
 
@@ -20,13 +28,33 @@ export default function RootLayout({
       <body>
         <div className="page">
           <header className="header">
-            <div className="brand">GoGov</div>
-            <nav className="nav">
-              <Link href="/practice/quick">速算练习</Link>
-              <span>常识学习</span>
-              <span>错题整理</span>
-              <span>AI 答疑</span>
-            </nav>
+            <div className="header-left">
+              <Link href="/" className="brand-link">
+                <img
+                  src="/icon-96.png"
+                  alt="GoGov"
+                  className="brand-logo"
+                  width={24}
+                  height={24}
+                />
+                <span className="brand-text">GoGov</span>
+              </Link>
+              <nav className="nav">
+                <Link href="/practice/quick">速算练习</Link>
+                <span className="nav-disabled" title="正在开发中">
+                  常识学习
+                </span>
+                <span className="nav-disabled" title="正在开发中">
+                  错题整理
+                </span>
+                <span className="nav-disabled" title="正在开发中">
+                  AI 答疑
+                </span>
+              </nav>
+            </div>
+            <div className="header-right">
+              <NavUser />
+            </div>
           </header>
           {children}
           <footer className="footer">

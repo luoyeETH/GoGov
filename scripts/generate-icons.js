@@ -179,5 +179,18 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
 
-generateIcon(32, path.join(outDir, "favicon.png"));
-generateIcon(180, path.join(outDir, "apple-touch-icon.png"));
+const outputs = [
+  { size: 16, name: "icon-16.png" },
+  { size: 32, name: "icon-32.png" },
+  { size: 48, name: "icon-48.png" },
+  { size: 96, name: "icon-96.png" },
+  { size: 180, name: "icon-180.png" },
+  { size: 192, name: "icon-192.png" },
+  { size: 512, name: "icon-512.png" },
+  { size: 32, name: "favicon.png" },
+  { size: 180, name: "apple-touch-icon.png" }
+];
+
+outputs.forEach((item) => {
+  generateIcon(item.size, path.join(outDir, item.name));
+});
