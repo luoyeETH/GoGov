@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: gogov
+      POSTGRES_PASSWORD: gogov
+      POSTGRES_DB: gogov
+    volumes:
+      - gogov_pg:/var/lib/postgresql/data
+
+volumes:
+  gogov_pg:
