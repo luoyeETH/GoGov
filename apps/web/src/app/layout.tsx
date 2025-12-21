@@ -1,5 +1,7 @@
 import Link from "next/link";
 import NavUser from "../components/nav-user";
+import { ThemeProvider } from "../components/theme-provider";
+import ThemeToggle from "../components/theme-toggle";
 import "./globals.css";
 
 export const metadata = {
@@ -26,41 +28,44 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <div className="page">
-          <header className="header">
-            <div className="header-left">
-              <Link href="/" className="brand-link">
-                <img
-                  src="/icon-96.png"
-                  alt="GoGov"
-                  className="brand-logo"
-                  width={24}
-                  height={24}
-                />
-                <span className="brand-text">GoGov</span>
-              </Link>
-              <nav className="nav">
-                <Link href="/practice/quick">速算练习</Link>
-                <Link href="/stats">统计看板</Link>
-                <Link href="/mistakes">错题本</Link>
-                <Link href="/knowledge">常识学习</Link>
-                <Link href="/mock-report">模考解读</Link>
-                <Link href="/ai/assist">AI 答疑</Link>
-              </nav>
-            </div>
-            <div className="header-right">
-              <NavUser />
-            </div>
-          </header>
-          {children}
-          <footer className="footer">
-            <span>AI 驱动的公考学习与训练平台</span>
-            <span className="footer-note">
-              Backend built with Codex and Claude Code. Frontend UI/UX crafted by
-              Gemini. Design by humans.
-            </span>
-          </footer>
-        </div>
+        <ThemeProvider>
+          <div className="page">
+            <header className="header">
+              <div className="header-left">
+                <Link href="/" className="brand-link">
+                  <img
+                    src="/icon-96.png"
+                    alt="GoGov"
+                    className="brand-logo"
+                    width={24}
+                    height={24}
+                  />
+                  <span className="brand-text">GoGov</span>
+                </Link>
+                <nav className="nav">
+                  <Link href="/practice/quick">速算练习</Link>
+                  <Link href="/stats">统计看板</Link>
+                  <Link href="/mistakes">错题本</Link>
+                  <Link href="/knowledge">常识学习</Link>
+                  <Link href="/mock-report">模考解读</Link>
+                  <Link href="/ai/assist">AI 答疑</Link>
+                </nav>
+              </div>
+              <div className="header-right">
+                <ThemeToggle />
+                <NavUser />
+              </div>
+            </header>
+            {children}
+            <footer className="footer">
+              <span>AI 驱动的公考学习与训练平台</span>
+              <span className="footer-note">
+                Backend built with Codex and Claude Code. Frontend UI/UX crafted by
+                Gemini. Design by humans.
+              </span>
+            </footer>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
