@@ -7,6 +7,8 @@ import { generateAssistAnswer } from "./ai/assist";
 import { generateVisionAnswer } from "./ai/vision";
 import { buildMockAnalysisPrompt } from "./ai/mock";
 import { buildKnowledgePrompt } from "./ai/knowledge";
+import { buildStudyPlanPrompt } from "./ai/study-plan";
+import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
 import { createChallenge } from "./auth/challenge";
 import {
   completeRegistration,
@@ -58,6 +60,173 @@ function extractJsonPayload(value: string) {
     }
   }
   return null;
+}
+
+function parseOptionalDate(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const date = new Date(
+      trimmed.length <= 10 ? `${trimmed}T00:00:00+08:00` : trimmed
+    );
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  return null;
+}
+
+function parseOptionalNumber(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getBeijingDateString(date = new Date()) {
+  const utc = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
+  const beijing = new Date(utc + 8 * 60 * 60 * 1000);
+  const year = beijing.getFullYear();
+  const month = `${beijing.getMonth() + 1}`.padStart(2, "0");
+  const day = `${beijing.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDayRange(dateValue?: string | null) {
+  const date = parseOptionalDate(dateValue ?? null);
+  const base = date ?? parseOptionalDate(getBeijingDateString()) ?? new Date();
+  const start = base instanceof Date ? base : new Date();
+  const end = new Date(start.getTime());
+  end.setDate(start.getDate() + 1);
+  return { start, end };
+}
+
+function ensureStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item) => typeof item === "string");
+}
+
+function makeTaskId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `task-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+type DailyTaskRecord = {
+  id?: string;
+  title?: string;
+  done?: boolean;
+  durationMinutes?: number | null;
+  notes?: string | null;
+  subtasks?: Array<{
+    id?: string;
+    title?: string;
+    done?: boolean;
+  }>;
+};
+
+function normalizeDailyTasks(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const tasks: DailyTaskRecord[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const title = typeof record.title === "string" ? record.title.trim() : "";
+    if (!title) {
+      continue;
+    }
+    const duration =
+      typeof record.durationMinutes === "number" && Number.isFinite(record.durationMinutes)
+        ? Math.max(0, record.durationMinutes)
+        : null;
+    const notes = typeof record.notes === "string" ? record.notes.trim() : null;
+    const subtasksInput = Array.isArray(record.subtasks) ? record.subtasks : [];
+    const subtasks = subtasksInput
+      .map((sub) => {
+        if (typeof sub === "string") {
+          const title = sub.trim();
+          if (!title) {
+            return null;
+          }
+          return { id: makeTaskId(), title, done: false };
+        }
+        if (!sub || typeof sub !== "object") {
+          return null;
+        }
+        const subRecord = sub as Record<string, unknown>;
+        const subTitle =
+          typeof subRecord.title === "string" ? subRecord.title.trim() : "";
+        if (!subTitle) {
+          return null;
+        }
+        return {
+          id:
+            typeof subRecord.id === "string" && subRecord.id.trim()
+              ? subRecord.id
+              : makeTaskId(),
+          title: subTitle,
+          done: Boolean(subRecord.done)
+        };
+      })
+      .filter(Boolean);
+    tasks.push({
+      id: typeof record.id === "string" && record.id.trim() ? record.id : makeTaskId(),
+      title,
+      done: Boolean(record.done),
+      durationMinutes: duration,
+      notes,
+      subtasks: subtasks.length ? (subtasks as DailyTaskRecord["subtasks"]) : []
+    });
+  }
+  return tasks;
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  return null;
+}
+
+function hasOwn<T extends Record<string, unknown>>(obj: T, key: string) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 type MockMetric = {
@@ -1110,6 +1279,725 @@ server.delete("/knowledge/imports/:id", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({
       error: error instanceof Error ? error.message : "删除失败"
+    });
+  }
+});
+
+server.get("/study-plan/profile", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const profile = await prisma.studyPlanProfile.findUnique({
+      where: { userId: session.user.id }
+    });
+    if (!profile) {
+      reply.send({ profile: null });
+      return;
+    }
+    reply.send({
+      profile: {
+        id: profile.id,
+        prepStartDate: profile.prepStartDate?.toISOString() ?? null,
+        totalStudyHours: profile.totalStudyHours,
+        totalStudyDurationText: profile.totalStudyDurationText,
+        currentProgress: profile.currentProgress,
+        targetExam: profile.targetExam,
+        targetExamDate: profile.targetExamDate?.toISOString() ?? null,
+        plannedMaterials: profile.plannedMaterials,
+        interviewExperience: profile.interviewExperience,
+        learningGoals: profile.learningGoals,
+        notes: profile.notes,
+        createdAt: profile.createdAt.toISOString(),
+        updatedAt: profile.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.put("/study-plan/profile", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const updateData: Record<string, unknown> = {};
+    if (hasOwn(body, "prepStartDate")) {
+      updateData.prepStartDate = parseOptionalDate(body.prepStartDate);
+    }
+    if (hasOwn(body, "totalStudyHours")) {
+      updateData.totalStudyHours = parseOptionalNumber(body.totalStudyHours);
+    }
+    if (hasOwn(body, "totalStudyDuration") || hasOwn(body, "totalStudyDurationText")) {
+      const raw = hasOwn(body, "totalStudyDuration")
+        ? body.totalStudyDuration
+        : body.totalStudyDurationText;
+      updateData.totalStudyDurationText = normalizeOptionalText(raw);
+    }
+    if (hasOwn(body, "currentProgress")) {
+      updateData.currentProgress = normalizeOptionalText(body.currentProgress);
+    }
+    if (hasOwn(body, "targetExam")) {
+      updateData.targetExam = normalizeOptionalText(body.targetExam);
+    }
+    if (hasOwn(body, "targetExamDate")) {
+      updateData.targetExamDate = parseOptionalDate(body.targetExamDate);
+    }
+    if (hasOwn(body, "plannedMaterials")) {
+      updateData.plannedMaterials = normalizeOptionalText(body.plannedMaterials);
+    }
+    if (hasOwn(body, "interviewExperience")) {
+      updateData.interviewExperience =
+        typeof body.interviewExperience === "boolean"
+          ? body.interviewExperience
+          : null;
+    }
+    if (hasOwn(body, "learningGoals")) {
+      updateData.learningGoals = normalizeOptionalText(body.learningGoals);
+    }
+    if (hasOwn(body, "studyResources")) {
+      const resources = normalizeOptionalText(body.studyResources);
+      updateData.plannedMaterials = resources;
+      updateData.learningGoals = resources;
+    }
+    if (hasOwn(body, "notes")) {
+      updateData.notes = normalizeOptionalText(body.notes);
+    }
+    if (!Object.keys(updateData).length) {
+      reply.code(400).send({ error: "没有可更新的内容" });
+      return;
+    }
+    const created = await prisma.studyPlanProfile.upsert({
+      where: { userId: session.user.id },
+      update: updateData,
+      create: {
+        userId: session.user.id,
+        prepStartDate: parseOptionalDate(body.prepStartDate) ?? null,
+        totalStudyHours: parseOptionalNumber(body.totalStudyHours) ?? null,
+        totalStudyDurationText: normalizeOptionalText(
+          hasOwn(body, "totalStudyDuration") ? body.totalStudyDuration : body.totalStudyDurationText
+        ) ?? null,
+        currentProgress: normalizeOptionalText(body.currentProgress) ?? null,
+        targetExam: normalizeOptionalText(body.targetExam) ?? null,
+        targetExamDate: parseOptionalDate(body.targetExamDate) ?? null,
+        interviewExperience:
+          typeof body.interviewExperience === "boolean"
+            ? body.interviewExperience
+            : null,
+        learningGoals:
+          normalizeOptionalText(
+            hasOwn(body, "studyResources") ? body.studyResources : body.learningGoals
+          ) ?? null,
+        plannedMaterials:
+          normalizeOptionalText(
+            hasOwn(body, "studyResources") ? body.studyResources : body.plannedMaterials
+          ) ?? null,
+        notes: normalizeOptionalText(body.notes) ?? null
+      }
+    });
+    reply.send({
+      profile: {
+        id: created.id,
+        prepStartDate: created.prepStartDate?.toISOString() ?? null,
+        totalStudyHours: created.totalStudyHours,
+        totalStudyDurationText: created.totalStudyDurationText,
+        currentProgress: created.currentProgress,
+        targetExam: created.targetExam,
+        targetExamDate: created.targetExamDate?.toISOString() ?? null,
+        plannedMaterials: created.plannedMaterials,
+        interviewExperience: created.interviewExperience,
+        learningGoals: created.learningGoals,
+        notes: created.notes,
+        createdAt: created.createdAt.toISOString(),
+        updatedAt: created.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "保存失败" });
+  }
+});
+
+server.get("/study-plan/history", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { limit } = request.query as { limit?: string };
+    const take = Math.min(Math.max(Number(limit) || 30, 1), 50);
+    const records = await prisma.studyPlanHistory.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take
+    });
+    reply.send({
+      history: records.map((record) => ({
+        id: record.id,
+        summary: record.summary,
+        progressUpdate: record.progressUpdate,
+        planData: record.planData,
+        planRaw: record.planRaw,
+        createdAt: record.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.delete("/study-plan/history/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少记录 ID" });
+      return;
+    }
+    const existing = await prisma.studyPlanHistory.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    await prisma.studyPlanHistory.delete({ where: { id } });
+    reply.send({ ok: true });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "删除失败" });
+  }
+});
+
+server.get("/study-plan/daily", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { date } = request.query as { date?: string };
+    const { start, end } = getDayRange(date ?? null);
+    const record = await prisma.studyPlanDailyTask.findFirst({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: start,
+          lt: end
+        }
+      }
+    });
+    if (!record) {
+      reply.send({ task: null });
+      return;
+    }
+    reply.send({
+      task: {
+        id: record.id,
+        date: record.date.toISOString(),
+        summary: record.summary,
+        adjustNote: record.adjustNote,
+        tasks: record.tasks ?? [],
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.patch("/study-plan/daily/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少记录 ID" });
+      return;
+    }
+    const body = (request.body ?? {}) as {
+      tasks?: unknown;
+      summary?: string | null;
+    };
+    const updates: {
+      tasks?: DailyTaskRecord[];
+      summary?: string | null;
+    } = {};
+    let hasUpdate = false;
+    if (body.tasks !== undefined) {
+      updates.tasks = normalizeDailyTasks(body.tasks);
+      hasUpdate = true;
+    }
+    if (body.summary !== undefined) {
+      updates.summary = normalizeOptionalText(body.summary);
+      hasUpdate = true;
+    }
+    if (!hasUpdate) {
+      reply.code(400).send({ error: "没有可更新的内容" });
+      return;
+    }
+    const existing = await prisma.studyPlanDailyTask.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    const updated = await prisma.studyPlanDailyTask.update({
+      where: { id },
+      data: updates
+    });
+    reply.send({
+      task: {
+        id: updated.id,
+        date: updated.date.toISOString(),
+        summary: updated.summary,
+        adjustNote: updated.adjustNote,
+        tasks: updated.tasks ?? [],
+        createdAt: updated.createdAt.toISOString(),
+        updatedAt: updated.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.post("/ai/study-plan/daily", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as {
+      date?: string | null;
+      adjustNote?: string | null;
+      tasks?: unknown;
+      progressUpdate?: string | null;
+      followUpAnswers?: string | null;
+      auto?: boolean;
+    };
+    const { start } = getDayRange(body.date ?? null);
+    const existing = await prisma.studyPlanDailyTask.findFirst({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: start,
+          lt: new Date(start.getTime() + 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+    if (body.auto && existing) {
+      reply.send({
+        task: {
+          id: existing.id,
+          date: existing.date.toISOString(),
+          summary: existing.summary,
+          adjustNote: existing.adjustNote,
+          tasks: existing.tasks ?? [],
+          createdAt: existing.createdAt.toISOString(),
+          updatedAt: existing.updatedAt.toISOString()
+        }
+      });
+      return;
+    }
+    const profile = await prisma.studyPlanProfile.findUnique({
+      where: { userId: session.user.id }
+    });
+    const planHistory = await prisma.studyPlanHistory.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 1
+    });
+    const latestPlan = planHistory[0] ?? null;
+    const preferences = latestPlan?.preferences as Record<string, unknown> | null;
+    const preferenceText = [
+      typeof preferences?.weeklyStudyHours === "number"
+        ? `每周 ${preferences.weeklyStudyHours} 小时`
+        : null,
+      typeof preferences?.dailyStudyHours === "number"
+        ? `每日 ${preferences.dailyStudyHours} 小时`
+        : null,
+      Array.isArray(preferences?.timeSlots) && preferences?.timeSlots.length
+        ? `时段：${ensureStringArray(preferences?.timeSlots).join("、")}`
+        : null,
+      typeof preferences?.timeNote === "string" && preferences?.timeNote.trim()
+        ? preferences?.timeNote.trim()
+        : null
+    ]
+      .filter(Boolean)
+      .join("；");
+    const planData = (latestPlan?.planData ?? null) as Record<string, unknown> | null;
+    const mockReports = await prisma.mockExamReport.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 2
+    });
+    const mockText = mockReports
+      .map((record) => {
+        const accuracy =
+          typeof record.overallAccuracy === "number"
+            ? `${Math.round(record.overallAccuracy * 1000) / 10}%`
+            : "未知";
+        return `${record.title ?? "模考"} 正确率 ${accuracy}`;
+      })
+      .join("；");
+
+    const prompt = buildDailyTaskPrompt({
+      dateLabel: getBeijingDateString(start),
+      planSummary: typeof planData?.summary === "string" ? planData.summary : null,
+      weeklyPlan: ensureStringArray(planData?.weeklyPlan),
+      dailyPlan: ensureStringArray(planData?.dailyPlan),
+      focusAreas: ensureStringArray(planData?.focusAreas),
+      materials: ensureStringArray(planData?.materials),
+      preferencesText: preferenceText || null,
+      mockReportsText: mockText || null,
+      adjustNote: normalizeOptionalText(body.adjustNote) ?? null,
+      progressUpdate: normalizeOptionalText(body.progressUpdate) ?? null,
+      followUpAnswers: normalizeOptionalText(body.followUpAnswers) ?? null,
+      existingTasks: Array.isArray(body.tasks)
+        ? normalizeDailyTasks(body.tasks).map((task) => ({
+            title: task.title ?? "",
+            durationMinutes: task.durationMinutes ?? null,
+            notes: task.notes ?? null,
+            subtasks: (task.subtasks ?? []).map((sub) => sub?.title ?? "")
+          }))
+        : null
+    });
+
+    const result = await generateAssistAnswer({
+      provider: session.user.aiProvider ?? "openai",
+      baseUrl: session.user.aiBaseUrl,
+      apiKey: session.user.aiApiKey,
+      model: session.user.aiModel,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
+      ]
+    });
+
+    const parsed = extractJsonPayload(result.answer) as
+      | {
+          summary?: string;
+          tasks?: unknown;
+        }
+      | null;
+    const tasks = normalizeDailyTasks(parsed?.tasks ?? []);
+    const summary = typeof parsed?.summary === "string" ? parsed.summary : null;
+
+    const saved = await prisma.studyPlanDailyTask.upsert({
+      where: {
+        userId_date: {
+          userId: session.user.id,
+          date: start
+        }
+      },
+      update: {
+        summary,
+        tasks,
+        adjustNote: normalizeOptionalText(body.adjustNote) ?? null,
+        planHistoryId: latestPlan?.id ?? null
+      },
+      create: {
+        userId: session.user.id,
+        date: start,
+        summary,
+        adjustNote: normalizeOptionalText(body.adjustNote) ?? null,
+        tasks,
+        planHistoryId: latestPlan?.id ?? null
+      }
+    });
+
+    reply.send({
+      task: {
+        id: saved.id,
+        date: saved.date.toISOString(),
+        summary: saved.summary,
+        adjustNote: saved.adjustNote,
+        tasks: saved.tasks ?? [],
+        createdAt: saved.createdAt.toISOString(),
+        updatedAt: saved.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "生成失败" });
+  }
+});
+
+server.post("/ai/study-plan/task-breakdown", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as { task?: string; context?: string | null };
+    const task = body.task?.trim() ?? "";
+    if (!task) {
+      reply.code(400).send({ error: "缺少任务内容" });
+      return;
+    }
+    const prompt = buildTaskBreakdownPrompt(task, normalizeOptionalText(body.context));
+    const result = await generateAssistAnswer({
+      provider: session.user.aiProvider ?? "openai",
+      baseUrl: session.user.aiBaseUrl,
+      apiKey: session.user.aiApiKey,
+      model: session.user.aiModel,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
+      ]
+    });
+    const parsed = extractJsonPayload(result.answer) as
+      | { subtasks?: string[] }
+      | null;
+    const subtasks = Array.isArray(parsed?.subtasks)
+      ? parsed?.subtasks.filter((item) => typeof item === "string")
+      : [];
+    reply.send({
+      subtasks,
+      raw: result.answer,
+      model: result.model
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "拆解失败" });
+  }
+});
+
+server.post("/ai/study-plan", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as {
+      weeklyStudyHours?: number | string | null;
+      dailyStudyHours?: number | string | null;
+      timeSlots?: string[] | null;
+      timeNote?: string | null;
+      focusGoal?: string | null;
+      progressUpdate?: string | null;
+      followUpAnswers?: string | null;
+      continueFromId?: string | null;
+    };
+    const profile = await prisma.studyPlanProfile.findUnique({
+      where: { userId: session.user.id }
+    });
+    const mockReports = await prisma.mockExamReport.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 3
+    });
+    const preferences = {
+      weeklyStudyHours: parseOptionalNumber(body.weeklyStudyHours) ?? null,
+      dailyStudyHours: parseOptionalNumber(body.dailyStudyHours) ?? null,
+      timeSlots: Array.isArray(body.timeSlots)
+        ? body.timeSlots.filter((item) => typeof item === "string")
+        : [],
+      timeNote: normalizeOptionalText(body.timeNote) ?? null,
+      focusGoal: normalizeOptionalText(body.focusGoal) ?? null
+    };
+    const progressUpdate = normalizeOptionalText(body.progressUpdate) ?? null;
+    const followUpAnswers = normalizeOptionalText(body.followUpAnswers) ?? null;
+    const continueFromId =
+      typeof body.continueFromId === "string" ? body.continueFromId.trim() : "";
+    let historyRecords = [] as Array<{
+      id: string;
+      summary: string | null;
+      planData: unknown;
+      createdAt: Date;
+    }>;
+    if (continueFromId) {
+      const record = await prisma.studyPlanHistory.findFirst({
+        where: { id: continueFromId, userId: session.user.id }
+      });
+      if (record) {
+        historyRecords = [record];
+      }
+    }
+    if (!historyRecords.length) {
+      historyRecords = await prisma.studyPlanHistory.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: 2
+      });
+    }
+    const prompt = buildStudyPlanPrompt({
+      profile: profile
+        ? {
+            prepStartDate: profile.prepStartDate,
+            totalStudyHours: profile.totalStudyHours,
+            totalStudyDurationText: profile.totalStudyDurationText,
+            currentProgress: profile.currentProgress,
+            targetExam: profile.targetExam,
+            targetExamDate: profile.targetExamDate,
+            plannedMaterials: profile.plannedMaterials,
+            interviewExperience: profile.interviewExperience,
+            learningGoals: profile.learningGoals,
+            notes: profile.notes
+          }
+        : null,
+      preferences,
+      mockReports: mockReports.map((record) => ({
+        title: record.title,
+        createdAt: record.createdAt,
+        overallAccuracy: record.overallAccuracy,
+        timeTotalMinutes: record.timeTotalMinutes,
+        metrics: normalizeMockMetrics(record.metrics)
+      })),
+      planHistory: historyRecords.map((record) => {
+        const planData = record.planData as Record<string, unknown> | null;
+        const weeklyPlan = Array.isArray(planData?.weeklyPlan)
+          ? (planData?.weeklyPlan as string[])
+          : [];
+        const dailyPlan = Array.isArray(planData?.dailyPlan)
+          ? (planData?.dailyPlan as string[])
+          : [];
+        const longTermPlan = Array.isArray(planData?.longTermPlan)
+          ? (planData?.longTermPlan as string[])
+          : [];
+        const followUpQuestions = Array.isArray(planData?.followUpQuestions)
+          ? (planData?.followUpQuestions as string[])
+          : [];
+        return {
+          date: record.createdAt,
+          summary: record.summary,
+          longTermPlan,
+          weeklyPlan,
+          dailyPlan,
+          followUpQuestions,
+          progressUpdate: record.progressUpdate,
+          followUpAnswers: record.followUpAnswers
+        };
+      }),
+      progressUpdate,
+      followUpAnswers,
+      now: new Date()
+    });
+    const result = await generateAssistAnswer({
+      provider: session.user.aiProvider ?? "openai",
+      baseUrl: session.user.aiBaseUrl,
+      apiKey: session.user.aiApiKey,
+      model: session.user.aiModel,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
+      ]
+    });
+
+    const parsed = extractJsonPayload(result.answer) as
+      | {
+          summary?: string;
+          longTermPlan?: string[];
+          weeklyPlan?: string[];
+          dailyPlan?: string[];
+          focusAreas?: string[];
+          materials?: string[];
+          milestones?: string[];
+          riskTips?: string[];
+          followUpQuestions?: string[];
+        }
+      | null;
+
+    const responsePayload = parsed
+      ? {
+          summary: typeof parsed.summary === "string" ? parsed.summary : "",
+          longTermPlan: Array.isArray(parsed.longTermPlan) ? parsed.longTermPlan : [],
+          weeklyPlan: Array.isArray(parsed.weeklyPlan) ? parsed.weeklyPlan : [],
+          dailyPlan: Array.isArray(parsed.dailyPlan) ? parsed.dailyPlan : [],
+          focusAreas: Array.isArray(parsed.focusAreas) ? parsed.focusAreas : [],
+          materials: Array.isArray(parsed.materials) ? parsed.materials : [],
+          milestones: Array.isArray(parsed.milestones) ? parsed.milestones : [],
+          riskTips: Array.isArray(parsed.riskTips) ? parsed.riskTips : [],
+          followUpQuestions: Array.isArray(parsed.followUpQuestions)
+            ? parsed.followUpQuestions
+            : [],
+          model: result.model,
+          raw: result.answer
+        }
+      : {
+          model: result.model,
+          raw: result.answer
+        };
+
+    const createdHistory = await prisma.studyPlanHistory.create({
+      data: {
+        userId: session.user.id,
+        summary:
+          parsed && typeof parsed.summary === "string" ? parsed.summary : null,
+        progressUpdate,
+        followUpAnswers,
+        profileSnapshot: profile
+          ? {
+              prepStartDate: profile.prepStartDate,
+              totalStudyHours: profile.totalStudyHours,
+              totalStudyDurationText: profile.totalStudyDurationText,
+              currentProgress: profile.currentProgress,
+              targetExam: profile.targetExam,
+              targetExamDate: profile.targetExamDate,
+              plannedMaterials: profile.plannedMaterials,
+              interviewExperience: profile.interviewExperience,
+              learningGoals: profile.learningGoals,
+              notes: profile.notes
+            }
+          : null,
+        preferences,
+        planData: parsed ?? null,
+        planRaw: result.answer
+      }
+    });
+
+    reply.send({
+      ...responsePayload,
+      historyId: createdHistory.id,
+      meta: {
+        mockReportsUsed: mockReports.length,
+        profileUpdatedAt: profile?.updatedAt.toISOString() ?? null
+      }
+    });
+  } catch (error) {
+    reply.code(400).send({
+      error: error instanceof Error ? error.message : "生成失败"
     });
   }
 });

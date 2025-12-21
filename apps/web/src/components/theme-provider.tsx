@@ -12,30 +12,37 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("eyecare");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "eyecare";
     }
-    setMounted(true);
-  }, []);
+    try {
+      const savedTheme = localStorage.getItem("theme") as Theme | null;
+      if (savedTheme === "eyecare" || savedTheme === "light" || savedTheme === "dark") {
+        return savedTheme;
+      }
+    } catch {
+      return "eyecare";
+    }
+    const attrTheme = window.document.documentElement.getAttribute("data-theme") as
+      | Theme
+      | null;
+    if (attrTheme === "eyecare" || attrTheme === "light" || attrTheme === "dark") {
+      return attrTheme;
+    }
+    return "eyecare";
+  });
 
   useEffect(() => {
-    if (!mounted) return;
     const root = window.document.documentElement;
     root.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme, mounted]);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      // Ignore storage errors (private mode, quota, etc.).
+    }
+  }, [theme]);
 
-  // Prevent hydration mismatch by rendering children only after mount, 
-  // or accept that the initial render might be different. 
-  // For a theme provider, it's often better to render (to avoid flicker) 
-  // but we might need to suppress hydration warning if we were injecting class names directly.
-  // Here we use data-attribute on root, which is safe.
-  
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}

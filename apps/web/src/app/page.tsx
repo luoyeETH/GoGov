@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DailyTasksModule from "../components/daily-tasks";
 
 export default function Home() {
   return (
@@ -12,20 +13,16 @@ export default function Home() {
             能力贯穿。
           </p>
           <div className="hero-actions">
-            <button className="primary">创建学习计划</button>
+            <Link href="/study-plan" className="primary button-link">
+              创建学习计划
+            </Link>
             <Link href="/ai/assist" className="ghost button-link">
               探索 AI 答疑
             </Link>
           </div>
         </div>
         <div className="hero-card">
-          <div className="card-title">今日 AI 学习建议</div>
-          <ul>
-            <li>速算 15 题，限时 8 分钟</li>
-            <li>言语专项：片段阅读 10 题</li>
-            <li>资料专项：增长率估算 10 题</li>
-            <li>错题复盘：近 7 天高频错误</li>
-          </ul>
+          <DailyTasksModule variant="summary" />
         </div>
       </section>
 
@@ -76,21 +73,26 @@ export default function Home() {
             <p>OCR 导入思维导图，AI 生成常识学习卡片。</p>
             <span className="module-status active">已上线</span>
           </Link>
-          <div className="module-card" data-tooltip="开发中">
+          <Link href="/mistakes" className="module-card module-card-active">
             <div className="module-title">错题整理</div>
             <p>自动归因 + 复盘路径，AI 给出纠错建议。</p>
-            <span className="module-status">开发中</span>
-          </div>
+            <span className="module-status active">已上线</span>
+          </Link>
           <Link href="/mock-report" className="module-card module-card-active">
             <div className="module-title">模考成绩解读</div>
             <p>上传成绩截图，AI 生成点评与训练计划。</p>
             <span className="module-status active">已上线</span>
           </Link>
-          <div className="module-card" data-tooltip="开发中">
+          <Link href="/study-plan" className="module-card module-card-active">
+            <div className="module-title">备考规划</div>
+            <p>整合背景信息与模考数据，生成长期/周/日计划。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
+          <Link href="/stats" className="module-card module-card-active">
             <div className="module-title">统计看板</div>
             <p>题型正确率、速度曲线、近 7 天趋势。</p>
-            <span className="module-status">开发中</span>
-          </div>
+            <span className="module-status active">已上线</span>
+          </Link>
           <div className="module-card" data-tooltip="开发中">
             <div className="module-title">专项训练计划</div>
             <p>按薄弱点自动生成训练目标与计划。</p>
@@ -106,11 +108,11 @@ export default function Home() {
             <p>按薄弱点生成 10/20/50 题套卷。</p>
             <span className="module-status">开发中</span>
           </div>
-          <div className="module-card" data-tooltip="开发中">
-            <div className="module-title">AI 学习建议</div>
-            <p>根据记录生成下一阶段训练策略。</p>
-            <span className="module-status">开发中</span>
-          </div>
+          <Link href="/daily-tasks" className="module-card module-card-active">
+            <div className="module-title">今日任务</div>
+            <p>每日自动生成学习清单，支持调整与打卡。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
           <div className="module-card" data-tooltip="开发中">
             <div className="module-title">个性化预测</div>
             <p>结合训练节奏与正确率进行趋势预测。</p>

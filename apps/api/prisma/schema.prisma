@@ -43,6 +43,9 @@ model User {
   studyTimeLogs    StudyTimeLog[]
   mockExamReports  MockExamReport[]
   knowledgeImports KnowledgeImport[]
+  studyPlanProfile StudyPlanProfile?
+  studyPlanHistories StudyPlanHistory[]
+  studyPlanDailyTasks StudyPlanDailyTask[]
 }
 
 model Session {
@@ -184,4 +187,59 @@ model KnowledgeImport {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model StudyPlanProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  prepStartDate       DateTime?
+  totalStudyHours     Float?
+  totalStudyDurationText String?
+  currentProgress     String?
+  targetExam          String?
+  targetExamDate      DateTime?
+  plannedMaterials    String?
+  interviewExperience Boolean?
+  learningGoals       String?
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model StudyPlanHistory {
+  id              String   @id @default(cuid())
+  userId          String
+  summary         String?
+  progressUpdate  String?
+  followUpAnswers String?
+  profileSnapshot Json?
+  preferences     Json?
+  planData        Json?
+  planRaw         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyTasks      StudyPlanDailyTask[]
+
+  @@index([userId, createdAt])
+}
+
+model StudyPlanDailyTask {
+  id            String   @id @default(cuid())
+  userId        String
+  planHistoryId String?
+  date          DateTime
+  summary       String?
+  adjustNote    String?
+  tasks         Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planHistory   StudyPlanHistory? @relation(fields: [planHistoryId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }

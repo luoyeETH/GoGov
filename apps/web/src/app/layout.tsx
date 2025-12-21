@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Script from "next/script";
 import NavUser from "../components/nav-user";
 import { ThemeProvider } from "../components/theme-provider";
 import ThemeToggle from "../components/theme-toggle";
@@ -26,7 +27,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-theme="eyecare">
+      <head>
+        <Script id="theme-init" strategy="beforeInteractive">{`
+          (function () {
+            try {
+              var stored = localStorage.getItem("theme");
+              var theme =
+                stored === "light" || stored === "dark" || stored === "eyecare"
+                  ? stored
+                  : "eyecare";
+              document.documentElement.setAttribute("data-theme", theme);
+            } catch (e) {
+              document.documentElement.setAttribute("data-theme", "eyecare");
+            }
+          })();
+        `}</Script>
+      </head>
       <body>
         <ThemeProvider>
           <div className="page">
@@ -43,11 +60,13 @@ export default function RootLayout({
                   <span className="brand-text">GoGov</span>
                 </Link>
                 <nav className="nav">
+                  <Link href="/knowledge">常识学习</Link>
                   <Link href="/practice/quick">速算练习</Link>
+                  <Link href="/mock-report">模考解读</Link>
+                  <Link href="/study-plan">备考规划</Link>
+                  <Link href="/daily-tasks">今日任务</Link>
                   <Link href="/stats">统计看板</Link>
                   <Link href="/mistakes">错题本</Link>
-                  <Link href="/knowledge">常识学习</Link>
-                  <Link href="/mock-report">模考解读</Link>
                   <Link href="/ai/assist">AI 答疑</Link>
                 </nav>
               </div>
