@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { Prisma } from "@prisma/client";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { getAIProviderId, listAIProviders } from "./ai";
@@ -122,6 +123,209 @@ function getDayRange(dateValue?: string | null) {
   const end = new Date(start.getTime());
   end.setDate(start.getDate() + 1);
   return { start, end };
+}
+
+type ResolvedAiConfig = {
+  provider: string;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+  model?: string | null;
+  usingFree: boolean;
+};
+
+type FreeAiConfig = {
+  provider: string;
+  baseUrl?: string | null;
+  apiKey: string;
+  model: string;
+  dailyLimit: number;
+};
+
+type FreeAiStatus = {
+  enabled: boolean;
+  usingFree: boolean;
+  dailyLimit: number | null;
+  usedToday: number | null;
+  remaining: number | null;
+};
+
+function normalizeEnvValue(value?: string | null) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.trim();
+}
+
+const freeAiConfig = loadFreeAiConfig();
+
+function loadFreeAiConfig(): FreeAiConfig | null {
+  const rawLimit = normalizeEnvValue(process.env.FREE_AI_DAILY_LIMIT);
+  const explicit = buildFreeAiConfig({
+    provider: process.env.FREE_AI_PROVIDER,
+    apiKey: process.env.FREE_AI_API_KEY,
+    model: process.env.FREE_AI_MODEL,
+    baseUrl: process.env.FREE_AI_BASE_URL,
+    limit: rawLimit
+  });
+  if (explicit) {
+    return explicit;
+  }
+  const hasFreeSignal = [
+    normalizeEnvValue(process.env.FREE_AI_PROVIDER),
+    normalizeEnvValue(process.env.FREE_AI_API_KEY),
+    normalizeEnvValue(process.env.FREE_AI_MODEL),
+    normalizeEnvValue(process.env.FREE_AI_BASE_URL)
+  ].some((value) => value.length > 0);
+  if (hasFreeSignal) {
+    return null;
+  }
+  return buildFreeAiConfig({
+    provider: process.env.AI_PROVIDER,
+    apiKey: process.env.AI_API_KEY,
+    model: process.env.AI_MODEL,
+    baseUrl: process.env.AI_BASE_URL,
+    limit: rawLimit
+  });
+}
+
+function buildFreeAiConfig(params: {
+  provider?: string | null;
+  apiKey?: string | null;
+  model?: string | null;
+  baseUrl?: string | null;
+  limit?: string | null;
+}): FreeAiConfig | null {
+  const provider = normalizeEnvValue(params.provider).toLowerCase();
+  const apiKey = normalizeEnvValue(params.apiKey);
+  const model = normalizeEnvValue(params.model);
+  const baseUrl = normalizeEnvValue(params.baseUrl);
+  if (!provider || provider === "none" || !apiKey || !model) {
+    return null;
+  }
+  const rawLimit = normalizeEnvValue(params.limit);
+  const parsedLimit = Number.parseInt(rawLimit, 10);
+  const dailyLimit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 20;
+  return {
+    provider,
+    apiKey,
+    model,
+    baseUrl: baseUrl || null,
+    dailyLimit
+  };
+}
+
+function resolveAiConfig(user: {
+  aiProvider?: string | null;
+  aiBaseUrl?: string | null;
+  aiApiKey?: string | null;
+  aiModel?: string | null;
+}): ResolvedAiConfig {
+  const apiKey = user.aiApiKey?.trim() ?? "";
+  const model = user.aiModel?.trim() ?? "";
+  const provider = (user.aiProvider?.trim() || "openai").toLowerCase();
+  if (apiKey && model) {
+    return {
+      provider,
+      baseUrl: user.aiBaseUrl ?? null,
+      apiKey: user.aiApiKey,
+      model: user.aiModel,
+      usingFree: false
+    };
+  }
+  if (freeAiConfig) {
+    return {
+      provider: freeAiConfig.provider,
+      baseUrl: freeAiConfig.baseUrl ?? null,
+      apiKey: freeAiConfig.apiKey,
+      model: freeAiConfig.model,
+      usingFree: true
+    };
+  }
+  return {
+    provider,
+    baseUrl: user.aiBaseUrl ?? null,
+    apiKey: user.aiApiKey ?? null,
+    model: user.aiModel ?? null,
+    usingFree: false
+  };
+}
+
+async function consumeFreeAiUsage(userId: string, config: ResolvedAiConfig) {
+  if (!config.usingFree || !freeAiConfig) {
+    return;
+  }
+  const limit = freeAiConfig.dailyLimit;
+  const { start } = getDayRange();
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.freeAiUsage.updateMany({
+      where: {
+        userId,
+        date: start,
+        count: { lt: limit }
+      },
+      data: { count: { increment: 1 } }
+    });
+    if (updated.count === 1) {
+      return;
+    }
+    try {
+      await tx.freeAiUsage.create({
+        data: { userId, date: start, count: 1 }
+      });
+      return;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const retry = await tx.freeAiUsage.updateMany({
+          where: {
+            userId,
+            date: start,
+            count: { lt: limit }
+          },
+          data: { count: { increment: 1 } }
+        });
+        if (retry.count === 1) {
+          return;
+        }
+      }
+      throw new Error("免费 AI 今日额度已用完，请在个人资料配置自己的 AI 继续使用。");
+    }
+  });
+}
+
+async function getFreeAiStatus(
+  userId: string,
+  config: ResolvedAiConfig
+): Promise<FreeAiStatus> {
+  if (!freeAiConfig) {
+    return {
+      enabled: false,
+      usingFree: false,
+      dailyLimit: null,
+      usedToday: null,
+      remaining: null
+    };
+  }
+  const { start } = getDayRange();
+  const record = await prisma.freeAiUsage.findUnique({
+    where: {
+      userId_date: {
+        userId,
+        date: start
+      }
+    }
+  });
+  const used = record?.count ?? 0;
+  const remaining = Math.max(freeAiConfig.dailyLimit - used, 0);
+  return {
+    enabled: true,
+    usingFree: config.usingFree,
+    dailyLimit: freeAiConfig.dailyLimit,
+    usedToday: used,
+    remaining
+  };
 }
 
 function ensureStringArray(value: unknown) {
@@ -688,6 +892,8 @@ server.get("/auth/me", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
+    const aiConfig = resolveAiConfig(session.user);
+    const freeAi = await getFreeAiStatus(session.user.id, aiConfig);
     reply.send({
       user: {
         id: session.user.id,
@@ -701,7 +907,8 @@ server.get("/auth/me", async (request, reply) => {
         aiModel: session.user.aiModel,
         aiBaseUrl: session.user.aiBaseUrl,
         aiApiKeyConfigured: Boolean(session.user.aiApiKey),
-        hasPassword: Boolean(session.user.passwordHash)
+        hasPassword: Boolean(session.user.passwordHash),
+        freeAi
       },
       sessionExpiresAt: session.expiresAt.toISOString()
     });
@@ -729,6 +936,8 @@ server.post("/profile", async (request, reply) => {
       aiApiKey?: string;
     };
     const user = await updateProfile(session.user.id, body ?? {});
+    const aiConfig = resolveAiConfig(user);
+    const freeAi = await getFreeAiStatus(user.id, aiConfig);
     reply.send({
       user: {
         id: user.id,
@@ -742,7 +951,8 @@ server.post("/profile", async (request, reply) => {
         aiModel: user.aiModel,
         aiBaseUrl: user.aiBaseUrl,
         aiApiKeyConfigured: Boolean(user.aiApiKey),
-        hasPassword: Boolean(user.passwordHash)
+        hasPassword: Boolean(user.passwordHash),
+        freeAi
       }
     });
   } catch (error) {
@@ -952,11 +1162,13 @@ server.post("/ai/assist", async (request, reply) => {
       reply.code(400).send({ error: "缺少必要提示词" });
       return;
     }
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: body.system },
         { role: "user", content: body.user }
@@ -1013,11 +1225,13 @@ server.post("/ai/knowledge", async (request, reply) => {
       context: body.context,
       title: body.title
     });
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: prompt.system },
         { role: "user", content: prompt.user }
@@ -1066,11 +1280,13 @@ server.post("/ai/knowledge/vision", async (request, reply) => {
     ]
       .filter(Boolean)
       .join("\n");
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateVisionAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: system },
         {
@@ -1698,11 +1914,13 @@ server.post("/ai/study-plan/daily", async (request, reply) => {
         : null
     });
 
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: prompt.system },
         { role: "user", content: prompt.user }
@@ -1774,11 +1992,13 @@ server.post("/ai/study-plan/task-breakdown", async (request, reply) => {
       return;
     }
     const prompt = buildTaskBreakdownPrompt(task, normalizeOptionalText(body.context));
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: prompt.system },
         { role: "user", content: prompt.user }
@@ -1914,11 +2134,13 @@ server.post("/ai/study-plan", async (request, reply) => {
       followUpAnswers,
       now: new Date()
     });
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
-      provider: session.user.aiProvider ?? "openai",
-      baseUrl: session.user.aiBaseUrl,
-      apiKey: session.user.aiApiKey,
-      model: session.user.aiModel,
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
       messages: [
         { role: "system", content: prompt.system },
         { role: "user", content: prompt.user }
@@ -2045,18 +2267,20 @@ server.post("/ai/mock/analysis", async (request, reply) => {
       note: body.note ?? null,
       history: body.history ?? null
     });
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
     let result: { answer: string; model: string | null };
     if (images.length) {
-      const provider = (session.user.aiProvider ?? "openai").toLowerCase();
+      const provider = aiConfig.provider.toLowerCase();
       if (provider !== "openai" && provider !== "custom") {
         reply.code(400).send({ error: "当前 AI 提供商暂不支持多模态识别" });
         return;
       }
       result = await generateVisionAnswer({
-        provider: session.user.aiProvider ?? "openai",
-        baseUrl: session.user.aiBaseUrl,
-        apiKey: session.user.aiApiKey,
-        model: session.user.aiModel,
+        provider: aiConfig.provider,
+        baseUrl: aiConfig.baseUrl,
+        apiKey: aiConfig.apiKey,
+        model: aiConfig.model,
         messages: [
           { role: "system", content: prompt.system },
           {
@@ -2073,10 +2297,10 @@ server.post("/ai/mock/analysis", async (request, reply) => {
       });
     } else {
       result = await generateAssistAnswer({
-        provider: session.user.aiProvider ?? "openai",
-        baseUrl: session.user.aiBaseUrl,
-        apiKey: session.user.aiApiKey,
-        model: session.user.aiModel,
+        provider: aiConfig.provider,
+        baseUrl: aiConfig.baseUrl,
+        apiKey: aiConfig.apiKey,
+        model: aiConfig.model,
         messages: [
           { role: "system", content: prompt.system },
           { role: "user", content: prompt.user }

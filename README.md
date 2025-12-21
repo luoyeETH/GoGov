@@ -23,14 +23,14 @@ npm install
 ```
 
 ### 环境变量
-在 `apps/api/.env` 中配置：
+后端在 `apps/api/.env` 中配置：
 ```env
 DATABASE_URL=postgresql://user:password@host:5432/gogov
 API_PORT=3001
 RESEND_API_KEY=your_resend_key
 ```
 
-前端可选配置：
+前端在 `apps/web/.env` 中配置（可选）：
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com
 ```
@@ -71,6 +71,8 @@ AI 能力通过用户配置启用。登录后进入「个人资料」页，设�
 - API Key
 
 未配置时，AI 功能会提示无法调用。若需要图片/多模态识别，请选择支持视觉的模型。
+
+可选：在 `apps/api/.env` 中配置系统免费通道（`FREE_AI_PROVIDER`、`FREE_AI_MODEL`、`FREE_AI_BASE_URL`、`FREE_AI_API_KEY`），未配置 AI 的用户将自动使用该通道。`FREE_AI_DAILY_LIMIT` 用于限制每个用户每天的免费调用次数（未填写时默认 20 次/日）。
 
 ## License
 本项目使用 **PolyForm Noncommercial 1.0.0**，禁止商业用途。详见 `LICENSE`。

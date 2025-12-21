@@ -20,6 +20,14 @@ const sessionKey = "gogov_session_token";
 
 type ProfileState = "idle" | "loading" | "saving" | "success" | "error";
 
+type FreeAiStatus = {
+  enabled: boolean;
+  usingFree: boolean;
+  dailyLimit: number | null;
+  usedToday: number | null;
+  remaining: number | null;
+};
+
 type ProfileData = {
   email: string | null;
   walletAddress: string | null;
@@ -32,6 +40,7 @@ type ProfileData = {
   aiBaseUrl: string | null;
   aiApiKeyConfigured: boolean;
   hasPassword: boolean;
+  freeAi: FreeAiStatus | null;
 };
 
 function maskKey(value: string) {
@@ -98,7 +107,8 @@ export default function ProfilePage() {
           aiModel: data.user.aiModel ?? null,
           aiBaseUrl: data.user.aiBaseUrl ?? null,
           aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
-          hasPassword: Boolean(data.user.hasPassword)
+          hasPassword: Boolean(data.user.hasPassword),
+          freeAi: data.user.freeAi ?? null
         };
         setProfile(loaded);
         setDraft(loaded);
@@ -185,7 +195,8 @@ export default function ProfilePage() {
         aiModel: data.user.aiModel ?? null,
         aiBaseUrl: data.user.aiBaseUrl ?? null,
         aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
-        hasPassword: Boolean(data.user.hasPassword)
+        hasPassword: Boolean(data.user.hasPassword),
+        freeAi: data.user.freeAi ?? null
       };
       setProfile(updated);
       setDraft(updated);
@@ -550,30 +561,51 @@ export default function ProfilePage() {
                     <span>备考开始</span>
                     <strong>{profile.examStartDate || "未设置"}</strong>
                   </div>
-                  <div>
-                    <span>AI 提供商</span>
-                    <strong>
-                      {profile.aiProvider
-                        ? profile.aiProvider === "openai"
-                          ? "OpenAI"
-                          : profile.aiProvider
-                        : "未设置"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>模型名称</span>
-                    <strong>{profile.aiModel || "未设置"}</strong>
-                  </div>
-                  <div>
-                    <span>节点地址</span>
-                    <strong>{profile.aiBaseUrl || "未设置"}</strong>
-                  </div>
-                  <div>
-                    <span>API Key</span>
-                    <strong>
-                      {profile.aiApiKeyConfigured ? "已配置" : "未配置"}
-                    </strong>
-                  </div>
+                  {profile.aiProvider &&
+                  profile.aiProvider !== "none" &&
+                  profile.aiModel &&
+                  profile.aiApiKeyConfigured ? (
+                    <>
+                      <div>
+                        <span>AI 提供商</span>
+                        <strong>
+                          {profile.aiProvider === "openai"
+                            ? "OpenAI"
+                            : profile.aiProvider}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>模型名称</span>
+                        <strong>{profile.aiModel}</strong>
+                      </div>
+                      <div>
+                        <span>节点地址</span>
+                        <strong>{profile.aiBaseUrl || "未设置"}</strong>
+                      </div>
+                      <div>
+                        <span>API Key</span>
+                        <strong>已配置</strong>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span>AI 代理</span>
+                        <strong>未配置</strong>
+                      </div>
+                      {profile.freeAi?.enabled ? (
+                        <div>
+                          <span>免费通道剩余</span>
+                          <strong>
+                            {typeof profile.freeAi.remaining === "number" &&
+                            typeof profile.freeAi.dailyLimit === "number"
+                              ? `${profile.freeAi.remaining}/${profile.freeAi.dailyLimit} 次`
+                              : "暂无数据"}
+                          </strong>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               )}
 
