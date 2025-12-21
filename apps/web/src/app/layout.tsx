@@ -41,6 +41,11 @@ export default function RootLayout({
               </Link>
               <nav className="nav">
                 <Link href="/practice/quick">速算练习</Link>
+                <Link href="/stats">统计看板</Link>
+                <Link href="/mistakes">错题本</Link>
+                <Link href="/knowledge">常识学习</Link>
+                <Link href="/mock-report">模考解读</Link>
+                <Link href="/ai/assist">AI 答疑</Link>
               </nav>
             </div>
             <div className="header-right">

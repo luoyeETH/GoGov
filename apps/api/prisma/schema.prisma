@@ -13,6 +13,12 @@ enum Gender {
   hidden
 }
 
+enum PracticeMode {
+  drill
+  quiz
+  challenge
+}
+
 model User {
   id              String   @id @default(cuid())
   email           String?  @unique
@@ -30,6 +36,13 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   sessions        Session[]
+  aiAssistHistory AiAssistHistory[]
+  practiceSessions PracticeSession[]
+  practiceRecords  PracticeRecord[]
+  mistakes         Mistake[]
+  studyTimeLogs    StudyTimeLog[]
+  mockExamReports  MockExamReport[]
+  knowledgeImports KnowledgeImport[]
 }
 
 model Session {
@@ -51,4 +64,124 @@ model EmailVerificationToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
+}
+
+model AiAssistHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  scenarioId String
+  question   String
+  answer     String
+  model      String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PracticeSession {
+  id              String       @id @default(cuid())
+  userId          String
+  practiceType    String
+  categoryId      String?
+  mode            PracticeMode
+  totalQuestions  Int
+  correctCount    Int
+  accuracy        Float
+  startedAt       DateTime
+  endedAt         DateTime
+  durationSeconds Int
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records         PracticeRecord[]
+  mistakes        Mistake[]
+  studyTimeLog    StudyTimeLog?
+
+  @@index([userId, createdAt])
+  @@index([userId, practiceType])
+}
+
+model PracticeRecord {
+  id           String   @id @default(cuid())
+  sessionId    String
+  userId       String
+  practiceType String
+  categoryId   String?
+  questionId   String
+  prompt       String
+  answer       String
+  userAnswer   String
+  correct      Boolean
+  choices      Json?
+  explanation  String?
+  createdAt    DateTime @default(now())
+  session      PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sessionId])
+}
+
+model Mistake {
+  id           String   @id @default(cuid())
+  sessionId    String?
+  userId       String
+  practiceType String
+  categoryId   String?
+  questionId   String
+  prompt       String
+  answer       String
+  userAnswer   String
+  explanation  String?
+  createdAt    DateTime @default(now())
+  session      PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, categoryId])
+}
+
+model StudyTimeLog {
+  id              String   @id @default(cuid())
+  userId          String
+  sessionId       String?  @unique
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session         PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+}
+
+model MockExamReport {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String?
+  note            String?
+  metrics         Json?
+  analysis        Json?
+  analysisRaw     String?
+  overallAccuracy Float?
+  timeTotalMinutes Float?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model KnowledgeImport {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  content   String
+  source    String
+  topics    Json?
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

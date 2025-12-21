@@ -9,7 +9,8 @@
     "dev:web": "npm --workspace @gogov/web run dev",
     "dev:api": "npm --workspace @gogov/api run dev",
     "dev": "concurrently -n web,api -c blue,green \"npm run dev:web\" \"npm run dev:api\"",
-    "build": "npm --workspace @gogov/web run build && npm --workspace @gogov/api run build"
+    "build": "npm --workspace @gogov/web run build && npm --workspace @gogov/api run build",
+    "postinstall": "node scripts/copy-pdfjs-assets.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

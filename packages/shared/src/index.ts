@@ -23,6 +23,7 @@ export type Question = {
 export type QuickPracticeCategory = {
   id: string;
   name: string;
+  group?: string;
   description: string;
 };
 
@@ -33,4 +34,5 @@ export type QuickPracticeQuestion = {
   answer: string;
   choices?: string[];
   explanation?: string;
+  shortcut?: string;
 };

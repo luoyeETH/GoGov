@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="main">
@@ -11,16 +13,18 @@ export default function Home() {
           </p>
           <div className="hero-actions">
             <button className="primary">创建学习计划</button>
-            <button className="ghost">探索 AI 答疑</button>
+            <Link href="/ai/assist" className="ghost button-link">
+              探索 AI 答疑
+            </Link>
           </div>
         </div>
         <div className="hero-card">
           <div className="card-title">今日 AI 学习建议</div>
           <ul>
             <li>速算 15 题，限时 8 分钟</li>
-            <li>常识主题：行政法基础</li>
+            <li>言语专项：片段阅读 10 题</li>
+            <li>资料专项：增长率估算 10 题</li>
             <li>错题复盘：近 7 天高频错误</li>
-            <li>试卷排版：模拟卷 A 版</li>
           </ul>
         </div>
       </section>
@@ -63,25 +67,25 @@ export default function Home() {
 
       <section className="module-section">
         <div className="module-header">
-          <h2>后续模块占位</h2>
-          <p>这些模块将逐步开放，先展示整体路线与能力边界。</p>
+          <h2>计划开发模块</h2>
+          <p>这些模块将逐步开放，展示整体路线与能力边界。</p>
         </div>
         <div className="module-grid">
-          <div className="module-card" data-tooltip="开发中">
+          <Link href="/knowledge" className="module-card module-card-active">
             <div className="module-title">常识学习</div>
-            <p>结构化知识卡片 + AI 解释，快速建立框架。</p>
-            <span className="module-status">开发中</span>
-          </div>
+            <p>OCR 导入思维导图，AI 生成常识学习卡片。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
           <div className="module-card" data-tooltip="开发中">
             <div className="module-title">错题整理</div>
             <p>自动归因 + 复盘路径，AI 给出纠错建议。</p>
             <span className="module-status">开发中</span>
           </div>
-          <div className="module-card" data-tooltip="开发中">
-            <div className="module-title">AI 答疑</div>
-            <p>随问随答，聚焦行测速算与资料分析。</p>
-            <span className="module-status">开发中</span>
-          </div>
+          <Link href="/mock-report" className="module-card module-card-active">
+            <div className="module-title">模考成绩解读</div>
+            <p>上传成绩截图，AI 生成点评与训练计划。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
           <div className="module-card" data-tooltip="开发中">
             <div className="module-title">统计看板</div>
             <p>题型正确率、速度曲线、近 7 天趋势。</p>
