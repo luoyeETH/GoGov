@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Script from "next/script";
 import NavUser from "../components/nav-user";
+import MainNav from "../components/main-nav";
 import { ThemeProvider } from "../components/theme-provider";
 import ThemeToggle from "../components/theme-toggle";
 import { FontSizeProvider } from "../components/font-size-provider";
@@ -34,8 +35,17 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">{`
           (function () {
             try {
+              // User Preferences Init
+              var prefs = {};
+              try {
+                var prefsString = localStorage.getItem("user_preferences");
+                if (prefsString) {
+                  prefs = JSON.parse(prefsString);
+                }
+              } catch (e) {}
+
               // Theme Init
-              var storedTheme = localStorage.getItem("theme");
+              var storedTheme = prefs.theme || localStorage.getItem("theme");
               var theme =
                 storedTheme === "light" || storedTheme === "dark" || storedTheme === "eyecare"
                   ? storedTheme
@@ -43,7 +53,7 @@ export default function RootLayout({
               document.documentElement.setAttribute("data-theme", theme);
 
               // Font Size Init
-              var storedFontSize = localStorage.getItem("fontSize");
+              var storedFontSize = prefs.fontSize || localStorage.getItem("fontSize");
               var fontSize =
                 storedFontSize === "default" || storedFontSize === "large" || storedFontSize === "extra-large"
                   ? storedFontSize
@@ -72,17 +82,7 @@ export default function RootLayout({
                     />
                     <span className="brand-text">GoGov</span>
                   </Link>
-                  <nav className="nav">
-                    <Link href="/knowledge">常识学习</Link>
-                    <Link href="/practice/quick">速算练习</Link>
-                    <Link href="/mock-report">模考解读</Link>
-                    <Link href="/study-plan">备考规划</Link>
-                    <Link href="/kline">上岸K线</Link>
-                    <Link href="/daily-tasks">今日任务</Link>
-                    <Link href="/stats">统计看板</Link>
-                    <Link href="/mistakes">错题本</Link>
-                    <Link href="/ai/assist">AI 答疑</Link>
-                  </nav>
+                  <MainNav />
                 </div>
                 <div className="header-right">
                   <FontSizeSwitcher />

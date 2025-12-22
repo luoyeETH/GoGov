@@ -11,12 +11,24 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const PREF_KEY = "user_preferences";
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") {
       return "eyecare";
     }
     try {
+      // 1. Try new JSON store
+      const prefsString = localStorage.getItem(PREF_KEY);
+      if (prefsString) {
+        const prefs = JSON.parse(prefsString);
+        if (["eyecare", "light", "dark"].includes(prefs.theme)) {
+          return prefs.theme;
+        }
+      }
+
+      // 2. Fallback to legacy key
       const savedTheme = localStorage.getItem("theme") as Theme | null;
       if (savedTheme === "eyecare" || savedTheme === "light" || savedTheme === "dark") {
         return savedTheme;
@@ -24,6 +36,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return "eyecare";
     }
+    
+    // 3. Fallback to HTML attribute (initialized by script)
     const attrTheme = window.document.documentElement.getAttribute("data-theme") as
       | Theme
       | null;
@@ -37,9 +51,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
     root.setAttribute("data-theme", theme);
     try {
-      localStorage.setItem("theme", theme);
+      // Save to shared JSON object
+      const current = localStorage.getItem(PREF_KEY);
+      const prefs = current ? JSON.parse(current) : {};
+      prefs.theme = theme;
+      localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+      
+      // Cleanup legacy
+      localStorage.removeItem("theme");
     } catch {
-      // Ignore storage errors (private mode, quota, etc.).
+      // Ignore storage errors
     }
   }, [theme]);
 

@@ -11,12 +11,24 @@ interface FontSizeContextType {
 
 const FontSizeContext = createContext<FontSizeContextType | undefined>(undefined);
 
+const PREF_KEY = "user_preferences";
+
 export function FontSizeProvider({ children }: { children: React.ReactNode }) {
   const [fontSize, setFontSize] = useState<FontSize>(() => {
     if (typeof window === "undefined") {
       return "default";
     }
     try {
+      // 1. Try new JSON store
+      const prefsString = localStorage.getItem(PREF_KEY);
+      if (prefsString) {
+        const prefs = JSON.parse(prefsString);
+        if (["default", "large", "extra-large"].includes(prefs.fontSize)) {
+          return prefs.fontSize;
+        }
+      }
+
+      // 2. Fallback to legacy key
       const savedFontSize = localStorage.getItem("fontSize") as FontSize | null;
       if (savedFontSize === "default" || savedFontSize === "large" || savedFontSize === "extra-large") {
         return savedFontSize;
@@ -24,6 +36,8 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return "default";
     }
+    
+    // 3. Fallback to HTML attribute
     const attrFontSize = window.document.documentElement.getAttribute("data-font-size") as
       | FontSize
       | null;
@@ -37,7 +51,14 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
     root.setAttribute("data-font-size", fontSize);
     try {
-      localStorage.setItem("fontSize", fontSize);
+      // Save to shared JSON object
+      const current = localStorage.getItem(PREF_KEY);
+      const prefs = current ? JSON.parse(current) : {};
+      prefs.fontSize = fontSize;
+      localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+      
+      // Cleanup legacy
+      localStorage.removeItem("fontSize");
     } catch {
       // Ignore storage errors
     }
