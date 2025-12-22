@@ -76,6 +76,7 @@ export default function LoginPage() {
   const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [loginState, setLoginState] = useState<LoginState>("idle");
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [walletMessage, setWalletMessage] = useState<string | null>(null);
@@ -91,12 +92,23 @@ export default function LoginPage() {
     setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
   }, []);
 
+  useEffect(() => {
+    if (cooldownSeconds <= 0) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setCooldownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldownSeconds]);
+
   const canSend = useMemo(
     () =>
       email.trim().length > 3 &&
       captchaAnswer.trim().length > 0 &&
-      requestState !== "sending",
-    [email, captchaAnswer, requestState]
+      requestState !== "sending" &&
+      cooldownSeconds === 0,
+    [email, captchaAnswer, requestState, cooldownSeconds]
   );
 
   const canLogin = useMemo(
@@ -210,6 +222,7 @@ export default function LoginPage() {
       setRequestState("sent");
       setRequestMessage("注册验证邮件已发送，请查收邮箱。");
       setCaptchaAnswer("");
+      setCooldownSeconds(30);
       void loadChallenge();
     } catch (err) {
       setRequestState("error");
@@ -458,7 +471,11 @@ export default function LoginPage() {
                     onClick={sendEmail}
                     disabled={!canSend}
                   >
-                    {requestState === "sending" ? "发送中..." : "发送注册邮件"}
+                    {requestState === "sending"
+                      ? "发送中..."
+                      : cooldownSeconds > 0
+                      ? `重新发送 (${cooldownSeconds}s)`
+                      : "发送注册邮件"}
                   </button>
                   {requestMessage ? (
                     <p className="form-message">{requestMessage}</p>
