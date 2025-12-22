@@ -1655,6 +1655,17 @@ button {
   gap: 12px;
 }
 
+.kline-header-info {
+  display: grid;
+  gap: 4px;
+}
+
+.kline-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .kline-card-header span {
   font-size: 12px;
   color: var(--muted);
@@ -1786,6 +1797,19 @@ button {
   color: var(--brand-dark);
 }
 
+.kline-pillar input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  text-align: center;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--brand-dark);
+  background: var(--card);
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .kline-meta {
   display: grid;
   gap: 12px;
@@ -1846,6 +1870,26 @@ button {
   font-size: 16px;
   color: var(--brand-dark);
   font-weight: 700;
+}
+
+.kline-dayun-input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 6px;
+  background: var(--glass-bg-subtle);
+  text-align: center;
+  font-weight: 700;
+  color: var(--brand-dark);
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.kline-dayun-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .kline-extra-grid {

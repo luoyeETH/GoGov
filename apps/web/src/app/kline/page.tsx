@@ -122,6 +122,18 @@ export default function KlinePage() {
   const [prepTime, setPrepTime] = useState("");
   const [interviewCount, setInterviewCount] = useState("");
   const [historyItems, setHistoryItems] = useState<KlineHistoryRecord[]>([]);
+  const [isEditingBazi, setIsEditingBazi] = useState(false);
+  const [draftPillars, setDraftPillars] = useState({
+    year: "",
+    month: "",
+    day: "",
+    hour: ""
+  });
+  const [draftDayunSequence, setDraftDayunSequence] = useState<string[]>([]);
+  const [draftDayunStartAge, setDraftDayunStartAge] = useState("");
+  const [draftDayunDirection, setDraftDayunDirection] = useState<"顺行" | "逆行">(
+    "顺行"
+  );
 
   const isLocked = Boolean(result);
 
@@ -343,11 +355,79 @@ export default function KlinePage() {
     setMessage(null);
     setAnalysisMessage(null);
     setAnalysisState("idle");
+    setIsEditingBazi(false);
   };
 
   const openHistory = (item: KlineHistoryRecord) => {
     window.sessionStorage.setItem(analysisKey, JSON.stringify(item));
     router.push("/kline/result");
+  };
+
+  const handleEditBazi = () => {
+    if (!result) {
+      return;
+    }
+    setDraftPillars({
+      year: result.year_pillar,
+      month: result.month_pillar,
+      day: result.day_pillar,
+      hour: result.hour_pillar
+    });
+    setDraftDayunSequence(result.dayun_sequence ?? []);
+    setDraftDayunStartAge(`${result.dayun_start_age ?? ""}`);
+    setDraftDayunDirection(result.dayun_direction);
+    setIsEditingBazi(true);
+  };
+
+  const handleCancelBaziEdit = () => {
+    setIsEditingBazi(false);
+  };
+
+  const handleSaveBaziEdit = () => {
+    if (!result) {
+      return;
+    }
+    const cleanedSequence = draftDayunSequence
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const parsedStartAge = Number.parseFloat(draftDayunStartAge);
+    const nextStartAge = Number.isFinite(parsedStartAge)
+      ? parsedStartAge
+      : result.dayun_start_age;
+    const nextSequence = cleanedSequence.length ? cleanedSequence : result.dayun_sequence;
+    const nextPillars = {
+      year: draftPillars.year.trim() || result.year_pillar,
+      month: draftPillars.month.trim() || result.month_pillar,
+      day: draftPillars.day.trim() || result.day_pillar,
+      hour: draftPillars.hour.trim() || result.hour_pillar
+    };
+    setResult({
+      ...result,
+      year_pillar: nextPillars.year,
+      month_pillar: nextPillars.month,
+      day_pillar: nextPillars.day,
+      hour_pillar: nextPillars.hour,
+      bazi: [nextPillars.year, nextPillars.month, nextPillars.day, nextPillars.hour],
+      dayun_sequence: nextSequence,
+      first_dayun: nextSequence[0] ?? result.first_dayun,
+      dayun_start_age: nextStartAge,
+      dayun_direction: draftDayunDirection
+    });
+    setIsEditingBazi(false);
+  };
+
+  const updateDayunItem = (index: number, value: string) => {
+    setDraftDayunSequence((prev) =>
+      prev.map((item, idx) => (idx === index ? value : item))
+    );
+  };
+
+  const addDayunItem = () => {
+    setDraftDayunSequence((prev) => [...prev, ""]);
+  };
+
+  const removeDayunItem = () => {
+    setDraftDayunSequence((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   };
 
   return (
@@ -496,27 +576,81 @@ export default function KlinePage() {
         <section className="kline-grid">
           <div className="kline-card">
             <div className="kline-card-header">
-              <h3>四柱八字</h3>
-              <span>
-                农历 {result.lunar_date} · 真太阳时 {result.true_solar_time}（经度校正）
-              </span>
+              <div className="kline-header-info">
+                <h3>四柱八字</h3>
+                <span>
+                  农历 {result.lunar_date} · 真太阳时 {result.true_solar_time}（经度校正）
+                </span>
+              </div>
+              <div className="kline-header-actions">
+                {isEditingBazi ? (
+                  <>
+                    <button type="button" className="primary" onClick={handleSaveBaziEdit}>
+                      保存
+                    </button>
+                    <button type="button" className="ghost" onClick={handleCancelBaziEdit}>
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="ghost" onClick={handleEditBazi}>
+                    编辑
+                  </button>
+                )}
+              </div>
             </div>
             <div className="kline-pillars">
               <div className="kline-pillar">
                 <span>年柱</span>
-                <strong>{result.year_pillar}</strong>
+                {isEditingBazi ? (
+                  <input
+                    value={draftPillars.year}
+                    onChange={(event) =>
+                      setDraftPillars((prev) => ({ ...prev, year: event.target.value }))
+                    }
+                  />
+                ) : (
+                  <strong>{result.year_pillar}</strong>
+                )}
               </div>
               <div className="kline-pillar">
                 <span>月柱</span>
-                <strong>{result.month_pillar}</strong>
+                {isEditingBazi ? (
+                  <input
+                    value={draftPillars.month}
+                    onChange={(event) =>
+                      setDraftPillars((prev) => ({ ...prev, month: event.target.value }))
+                    }
+                  />
+                ) : (
+                  <strong>{result.month_pillar}</strong>
+                )}
               </div>
               <div className="kline-pillar">
                 <span>日柱</span>
-                <strong>{result.day_pillar}</strong>
+                {isEditingBazi ? (
+                  <input
+                    value={draftPillars.day}
+                    onChange={(event) =>
+                      setDraftPillars((prev) => ({ ...prev, day: event.target.value }))
+                    }
+                  />
+                ) : (
+                  <strong>{result.day_pillar}</strong>
+                )}
               </div>
               <div className="kline-pillar">
                 <span>时柱</span>
-                <strong>{result.hour_pillar}</strong>
+                {isEditingBazi ? (
+                  <input
+                    value={draftPillars.hour}
+                    onChange={(event) =>
+                      setDraftPillars((prev) => ({ ...prev, hour: event.target.value }))
+                    }
+                  />
+                ) : (
+                  <strong>{result.hour_pillar}</strong>
+                )}
               </div>
             </div>
             <div className="kline-meta">
@@ -548,17 +682,67 @@ export default function KlinePage() {
               <h3>大运序列</h3>
               <span>首运 {result.first_dayun}</span>
             </div>
-            <div className="kline-dayun-list">
-              {result.dayun_sequence.map((item, index) => {
-                const startAge = result.dayun_start_age + index * 10;
-                return (
-                  <div key={`${item}-${index}`} className="kline-dayun-item">
-                    <span className="age">{startAge} 岁起</span>
-                    <strong className="pillar">{item}</strong>
+            {isEditingBazi ? (
+              <div className="kline-dayun-edit">
+                <div className="kline-extra-grid">
+                  <div className="form-row">
+                    <label htmlFor="dayun-direction">大运方向</label>
+                    <select
+                      id="dayun-direction"
+                      value={draftDayunDirection}
+                      onChange={(event) =>
+                        setDraftDayunDirection(
+                          event.target.value === "逆行" ? "逆行" : "顺行"
+                        )
+                      }
+                    >
+                      <option value="顺行">顺行</option>
+                      <option value="逆行">逆行</option>
+                    </select>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="form-row">
+                    <label htmlFor="dayun-start-age">起运年龄</label>
+                    <input
+                      id="dayun-start-age"
+                      type="number"
+                      step="0.1"
+                      value={draftDayunStartAge}
+                      onChange={(event) => setDraftDayunStartAge(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="kline-dayun-list">
+                  {draftDayunSequence.map((item, index) => (
+                    <input
+                      key={`draft-dayun-${index}`}
+                      className="kline-dayun-input"
+                      value={item}
+                      onChange={(event) => updateDayunItem(index, event.target.value)}
+                    />
+                  ))}
+                </div>
+                <div className="kline-dayun-actions">
+                  <button type="button" className="ghost" onClick={addDayunItem}>
+                    添加一项
+                  </button>
+                  <button type="button" className="ghost" onClick={removeDayunItem}>
+                    删除末项
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="kline-dayun-list">
+                {result.dayun_sequence.map((item, index) => {
+                  const startAge = result.dayun_start_age + index * 10;
+                  return (
+                    <div key={`${item}-${index}`} className="kline-dayun-item">
+                      <span className="age">{startAge} 岁起</span>
+                      <strong className="pillar">{item}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <p className="form-message">注：年龄均为虚岁。</p>
           </div>
 
