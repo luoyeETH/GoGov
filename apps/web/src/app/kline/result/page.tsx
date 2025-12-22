@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const analysisKey = "gogov_kline_analysis";
+const historyKey = "gogov_kline_history";
 
 type ChartPoint = {
   age?: number;
@@ -41,6 +42,7 @@ type KlineAnalysis = {
 };
 
 type StoredAnalysis = {
+  id?: string;
   analysis: KlineAnalysis;
   raw?: string | null;
   model?: string | null;
@@ -193,21 +195,40 @@ export default function KlineResultPage() {
 
   useEffect(() => {
     const raw = window.sessionStorage.getItem(analysisKey);
-    if (!raw) {
-      setLoadState("missing");
+    const hydrate = (value: string | null) => {
+      if (!value) {
+        return false;
+      }
+      try {
+        const parsed = JSON.parse(value) as StoredAnalysis;
+        if (!parsed || typeof parsed !== "object" || !parsed.analysis) {
+          return false;
+        }
+        setPayload(parsed);
+        setLoadState("ready");
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (hydrate(raw)) {
       return;
     }
+    const historyRaw = window.localStorage.getItem(historyKey);
     try {
-      const parsed = JSON.parse(raw) as StoredAnalysis;
-      if (!parsed || typeof parsed !== "object" || !parsed.analysis) {
-        setLoadState("missing");
-        return;
+      const parsed = historyRaw ? (JSON.parse(historyRaw) as StoredAnalysis[]) : [];
+      if (Array.isArray(parsed) && parsed.length) {
+        const latest = parsed[0];
+        if (latest && typeof latest === "object" && latest.analysis) {
+          setPayload(latest);
+          setLoadState("ready");
+          return;
+        }
       }
-      setPayload(parsed);
-      setLoadState("ready");
     } catch {
-      setLoadState("missing");
+      // ignore
     }
+    setLoadState("missing");
   }, []);
 
   const analysis = payload?.analysis;
@@ -302,7 +323,7 @@ export default function KlineResultPage() {
       <section className="kline-chart-card kline-card">
         <div className="kline-card-header">
           <h3>上岸概率 K 线</h3>
-          <span>年龄 21 → 38（虚岁）</span>
+          <span>年龄 23 → 40（虚岁）</span>
         </div>
         <KlineChart points={chartPoints} />
       </section>

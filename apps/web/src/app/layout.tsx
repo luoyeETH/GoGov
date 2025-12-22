@@ -78,7 +78,27 @@ export default function RootLayout({
             </header>
             {children}
             <footer className="footer">
-              <span>AI 驱动的公考学习与训练平台</span>
+              <div className="footer-row">
+                <span>AI 驱动的公考学习与训练平台</span>
+                <a
+                  className="footer-github"
+                  href="https://github.com/luoyeETH/GoGov"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="GoGov GitHub"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    role="img"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M12 2C6.48 2 2 6.6 2 12.28c0 4.52 2.87 8.36 6.84 9.72.5.1.68-.22.68-.5 0-.24-.01-.88-.02-1.72-2.78.62-3.37-1.38-3.37-1.38-.45-1.18-1.1-1.49-1.1-1.49-.9-.63.07-.62.07-.62 1 .07 1.52 1.05 1.52 1.05.88 1.55 2.3 1.1 2.86.84.09-.66.35-1.1.63-1.36-2.22-.26-4.56-1.15-4.56-5.1 0-1.13.39-2.06 1.03-2.79-.1-.26-.45-1.31.1-2.74 0 0 .84-.27 2.75 1.05a9.1 9.1 0 0 1 2.5-.35c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.56 1.43.21 2.48.1 2.74.64.73 1.03 1.66 1.03 2.79 0 3.96-2.34 4.83-4.58 5.09.36.32.68.94.68 1.9 0 1.38-.02 2.5-.02 2.84 0 .28.18.6.69.5A10.1 10.1 0 0 0 22 12.28C22 6.6 17.52 2 12 2z"
+                    />
+                  </svg>
+                </a>
+              </div>
               <span className="footer-note">
                 Backend built with Codex and Claude Code. Frontend UI/UX crafted by
                 Gemini. Design by humans.

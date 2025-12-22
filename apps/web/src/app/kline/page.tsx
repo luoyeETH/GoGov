@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import LoadingButton from "../../components/loading-button";
 
@@ -20,6 +20,7 @@ const apiBase = (() => {
 
 const sessionKey = "gogov_session_token";
 const analysisKey = "gogov_kline_analysis";
+const historyKey = "gogov_kline_history";
 
 const provinces = [
   "北京",
@@ -74,6 +75,31 @@ type BaziResult = {
 };
 
 type RequestState = "idle" | "loading" | "error";
+type KlineAnalysis = {
+  summary?: string;
+  landingYear?: string;
+  landingProbability?: number;
+};
+
+type KlineHistoryRecord = {
+  id: string;
+  analysis: KlineAnalysis;
+  raw?: string | null;
+  model?: string | null;
+  warning?: string | null;
+  generatedAt?: string | null;
+  input?: {
+    birthDate?: string;
+    birthTime?: string;
+    gender?: string;
+    province?: string;
+    ziHourMode?: string;
+    education?: string;
+    schoolTier?: string;
+    prepTime?: string;
+    interviewCount?: string;
+  };
+};
 
 export default function KlinePage() {
   const router = useRouter();
@@ -91,10 +117,31 @@ export default function KlinePage() {
   const [schoolTier, setSchoolTier] = useState("");
   const [prepTime, setPrepTime] = useState("");
   const [interviewCount, setInterviewCount] = useState("");
+  const [historyItems, setHistoryItems] = useState<KlineHistoryRecord[]>([]);
 
   const isLocked = Boolean(result);
 
   const stepLabel = useMemo(() => (result ? "结果就绪" : "填写资料"), [result]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const raw = window.localStorage.getItem(historyKey);
+    if (!raw) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as KlineHistoryRecord[] | KlineHistoryRecord;
+      if (Array.isArray(parsed)) {
+        setHistoryItems(parsed.filter((item) => item && typeof item.id === "string"));
+      } else if (parsed && typeof parsed === "object") {
+        setHistoryItems(typeof parsed.id === "string" ? [parsed] : []);
+      }
+    } catch {
+      setHistoryItems([]);
+    }
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -186,8 +233,10 @@ export default function KlinePage() {
         setAnalysisMessage("AI 返回格式异常，请稍后重试。");
         return;
       }
-      const payload = {
-        analysis: data.analysis,
+      const analysis = data.analysis as KlineAnalysis;
+      const payload: KlineHistoryRecord = {
+        id: `kline-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+        analysis,
         raw: data.raw ?? null,
         model: data.model ?? null,
         warning: data.warning ?? null,
@@ -205,6 +254,12 @@ export default function KlinePage() {
         }
       };
       window.sessionStorage.setItem(analysisKey, JSON.stringify(payload));
+      const nextHistory = [
+        payload,
+        ...historyItems.filter((item) => item.id !== payload.id)
+      ].slice(0, 20);
+      window.localStorage.setItem(historyKey, JSON.stringify(nextHistory));
+      setHistoryItems(nextHistory);
       setAnalysisState("idle");
       router.push("/kline/result");
     } catch (error) {
@@ -218,6 +273,11 @@ export default function KlinePage() {
     setMessage(null);
     setAnalysisMessage(null);
     setAnalysisState("idle");
+  };
+
+  const openHistory = (item: KlineHistoryRecord) => {
+    window.sessionStorage.setItem(analysisKey, JSON.stringify(item));
+    router.push("/kline/result");
   };
 
   return (
@@ -485,6 +545,36 @@ export default function KlinePage() {
                 点击开始测算后会跳转到 K 线结果页。
               </p>
             )}
+          </div>
+        </section>
+      ) : null}
+
+      {historyItems.length ? (
+        <section className="kline-card kline-history">
+          <div className="kline-card-header">
+            <h3>历史记录</h3>
+            <span>最近 {historyItems.length} 次测算</span>
+          </div>
+          <div className="kline-history-list">
+            {historyItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="kline-history-item"
+                onClick={() => openHistory(item)}
+              >
+                <div>
+                  <strong>{item.analysis?.landingYear || "未标记"}</strong>
+                  <span>
+                    {typeof item.analysis?.landingProbability === "number"
+                      ? `${Math.round(item.analysis.landingProbability * 100)}%`
+                      : "无概率"}
+                  </span>
+                </div>
+                <p>{item.analysis?.summary || "暂无摘要"}</p>
+                <em>{item.generatedAt ? item.generatedAt.slice(0, 16) : ""}</em>
+              </button>
+            ))}
           </div>
         </section>
       ) : null}

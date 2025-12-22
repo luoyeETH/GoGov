@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { IncomingHttpHeaders } from "http";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import { getAIProviderId, listAIProviders } from "./ai";
 import { prisma } from "./db";
 import { generateAssistAnswer } from "./ai/assist";
@@ -36,6 +37,10 @@ const server = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
 const port = Number(process.env.API_PORT ?? 3031);
 
 server.register(cors, { origin: true, allowedHeaders: ["Content-Type", "Authorization"] });
+server.register(rateLimit, {
+  max: 100,
+  timeWindow: "15 minutes"
+});
 
 function getTokenFromRequest(request: { headers: IncomingHttpHeaders }) {
   const raw = request.headers.authorization;
@@ -767,11 +772,34 @@ server.post("/practice/quick/session", async (request, reply) => {
   }
 });
 
-server.get("/auth/email/challenge", async () => {
+server.get(
+  "/auth/email/challenge",
+  {
+    config: { rateLimit: { max: 20, timeWindow: "15 minutes" } }
+  },
+  async () => {
   return createChallenge();
-});
+  }
+);
 
-server.post("/auth/email/register/request", async (request, reply) => {
+server.post(
+  "/auth/email/register/request",
+  {
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["email", "challengeId", "answer"],
+        additionalProperties: false,
+        properties: {
+          email: { type: "string", format: "email" },
+          challengeId: { type: "string", minLength: 6 },
+          answer: { type: "string", minLength: 1 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const body = request.body as {
       email?: string;
@@ -791,9 +819,25 @@ server.post("/auth/email/register/request", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "发送失败" });
   }
-});
+  }
+);
 
-server.post("/auth/email/register/verify", async (request, reply) => {
+server.post(
+  "/auth/email/register/verify",
+  {
+    config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["token"],
+        additionalProperties: false,
+        properties: {
+          token: { type: "string", minLength: 10 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const body = request.body as { token?: string };
     if (!body?.token) {
@@ -805,9 +849,30 @@ server.post("/auth/email/register/verify", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "验证失败" });
   }
-});
+  }
+);
 
-server.post("/auth/register/complete", async (request, reply) => {
+server.post(
+  "/auth/register/complete",
+  {
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["token", "username", "password"],
+        additionalProperties: false,
+        properties: {
+          token: { type: "string", minLength: 10 },
+          username: { type: "string", minLength: 3, maxLength: 30 },
+          password: { type: "string", minLength: 8 },
+          gender: { type: "string" },
+          age: { type: "number", minimum: 10, maximum: 80 },
+          examStartDate: { type: "string" }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const body = request.body as {
       token?: string;
@@ -833,9 +898,26 @@ server.post("/auth/register/complete", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "注册失败" });
   }
-});
+  }
+);
 
-server.post("/auth/login", async (request, reply) => {
+server.post(
+  "/auth/login",
+  {
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["email", "password"],
+        additionalProperties: false,
+        properties: {
+          email: { type: "string", format: "email" },
+          password: { type: "string", minLength: 8 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const body = request.body as { email?: string; password?: string };
     if (!body?.email || !body?.password) {
@@ -850,9 +932,25 @@ server.post("/auth/login", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "登录失败" });
   }
-});
+  }
+);
 
-server.get("/auth/wallet/challenge", async (request, reply) => {
+server.get(
+  "/auth/wallet/challenge",
+  {
+    config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+    schema: {
+      querystring: {
+        type: "object",
+        required: ["address"],
+        additionalProperties: false,
+        properties: {
+          address: { type: "string", minLength: 10 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const { address } = request.query as { address?: string };
     if (!address) {
@@ -864,9 +962,27 @@ server.get("/auth/wallet/challenge", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "生成挑战失败" });
   }
-});
+  }
+);
 
-server.post("/auth/wallet/verify", async (request, reply) => {
+server.post(
+  "/auth/wallet/verify",
+  {
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["address", "challengeId", "signature"],
+        additionalProperties: false,
+        properties: {
+          address: { type: "string", minLength: 10 },
+          challengeId: { type: "string", minLength: 6 },
+          signature: { type: "string", minLength: 10 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const body = request.body as {
       address?: string;
@@ -887,7 +1003,8 @@ server.post("/auth/wallet/verify", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "钱包登录失败" });
   }
-});
+  }
+);
 
 server.get("/auth/me", async (request, reply) => {
   try {
@@ -992,7 +1109,12 @@ server.post("/ai/models", async (request, reply) => {
   }
 });
 
-server.post("/auth/logout", async (request, reply) => {
+server.post(
+  "/auth/logout",
+  {
+    config: { rateLimit: { max: 20, timeWindow: "15 minutes" } }
+  },
+  async (request, reply) => {
   try {
     const token = getTokenFromRequest(request);
     if (!token) {
@@ -1004,9 +1126,26 @@ server.post("/auth/logout", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "退出失败" });
   }
-});
+  }
+);
 
-server.post("/auth/password/update", async (request, reply) => {
+server.post(
+  "/auth/password/update",
+  {
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    schema: {
+      body: {
+        type: "object",
+        required: ["oldPassword", "newPassword"],
+        additionalProperties: false,
+        properties: {
+          oldPassword: { type: "string", minLength: 8 },
+          newPassword: { type: "string", minLength: 8 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
   try {
     const token = getTokenFromRequest(request);
     if (!token) {
@@ -1028,7 +1167,8 @@ server.post("/auth/password/update", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "修改失败" });
   }
-});
+  }
+);
 
 server.get("/stats/overview", async (request, reply) => {
   try {
@@ -1452,7 +1592,7 @@ server.post("/ai/kline", async (request, reply) => {
       (item, index) => typeof item.age !== "number" || item.age !== 21 + index
     );
     if (ageMismatch) {
-      warningParts.push("age 未按 21-38 顺序递增");
+      warningParts.push("age 未按 23-40 顺序递增");
     }
     reply.send({
       analysis: parsed,
