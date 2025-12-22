@@ -352,7 +352,7 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
           }
           return {
             ...item,
-            subtasks: subtasks.map((sub) => ({
+            subtasks: subtasks.map((sub: string) => ({
               id: `sub-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
               title: sub,
               done: false

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { Prisma } from "@prisma/client";
+import type { IncomingHttpHeaders } from "http";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { getAIProviderId, listAIProviders } from "./ai";
@@ -36,8 +37,9 @@ const port = Number(process.env.API_PORT ?? 3031);
 
 server.register(cors, { origin: true, allowedHeaders: ["Content-Type", "Authorization"] });
 
-function getTokenFromRequest(request: { headers: Record<string, string | undefined> }) {
-  const header = request.headers.authorization ?? "";
+function getTokenFromRequest(request: { headers: IncomingHttpHeaders }) {
+  const raw = request.headers.authorization;
+  const header = Array.isArray(raw) ? raw[0] ?? "" : raw ?? "";
   if (header.startsWith("Bearer ")) {
     return header.slice(7).trim();
   }
@@ -629,6 +631,7 @@ server.post("/practice/quick/session", async (request, reply) => {
       reply.code(400).send({ error: "练习模式不合法" });
       return;
     }
+    const mode = body.mode as "drill" | "quiz";
     const questions = Array.isArray(body.questions) ? body.questions : [];
     if (!questions.length) {
       reply.code(400).send({ error: "缺少题目记录" });
@@ -700,7 +703,7 @@ server.post("/practice/quick/session", async (request, reply) => {
           userId: session.user.id,
           practiceType: "quick",
           categoryId: body.categoryId,
-          mode: body.mode,
+          mode,
           totalQuestions,
           correctCount,
           accuracy,
@@ -721,7 +724,7 @@ server.post("/practice/quick/session", async (request, reply) => {
           answer: record.answer,
           userAnswer: record.userAnswer,
           correct: record.correct,
-          choices: record.choices,
+          choices: record.choices ?? undefined,
           explanation: record.explanation
         }))
       });
@@ -1060,6 +1063,7 @@ server.get("/stats/overview", async (request, reply) => {
         prisma.practiceSession.groupBy({
           by: ["categoryId"],
           where: { userId: session.user.id, categoryId: { not: null } },
+          orderBy: { categoryId: "asc" },
           _sum: { totalQuestions: true, correctCount: true },
           _count: { _all: true }
         })
@@ -1080,12 +1084,16 @@ server.get("/stats/overview", async (request, reply) => {
       },
       mistakes: mistakeCount,
       byCategory: byCategory.map((item) => {
-        const questions = item._sum.totalQuestions ?? 0;
-        const correct = item._sum.correctCount ?? 0;
+        const questions = item._sum?.totalQuestions ?? 0;
+        const correct = item._sum?.correctCount ?? 0;
         const categoryAccuracy = questions ? correct / questions : 0;
+        const sessions =
+          item._count && typeof item._count === "object"
+            ? item._count._all ?? 0
+            : 0;
         return {
           categoryId: item.categoryId,
-          sessions: item._count._all,
+          sessions,
           questions,
           correct,
           accuracy: Math.round(categoryAccuracy * 1000) / 10
@@ -2202,6 +2210,8 @@ server.post("/ai/study-plan", async (request, reply) => {
       summary: string | null;
       planData: unknown;
       createdAt: Date;
+      progressUpdate: string | null;
+      followUpAnswers: string | null;
     }>;
     if (continueFromId) {
       const record = await prisma.studyPlanHistory.findFirst({
@@ -2338,9 +2348,9 @@ server.post("/ai/study-plan", async (request, reply) => {
               learningGoals: profile.learningGoals,
               notes: profile.notes
             }
-          : null,
+          : undefined,
         preferences,
-        planData: parsed ?? null,
+        planData: parsed ?? undefined,
         planRaw: result.answer
       }
     });
@@ -2397,11 +2407,35 @@ server.post("/ai/mock/analysis", async (request, reply) => {
       reply.code(400).send({ error: "请上传图片或填写手动数据" });
       return;
     }
+    const metricsInput = normalizeMockMetrics(body.metrics ?? []).map((metric) => ({
+      subject: metric.subject,
+      correct: metric.correct ?? undefined,
+      total: metric.total ?? undefined,
+      timeMinutes: metric.timeMinutes ?? undefined
+    }));
+    const historyInput = Array.isArray(body.history)
+      ? body.history.map((item) => {
+          const metrics = normalizeMockMetrics(item.metrics ?? []).map((metric) => ({
+            subject: metric.subject,
+            correct: metric.correct ?? undefined,
+            total: metric.total ?? undefined,
+            timeMinutes: metric.timeMinutes ?? undefined
+          }));
+          return {
+            date: typeof item.date === "string" ? item.date : undefined,
+            overallAccuracy:
+              typeof item.overallAccuracy === "number" ? item.overallAccuracy : undefined,
+            timeTotalMinutes:
+              typeof item.timeTotalMinutes === "number" ? item.timeTotalMinutes : undefined,
+            metrics: metrics.length ? metrics : undefined
+          };
+        })
+      : [];
     const prompt = buildMockAnalysisPrompt({
       title: body.title,
-      metrics: body.metrics ?? null,
+      metrics: metricsInput,
       note: body.note ?? null,
-      history: body.history ?? null
+      history: historyInput
     });
     const aiConfig = resolveAiConfig(session.user);
     await consumeFreeAiUsage(session.user.id, aiConfig);
@@ -2491,6 +2525,7 @@ server.post("/ai/mock/analysis", async (request, reply) => {
           model: result.model,
           raw: result.answer
         };
+    const analysisPayload = parsed ? (parsed as Prisma.InputJsonValue) : undefined;
 
     const created = await prisma.mockExamReport.create({
       data: {
@@ -2498,7 +2533,7 @@ server.post("/ai/mock/analysis", async (request, reply) => {
         title: body.title?.trim() || null,
         note: body.note?.trim() || null,
         metrics,
-        analysis: parsed ?? null,
+        analysis: analysisPayload,
         analysisRaw: result.answer,
         overallAccuracy:
           typeof responsePayload.overall?.accuracy === "number"

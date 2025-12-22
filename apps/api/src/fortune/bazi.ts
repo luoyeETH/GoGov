@@ -251,7 +251,7 @@ function buildLunarDate(date: Date) {
     day: "numeric",
     timeZone: "Asia/Shanghai"
   });
-  const parts = formatter.formatToParts(date);
+  const parts = formatter.formatToParts(date) as Array<{ type: string; value: string }>;
   const relatedYear = parts.find((part) => part.type === "relatedYear")?.value ?? "";
   const monthName = parts.find((part) => part.type === "month")?.value ?? "";
   const dayValue = parts.find((part) => part.type === "day")?.value ?? "";

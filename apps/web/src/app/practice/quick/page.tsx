@@ -209,7 +209,8 @@ export default function QuickPracticePage() {
           errorPercent: null,
           userValue: null,
           answerValue: null,
-          isAnalysis: false
+          isAnalysis: false,
+          isPercentConversion: false
         };
     return {
       question,
@@ -571,7 +572,7 @@ export default function QuickPracticePage() {
   };
 
   const restartLabel = status === "loading" ? "生成中..." : "重新生成";
-  const isSetup = status === "idle";
+  const isSetup = status === "idle" || status === "loading";
 
   return (
     <main className="main practice-page">
@@ -724,7 +725,6 @@ export default function QuickPracticePage() {
               className="primary"
               type="button"
               onClick={startSession}
-              disabled={status === "loading"}
             >
               {restartLabel}
             </button>

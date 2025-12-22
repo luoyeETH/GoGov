@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const apiBase = (() => {
@@ -25,7 +25,7 @@ type SubmitState = "idle" | "submitting" | "success" | "error";
 
 type GenderOption = "male" | "female" | "hidden";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -241,5 +241,25 @@ export default function RegisterPage() {
         </aside>
       </section>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="main register-page">
+          <section className="login-hero">
+            <div>
+              <p className="eyebrow">邮箱注册</p>
+              <h1>完善资料，创建 GoGov 账号</h1>
+              <p className="lead">验证中，请稍候...</p>
+            </div>
+          </section>
+        </main>
+      }
+    >
+      <RegisterPageContent />
+    </Suspense>
   );
 }
