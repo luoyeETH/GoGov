@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import LoadingButton from "../../components/loading-button";
 
@@ -20,7 +20,6 @@ const apiBase = (() => {
 
 const sessionKey = "gogov_session_token";
 const analysisKey = "gogov_kline_analysis";
-const historyKey = "gogov_kline_history";
 
 const provinces = [
   "北京",
@@ -87,7 +86,7 @@ type KlineHistoryRecord = {
   raw?: string | null;
   model?: string | null;
   warning?: string | null;
-  generatedAt?: string | null;
+  createdAt?: string | null;
   input?: {
     birthDate?: string;
     birthTime?: string;
@@ -113,6 +112,11 @@ export default function KlinePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [analysisState, setAnalysisState] = useState<RequestState>("idle");
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [countdownPhase, setCountdownPhase] = useState<"initial" | "extend" | null>(
+    null
+  );
+  const countdownTimerRef = useRef<number | null>(null);
   const [education, setEducation] = useState("");
   const [schoolTier, setSchoolTier] = useState("");
   const [prepTime, setPrepTime] = useState("");
@@ -122,25 +126,80 @@ export default function KlinePage() {
   const isLocked = Boolean(result);
 
   const stepLabel = useMemo(() => (result ? "结果就绪" : "填写资料"), [result]);
+  const countdownText = useMemo(() => {
+    const minutes = Math.floor(countdownSeconds / 60);
+    const seconds = countdownSeconds % 60;
+    return `${`${minutes}`.padStart(2, "0")}:${`${seconds}`.padStart(2, "0")}`;
+  }, [countdownSeconds]);
+
+  useEffect(() => {
+    if (analysisState !== "loading") {
+      if (countdownTimerRef.current) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      setCountdownSeconds(0);
+      setCountdownPhase(null);
+      return;
+    }
+    setCountdownSeconds(120);
+    setCountdownPhase("initial");
+    if (countdownTimerRef.current) {
+      window.clearInterval(countdownTimerRef.current);
+    }
+    countdownTimerRef.current = window.setInterval(() => {
+      setCountdownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => {
+      if (countdownTimerRef.current) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [analysisState]);
+
+  useEffect(() => {
+    if (analysisState === "loading" && countdownSeconds === 0) {
+      setCountdownSeconds(30);
+      setCountdownPhase("extend");
+    }
+  }, [analysisState, countdownSeconds]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    const raw = window.localStorage.getItem(historyKey);
-    if (!raw) {
+    const token = window.localStorage.getItem(sessionKey);
+    if (!token) {
       return;
     }
-    try {
-      const parsed = JSON.parse(raw) as KlineHistoryRecord[] | KlineHistoryRecord;
-      if (Array.isArray(parsed)) {
-        setHistoryItems(parsed.filter((item) => item && typeof item.id === "string"));
-      } else if (parsed && typeof parsed === "object") {
-        setHistoryItems(typeof parsed.id === "string" ? [parsed] : []);
+    const loadHistory = async () => {
+      try {
+        const response = await fetch(`${apiBase}/kline/history?limit=20`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = (await response.json()) as {
+          reports?: KlineHistoryRecord[];
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(data.error || "历史记录获取失败");
+        }
+        const items = Array.isArray(data.reports) ? data.reports : [];
+        setHistoryItems(
+          items.filter(
+            (item) =>
+              item &&
+              typeof item.id === "string" &&
+              item.analysis &&
+              typeof item.analysis === "object"
+          )
+        );
+      } catch {
+        setHistoryItems([]);
       }
-    } catch {
-      setHistoryItems([]);
-    }
+    };
+    loadHistory();
   }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -219,6 +278,8 @@ export default function KlinePage() {
         })
       });
       const data = (await response.json()) as {
+        id?: string;
+        createdAt?: string;
         analysis?: unknown;
         raw?: string;
         model?: string;
@@ -235,12 +296,12 @@ export default function KlinePage() {
       }
       const analysis = data.analysis as KlineAnalysis;
       const payload: KlineHistoryRecord = {
-        id: `kline-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+        id: data.id || `kline-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
         analysis,
         raw: data.raw ?? null,
         model: data.model ?? null,
         warning: data.warning ?? null,
-        generatedAt: new Date().toISOString(),
+        createdAt: data.createdAt ?? new Date().toISOString(),
         input: {
           birthDate,
           birthTime,
@@ -258,7 +319,6 @@ export default function KlinePage() {
         payload,
         ...historyItems.filter((item) => item.id !== payload.id)
       ].slice(0, 20);
-      window.localStorage.setItem(historyKey, JSON.stringify(nextHistory));
       setHistoryItems(nextHistory);
       setAnalysisState("idle");
       router.push("/kline/result");
@@ -282,6 +342,15 @@ export default function KlinePage() {
 
   return (
     <main className="main kline-page">
+      {analysisState === "loading" ? (
+        <div className="kline-countdown">
+          <div className="kline-countdown-label">
+            {countdownPhase === "extend" ? "仍在生成，继续等待" : "AI 正在生成报告"}
+          </div>
+          <div className="kline-countdown-time">{countdownText}</div>
+          <div className="kline-countdown-note">预计等待 {countdownText}</div>
+        </div>
+      ) : null}
       <section className="kline-hero">
         <div className="kline-intro">
           <p className="eyebrow">UPSHORE KLINE</p>
@@ -480,8 +549,7 @@ export default function KlinePage() {
                 );
               })}
             </div>
-            <p className="form-message">
-            </p>
+            <p className="form-message">注：年龄均为虚岁。</p>
           </div>
 
           <div className="kline-card">
@@ -572,7 +640,7 @@ export default function KlinePage() {
                   </span>
                 </div>
                 <p>{item.analysis?.summary || "暂无摘要"}</p>
-                <em>{item.generatedAt ? item.generatedAt.slice(0, 16) : ""}</em>
+                <em>{item.createdAt ? item.createdAt.slice(0, 16) : ""}</em>
               </button>
             ))}
           </div>

@@ -36,10 +36,15 @@ import {
 const server = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
 const port = Number(process.env.API_PORT ?? 3031);
 
-server.register(cors, { origin: true, allowedHeaders: ["Content-Type", "Authorization"] });
+server.register(cors, {
+  origin: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+});
 server.register(rateLimit, {
   max: 100,
-  timeWindow: "15 minutes"
+  timeWindow: "15 minutes",
+  allowList: (request) => request.method === "OPTIONS"
 });
 
 function getTokenFromRequest(request: { headers: IncomingHttpHeaders }) {
@@ -50,6 +55,20 @@ function getTokenFromRequest(request: { headers: IncomingHttpHeaders }) {
   }
   return "";
 }
+
+type KlineReportRecord = {
+  id: string;
+  bazi: unknown | null;
+  input: unknown | null;
+  analysis: unknown | null;
+  raw: string | null;
+  model: string | null;
+  warning: string | null;
+  createdAt: Date;
+};
+
+// Prisma client needs regeneration after schema changes; keep delegate typed loosely here.
+const klineReportDelegate = (prisma as unknown as { klineReport: any }).klineReport;
 
 function extractJsonPayload(value: string) {
   const trimmed = value.trim();
@@ -163,6 +182,26 @@ function normalizeEnvValue(value?: string | null) {
     return "";
   }
   return value.trim();
+}
+
+function extractKlineSummary(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      summary: "",
+      landingYear: "",
+      landingProbability: null as number | null
+    };
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    summary: typeof record.summary === "string" ? record.summary : "",
+    landingYear: typeof record.landingYear === "string" ? record.landingYear : "",
+    landingProbability:
+      typeof record.landingProbability === "number" &&
+      Number.isFinite(record.landingProbability)
+        ? record.landingProbability
+        : null
+  };
 }
 
 const freeAiConfig = loadFreeAiConfig();
@@ -1538,7 +1577,7 @@ server.post("/ai/kline", async (request, reply) => {
       reply.code(400).send({ error: "缺少有效的八字信息" });
       return;
     }
-    const prompt = buildKlinePrompt({
+    const normalized = {
       bazi: body.bazi.filter((item) => typeof item === "string"),
       dayunSequence: Array.isArray(body.dayunSequence)
         ? body.dayunSequence.filter((item) => typeof item === "string")
@@ -1556,7 +1595,8 @@ server.post("/ai/kline", async (request, reply) => {
       schoolTier: normalizeOptionalText(body.schoolTier) ?? null,
       prepTime: normalizeOptionalText(body.prepTime) ?? null,
       interviewCount: normalizeOptionalText(body.interviewCount) ?? null
-    });
+    };
+    const prompt = buildKlinePrompt(normalized);
     const aiConfig = resolveAiConfig(session.user);
     await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
@@ -1589,20 +1629,90 @@ server.post("/ai/kline", async (request, reply) => {
       warningParts.push("chartPoints 长度不为 18");
     }
     const ageMismatch = chartPoints.some(
-      (item, index) => typeof item.age !== "number" || item.age !== 21 + index
+      (item, index) => typeof item.age !== "number" || item.age !== 23 + index
     );
     if (ageMismatch) {
       warningParts.push("age 未按 23-40 顺序递增");
     }
+    const warning = warningParts.length ? warningParts.join("；") : null;
+    const inputPayload = {
+      birthDate: normalized.birthDate,
+      birthTime: normalized.birthTime,
+      gender: normalized.gender,
+      province: normalized.province,
+      ziHourMode: normalized.ziHourMode,
+      education: normalized.education,
+      schoolTier: normalized.schoolTier,
+      prepTime: normalized.prepTime,
+      interviewCount: normalized.interviewCount,
+      dayunSequence: normalized.dayunSequence,
+      dayunStartAge: normalized.dayunStartAge,
+      dayunDirection: normalized.dayunDirection,
+      trueSolarTime: normalized.trueSolarTime,
+      lunarDate: normalized.lunarDate
+    };
+    const report = (await klineReportDelegate.create({
+      data: {
+        userId: session.user.id,
+        bazi: normalized.bazi,
+        input: inputPayload,
+        analysis: parsed,
+        raw: result.answer,
+        model: result.model,
+        warning
+      }
+    })) as KlineReportRecord;
     reply.send({
+      id: report.id,
+      createdAt: report.createdAt.toISOString(),
       analysis: parsed,
       raw: result.answer,
       model: result.model,
-      warning: warningParts.length ? warningParts.join("；") : null
+      warning
     });
   } catch (error) {
     reply.code(400).send({
       error: error instanceof Error ? error.message : "测算失败"
+    });
+  }
+});
+
+server.get("/kline/history", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { limit } = request.query as { limit?: string };
+    const take = Math.min(Math.max(Number(limit) || 20, 1), 50);
+    const reports = (await klineReportDelegate.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take
+    })) as KlineReportRecord[];
+    reply.send({
+      reports: reports.map((report) => {
+        const summary = extractKlineSummary(report.analysis);
+        return {
+          id: report.id,
+          bazi: report.bazi ?? null,
+          input: report.input ?? null,
+          analysis: report.analysis ?? null,
+          raw: report.raw ?? null,
+          model: report.model ?? null,
+          warning: report.warning ?? null,
+          createdAt: report.createdAt.toISOString(),
+          summary: summary.summary,
+          landingYear: summary.landingYear,
+          landingProbability: summary.landingProbability
+        };
+      })
+    });
+  } catch (error) {
+    reply.code(400).send({
+      error: error instanceof Error ? error.message : "获取历史记录失败"
     });
   }
 });

@@ -3,8 +3,22 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+const apiBase = (() => {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  if (typeof window === "undefined") {
+    return "http://localhost:3031";
+  }
+  const hostname = window.location.hostname.replace(/^www\./, "");
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://localhost:3031";
+  }
+  return `https://api.${hostname}`;
+})();
+
+const sessionKey = "gogov_session_token";
 const analysisKey = "gogov_kline_analysis";
-const historyKey = "gogov_kline_history";
 
 type ChartPoint = {
   age?: number;
@@ -47,7 +61,7 @@ type StoredAnalysis = {
   raw?: string | null;
   model?: string | null;
   warning?: string | null;
-  generatedAt?: string | null;
+  createdAt?: string | null;
 };
 
 function formatProbability(value?: number) {
@@ -57,39 +71,32 @@ function formatProbability(value?: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function getNumericValues(points: ChartPoint[]) {
-  const values: number[] = [];
-  points.forEach((point) => {
-    [point.open, point.close, point.high, point.low, point.score].forEach((item) => {
-      if (typeof item === "number" && Number.isFinite(item)) {
-        values.push(item);
-      }
-    });
-  });
-  return values;
-}
-
 function KlineChart({ points }: { points: ChartPoint[] }) {
   const { candles, gridLines, labels, width, height } = useMemo(() => {
-    const size = { width: 860, height: 320 };
+    const size = { width: 860, height: 280 };
     const padding = { top: 24, bottom: 42, left: 40, right: 24 };
-    const values = getNumericValues(points);
-    const minValue = values.length ? Math.min(...values) : 0;
-    const maxValue = values.length ? Math.max(...values) : 100;
-    const range = maxValue - minValue || 1;
+    const minValue = 0;
+    const maxValue = 100;
+    const range = maxValue - minValue;
     const usableHeight = size.height - padding.top - padding.bottom;
     const usableWidth = size.width - padding.left - padding.right;
     const xStep = usableWidth / Math.max(points.length, 1);
+    const clampValue = (value: number) =>
+      Math.min(maxValue, Math.max(minValue, value));
     const toY = (value: number) =>
-      padding.top + ((maxValue - value) / range) * usableHeight;
+      padding.top + ((maxValue - clampValue(value)) / range) * usableHeight;
 
     const candles = points.map((point, index) => {
       const center = padding.left + xStep * (index + 0.5);
       const bodyWidth = Math.min(18, xStep * 0.6);
-      const openValue = typeof point.open === "number" ? point.open : point.score ?? minValue;
-      const closeValue = typeof point.close === "number" ? point.close : point.score ?? minValue;
-      const highValue = typeof point.high === "number" ? point.high : Math.max(openValue, closeValue);
-      const lowValue = typeof point.low === "number" ? point.low : Math.min(openValue, closeValue);
+      const openValue =
+        typeof point.open === "number" ? point.open : point.score ?? minValue;
+      const closeValue =
+        typeof point.close === "number" ? point.close : point.score ?? minValue;
+      const highValue =
+        typeof point.high === "number" ? point.high : Math.max(openValue, closeValue);
+      const lowValue =
+        typeof point.low === "number" ? point.low : Math.min(openValue, closeValue);
       const openY = toY(openValue);
       const closeY = toY(closeValue);
       const highY = toY(highValue);
@@ -117,7 +124,7 @@ function KlineChart({ points }: { points: ChartPoint[] }) {
 
     const labels = points.map((point, index) => ({
       x: padding.left + xStep * (index + 0.5),
-      value: point.age ?? 21 + index
+      value: point.age ?? 23 + index
     }));
 
     return { candles, gridLines, labels, ...size };
@@ -214,21 +221,36 @@ export default function KlineResultPage() {
     if (hydrate(raw)) {
       return;
     }
-    const historyRaw = window.localStorage.getItem(historyKey);
-    try {
-      const parsed = historyRaw ? (JSON.parse(historyRaw) as StoredAnalysis[]) : [];
-      if (Array.isArray(parsed) && parsed.length) {
-        const latest = parsed[0];
-        if (latest && typeof latest === "object" && latest.analysis) {
+    const token = window.localStorage.getItem(sessionKey);
+    if (!token) {
+      setLoadState("missing");
+      return;
+    }
+    const loadLatest = async () => {
+      try {
+        const response = await fetch(`${apiBase}/kline/history?limit=1`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = (await response.json()) as {
+          reports?: StoredAnalysis[];
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(data.error || "获取记录失败");
+        }
+        const latest = Array.isArray(data.reports) ? data.reports[0] : null;
+        if (latest && latest.analysis) {
           setPayload(latest);
+          window.sessionStorage.setItem(analysisKey, JSON.stringify(latest));
           setLoadState("ready");
           return;
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-    setLoadState("missing");
+      setLoadState("missing");
+    };
+    loadLatest();
   }, []);
 
   const analysis = payload?.analysis;
@@ -368,7 +390,7 @@ export default function KlineResultPage() {
           {chartPoints.map((point, index) => (
             <div key={`${point.age ?? index}-${index}`} className="kline-point-card">
               <div className="kline-point-header">
-                <strong>{point.age ?? 21 + index} 岁</strong>
+                <strong>{point.age ?? 23 + index} 岁</strong>
                 <span>{point.year ?? "-"}</span>
               </div>
               <div className="kline-point-meta">

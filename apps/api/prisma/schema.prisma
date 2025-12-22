@@ -47,6 +47,7 @@ model User {
   studyPlanProfile StudyPlanProfile?
   studyPlanHistories StudyPlanHistory[]
   studyPlanDailyTasks StudyPlanDailyTask[]
+  klineReports      KlineReport[]
 }
 
 model Session {
@@ -256,4 +257,19 @@ model StudyPlanDailyTask {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+model KlineReport {
+  id        String   @id @default(cuid())
+  userId    String
+  bazi      Json?
+  input     Json?
+  analysis  Json?
+  raw       String?
+  model     String?
+  warning   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

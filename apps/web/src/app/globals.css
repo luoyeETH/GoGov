@@ -1813,7 +1813,7 @@ button {
 .kline-dayun-list {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
 }
 
 .kline-dayun-item {
@@ -1821,8 +1821,8 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 8px;
-  border-radius: 12px;
+  padding: 8px 6px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--glass-bg-subtle);
   transition: all 0.2s ease;
@@ -1843,7 +1843,7 @@ button {
 }
 
 .kline-dayun-item .pillar {
-  font-size: 18px;
+  font-size: 16px;
   color: var(--brand-dark);
   font-weight: 700;
 }
@@ -1852,6 +1852,40 @@ button {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.kline-countdown {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 60;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 22px;
+  min-width: 260px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 6px;
+}
+
+.kline-countdown-label {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.kline-countdown-time {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  letter-spacing: 1px;
+}
+
+.kline-countdown-note {
+  font-size: 12px;
+  color: var(--text-alpha-60);
 }
 
 .kline-result-page {
