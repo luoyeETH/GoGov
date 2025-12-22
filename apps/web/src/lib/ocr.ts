@@ -191,11 +191,7 @@ export async function extractTextFromFile(
   if (isPdfFile(file)) {
     options?.onProgress?.({ status: "读取 PDF 文档", progress: 0 });
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf");
-    const workerSrc = new URL(
-      "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
-      import.meta.url
-    ).toString();
-    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
     const data = new Uint8Array(await file.arrayBuffer());
     const cMapUrl = "/pdfjs/cmaps/";

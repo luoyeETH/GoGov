@@ -20,11 +20,14 @@ async function run() {
 
   const cmapsSource = path.join(pdfjsRoot, "cmaps");
   const fontsSource = path.join(pdfjsRoot, "standard_fonts");
+  const workerSource = path.join(pdfjsRoot, "legacy", "build", "pdf.worker.min.mjs");
   const cmapsDest = path.join(destRoot, "cmaps");
   const fontsDest = path.join(destRoot, "standard_fonts");
+  const workerDest = path.join(destRoot, "pdf.worker.min.mjs");
 
   await copyDir(cmapsSource, cmapsDest);
   await copyDir(fontsSource, fontsDest);
+  await fs.copyFile(workerSource, workerDest);
   console.log("pdfjs 资源已复制到 apps/web/public/pdfjs/");
 }
 
