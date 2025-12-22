@@ -10,6 +10,8 @@ import { buildMockAnalysisPrompt } from "./ai/mock";
 import { buildKnowledgePrompt } from "./ai/knowledge";
 import { buildStudyPlanPrompt } from "./ai/study-plan";
 import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
+import { buildKlinePrompt } from "./ai/kline";
+import { calculateBazi } from "./fortune/bazi";
 import { createChallenge } from "./auth/challenge";
 import {
   completeRegistration,
@@ -1319,6 +1321,140 @@ server.post("/ai/knowledge/vision", async (request, reply) => {
   } catch (error) {
     reply.code(400).send({
       error: error instanceof Error ? error.message : "识别失败"
+    });
+  }
+});
+
+server.post("/kline/bazi", async (request, reply) => {
+  try {
+    const body = request.body as {
+      birthDate?: string;
+      birthTime?: string;
+      gender?: "male" | "female";
+      province?: string;
+      longitude?: number;
+      ziHourMode?: "late" | "early";
+    };
+    if (!body?.birthDate) {
+      reply.code(400).send({ error: "请填写出生日期" });
+      return;
+    }
+    const longitude =
+      typeof body.longitude === "number"
+        ? body.longitude
+        : typeof body.longitude === "string"
+        ? Number.parseFloat(body.longitude)
+        : undefined;
+    const result = calculateBazi({
+      birthDate: body.birthDate,
+      birthTime: body.birthTime,
+      gender: body.gender,
+      province: body.province,
+      longitude,
+      ziHourMode: body.ziHourMode
+    });
+    reply.send(result);
+  } catch (error) {
+    reply.code(400).send({
+      error: error instanceof Error ? error.message : "八字计算失败"
+    });
+  }
+});
+
+server.post("/ai/kline", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as {
+      bazi?: string[];
+      dayunSequence?: string[];
+      dayunStartAge?: number | string | null;
+      dayunDirection?: string | null;
+      trueSolarTime?: string | null;
+      lunarDate?: string | null;
+      birthDate?: string | null;
+      birthTime?: string | null;
+      gender?: string | null;
+      province?: string | null;
+      ziHourMode?: string | null;
+      education?: string | null;
+      schoolTier?: string | null;
+      prepTime?: string | null;
+      interviewCount?: string | null;
+    };
+    if (!Array.isArray(body.bazi) || body.bazi.length !== 4) {
+      reply.code(400).send({ error: "缺少有效的八字信息" });
+      return;
+    }
+    const prompt = buildKlinePrompt({
+      bazi: body.bazi.filter((item) => typeof item === "string"),
+      dayunSequence: Array.isArray(body.dayunSequence)
+        ? body.dayunSequence.filter((item) => typeof item === "string")
+        : [],
+      dayunStartAge: parseOptionalNumber(body.dayunStartAge) ?? null,
+      dayunDirection: normalizeOptionalText(body.dayunDirection) ?? null,
+      trueSolarTime: normalizeOptionalText(body.trueSolarTime) ?? null,
+      lunarDate: normalizeOptionalText(body.lunarDate) ?? null,
+      birthDate: normalizeOptionalText(body.birthDate) ?? null,
+      birthTime: normalizeOptionalText(body.birthTime) ?? null,
+      gender: normalizeOptionalText(body.gender) ?? null,
+      province: normalizeOptionalText(body.province) ?? null,
+      ziHourMode: normalizeOptionalText(body.ziHourMode) ?? null,
+      education: normalizeOptionalText(body.education) ?? null,
+      schoolTier: normalizeOptionalText(body.schoolTier) ?? null,
+      prepTime: normalizeOptionalText(body.prepTime) ?? null,
+      interviewCount: normalizeOptionalText(body.interviewCount) ?? null
+    });
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
+    const result = await generateAssistAnswer({
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
+      ]
+    });
+    const parsed = extractJsonPayload(result.answer) as
+      | {
+          chartPoints?: Array<{ age?: number }>;
+        }
+      | null;
+    if (!parsed || Array.isArray(parsed)) {
+      reply.send({
+        analysis: null,
+        raw: result.answer,
+        model: result.model,
+        warning: "AI 返回格式异常"
+      });
+      return;
+    }
+    const warningParts: string[] = [];
+    const chartPoints = Array.isArray(parsed.chartPoints) ? parsed.chartPoints : [];
+    if (chartPoints.length !== 18) {
+      warningParts.push("chartPoints 长度不为 18");
+    }
+    const ageMismatch = chartPoints.some(
+      (item, index) => typeof item.age !== "number" || item.age !== 21 + index
+    );
+    if (ageMismatch) {
+      warningParts.push("age 未按 21-38 顺序递增");
+    }
+    reply.send({
+      analysis: parsed,
+      raw: result.answer,
+      model: result.model,
+      warning: warningParts.length ? warningParts.join("；") : null
+    });
+  } catch (error) {
+    reply.code(400).send({
+      error: error instanceof Error ? error.message : "测算失败"
     });
   }
 });

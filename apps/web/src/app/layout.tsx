@@ -64,6 +64,7 @@ export default function RootLayout({
                   <Link href="/practice/quick">速算练习</Link>
                   <Link href="/mock-report">模考解读</Link>
                   <Link href="/study-plan">备考规划</Link>
+                  <Link href="/kline">上岸K线</Link>
                   <Link href="/daily-tasks">今日任务</Link>
                   <Link href="/stats">统计看板</Link>
                   <Link href="/mistakes">错题本</Link>
