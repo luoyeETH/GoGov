@@ -87,6 +87,9 @@ type KlineHistoryRecord = {
   model?: string | null;
   warning?: string | null;
   createdAt?: string | null;
+  summary?: string | null;
+  landingYear?: string | null;
+  landingProbability?: number | null;
   input?: {
     birthDate?: string;
     birthTime?: string;
@@ -208,15 +211,26 @@ export default function KlinePage() {
           throw new Error(data.error || "历史记录获取失败");
         }
         const items = Array.isArray(data.reports) ? data.reports : [];
-        setHistoryItems(
-          items.filter(
-            (item) =>
-              item &&
-              typeof item.id === "string" &&
-              item.analysis &&
-              typeof item.analysis === "object"
-          )
-        );
+        const normalized = items
+          .filter((item) => item && typeof item.id === "string")
+          .map((item) => {
+            const analysis =
+              item.analysis && typeof item.analysis === "object" ? item.analysis : {};
+            if (item.summary && !analysis.summary) {
+              analysis.summary = item.summary;
+            }
+            if (item.landingYear && !analysis.landingYear) {
+              analysis.landingYear = item.landingYear;
+            }
+            if (
+              typeof item.landingProbability === "number" &&
+              typeof analysis.landingProbability !== "number"
+            ) {
+              analysis.landingProbability = item.landingProbability;
+            }
+            return { ...item, analysis };
+          });
+        setHistoryItems(normalized);
       } catch {
         setHistoryItems([]);
       }
