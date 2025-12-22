@@ -159,11 +159,21 @@ export default function KlinePage() {
   }, [analysisState]);
 
   useEffect(() => {
-    if (analysisState === "loading" && countdownSeconds === 0) {
+    if (analysisState !== "loading") {
+      return;
+    }
+    if (countdownSeconds > 0) {
+      return;
+    }
+    if (countdownPhase === "initial") {
       setCountdownSeconds(30);
       setCountdownPhase("extend");
+      return;
     }
-  }, [analysisState, countdownSeconds]);
+    if (countdownPhase === "extend") {
+      setCountdownSeconds(30);
+    }
+  }, [analysisState, countdownSeconds, countdownPhase]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
