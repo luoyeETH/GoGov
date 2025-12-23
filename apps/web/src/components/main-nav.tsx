@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 const NAV_ITEMS = [
   { href: "/knowledge", label: "常识学习" },
@@ -18,31 +18,32 @@ const NAV_ITEMS = [
 
 export default function MainNav() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [showDesktopNav, setShowDesktopNav] = useState(false);
 
   useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+    if (typeof window === "undefined") {
+      return;
     }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
+    const media = window.matchMedia("(min-width: 901px)");
+    const update = () => setShowDesktopNav(media.matches);
+    update();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
 
   return (
     <>
       {/* Desktop Nav */}
-      <nav className="nav desktop-nav">
+      <nav
+        className="nav desktop-nav"
+        aria-hidden={!showDesktopNav}
+        style={{ display: showDesktopNav ? "flex" : "none" }}
+      >
         {NAV_ITEMS.map((item) => (
           <Link 
             key={item.href} 
@@ -54,41 +55,6 @@ export default function MainNav() {
         ))}
       </nav>
 
-      {/* Mobile Nav Trigger */}
-      <div className="mobile-nav-container" ref={containerRef}>
-        <button 
-            type="button" 
-            className={`mobile-nav-trigger ${isOpen ? "active" : ""}`}
-            onClick={() => setIsOpen(!isOpen)}
-        >
-            <span style={{ fontWeight: 600 }}>功能导航</span>
-            <svg 
-              width="12" 
-              height="12" 
-              viewBox="0 0 12 12" 
-              className={`dropdown-arrow ${isOpen ? "open" : ""}`}
-              style={{ transition: "transform 0.2s" }}
-            >
-              <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            </svg>
-        </button>
-        
-        {isOpen && (
-            <div className="mobile-nav-menu">
-                {NAV_ITEMS.map((item) => (
-                  <Link 
-                    key={item.href} 
-                    href={item.href} 
-                    className={`mobile-nav-item ${pathname === item.href ? "active" : ""}`}
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-            </div>
-        )}
-      </div>
-
       <style jsx>{`
         .nav-link {
             color: inherit;
@@ -99,69 +65,10 @@ export default function MainNav() {
         .nav-link:hover, .nav-link.active {
             color: var(--brand-dark);
         }
-        
-        .mobile-nav-container {
-            display: none;
-            position: relative;
-        }
-        .mobile-nav-trigger {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            padding: 8px 16px;
-            border-radius: 999px;
-            font-size: var(--text-sm);
-            color: var(--text);
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .mobile-nav-trigger:hover, .mobile-nav-trigger.active {
-            border-color: var(--brand);
-            color: var(--brand-dark);
-        }
-        .dropdown-arrow.open {
-            transform: rotate(180deg);
-        }
-        .mobile-nav-menu {
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 0;
-            background: var(--card);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow);
-            padding: 6px;
-            min-width: 160px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .mobile-nav-item {
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: var(--text-sm);
-            color: var(--text);
-            text-decoration: none;
-            transition: background 0.15s ease;
-        }
-        .mobile-nav-item:hover, .mobile-nav-item.active {
-            background: var(--bg-accent);
-            color: var(--brand-dark);
-            font-weight: 600;
-        }
 
         @media (max-width: 900px) {
             .desktop-nav {
                 display: none;
-            }
-            .mobile-nav-container {
-                display: block;
             }
         }
       `}</style>

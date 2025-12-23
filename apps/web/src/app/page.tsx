@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DailyTasksModule from "../components/daily-tasks";
+import MobileMoreNav from "../components/mobile-more-nav";
 
 export default function Home() {
   return (
@@ -19,6 +20,10 @@ export default function Home() {
             <Link href="/ai/assist" className="ghost button-link">
               探索 AI 答疑
             </Link>
+            <Link href="/kline" className="ghost button-link">
+              上岸 K 线
+            </Link>
+            <MobileMoreNav />
           </div>
         </div>
         <div className="hero-card">

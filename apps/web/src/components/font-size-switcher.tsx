@@ -52,7 +52,7 @@ export default function FontSizeSwitcher() {
   const currentFontSize = mounted ? fontSize : "default";
 
   return (
-    <div className="nav-user-dropdown" onClick={(e) => e.stopPropagation()} style={{ marginRight: 16 }}>
+    <div className="nav-user-dropdown nav-control" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         className="nav-user-trigger"
@@ -88,16 +88,6 @@ export default function FontSizeSwitcher() {
           ))}
         </div>
       )}
-      <style jsx>{`
-        .font-size-label-text {
-          font-size: 13px;
-        }
-        @media (max-width: 600px) {
-          .font-size-label-text {
-            display: none;
-          }
-        }
-      `}</style>
     </div>
   );
 }

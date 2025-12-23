@@ -50,7 +50,7 @@ export default function ThemeToggle() {
   };
 
   return (
-    <div className="nav-user-dropdown" onClick={(e) => e.stopPropagation()} style={{ marginRight: 16 }}>
+    <div className="nav-user-dropdown nav-control" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         className="nav-user-trigger"
@@ -82,16 +82,6 @@ export default function ThemeToggle() {
           ))}
         </div>
       )}
-      <style jsx>{`
-        .theme-label-text {
-          font-size: 13px;
-        }
-        @media (max-width: 600px) {
-          .theme-label-text {
-            display: none;
-          }
-        }
-      `}</style>
     </div>
   );
 }

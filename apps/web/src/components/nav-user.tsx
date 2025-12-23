@@ -114,10 +114,18 @@ export default function NavUser() {
       <div className="nav-user-dropdown" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className="nav-user-trigger"
+          className="nav-user-trigger nav-user-profile"
           onClick={() => setIsOpen(!isOpen)}
         >
-          {label}
+          <span className="nav-user-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path
+                d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.3 0-8 1.65-8 4.95V21h16v-2.05C20 15.65 15.3 14 12 14Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span className="nav-user-label">{label}</span>
           <span className="dropdown-arrow">▼</span>
         </button>
         {isOpen && (

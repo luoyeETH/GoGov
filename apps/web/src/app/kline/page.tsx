@@ -20,6 +20,7 @@ const apiBase = (() => {
 
 const sessionKey = "gogov_session_token";
 const analysisKey = "gogov_kline_analysis";
+const klineDraftKey = "gogov_kline_step1";
 
 const provinces = [
   "北京",
@@ -194,6 +195,35 @@ export default function KlinePage() {
     if (typeof window === "undefined") {
       return;
     }
+    try {
+      const saved = window.localStorage.getItem(klineDraftKey);
+      if (saved) {
+        const data = JSON.parse(saved) as {
+          birthDate?: string;
+          birthTime?: string;
+          gender?: "male" | "female";
+          province?: string;
+          ziHourMode?: "late" | "early";
+        };
+        if (typeof data.birthDate === "string") {
+          setBirthDate(data.birthDate);
+        }
+        if (typeof data.birthTime === "string") {
+          setBirthTime(data.birthTime);
+        }
+        if (data.gender === "male" || data.gender === "female") {
+          setGender(data.gender);
+        }
+        if (typeof data.province === "string" && provinces.includes(data.province)) {
+          setProvince(data.province);
+        }
+        if (data.ziHourMode === "late" || data.ziHourMode === "early") {
+          setZiHourMode(data.ziHourMode);
+        }
+      }
+    } catch {
+      // Ignore storage errors.
+    }
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
       return;
@@ -250,6 +280,20 @@ export default function KlinePage() {
     if (!birthTime) {
       setMessage("请填写出生时间。");
       return;
+    }
+    try {
+      window.localStorage.setItem(
+        klineDraftKey,
+        JSON.stringify({
+          birthDate,
+          birthTime,
+          gender,
+          province,
+          ziHourMode
+        })
+      );
+    } catch {
+      // Ignore storage errors.
     }
     setState("loading");
     try {
