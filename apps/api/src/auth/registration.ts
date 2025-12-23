@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { prisma } from "../db";
 import { verifyChallenge } from "./challenge";
@@ -68,12 +69,9 @@ export async function requestEmailVerification(params: {
   });
 
   const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3030";
-  const from =
-    process.env.EMAIL_FROM ?? "GoGov <no-reply@noreply.519312.xyz>";
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    throw new Error("RESEND_API_KEY 未配置");
-  }
+  const from = process.env.EMAIL_FROM ?? "GoGov <no-reply@noreply.519312.xyz>";
+  const gmailUser = process.env.GMAIL_USER?.trim() ?? "";
+  const gmailPass = (process.env.GMAIL_APP_PASSWORD ?? "").replace(/\s+/g, "");
 
   const link = `${baseUrl}/register?token=${token}`;
   const html = `
@@ -91,13 +89,33 @@ export async function requestEmailVerification(params: {
     </div>
   `;
 
-  const resend = new Resend(resendKey);
-  await resend.emails.send({
-    from,
-    to: [email],
-    subject: "GoGov 注册验证",
-    html
-  });
+  if (gmailUser && gmailPass) {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: gmailUser,
+        pass: gmailPass
+      }
+    });
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM ?? `GoGov <${gmailUser}>`,
+      to: email,
+      subject: "GoGov 注册验证",
+      html
+    });
+  } else {
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!resendKey) {
+      throw new Error("邮件发送未配置");
+    }
+    const resend = new Resend(resendKey);
+    await resend.emails.send({
+      from,
+      to: [email],
+      subject: "GoGov 注册验证",
+      html
+    });
+  }
 
   return { status: "sent" };
 }

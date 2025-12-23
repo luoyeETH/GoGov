@@ -32,6 +32,9 @@ npm install
 DATABASE_URL=postgresql://user:password@host:5432/gogov
 API_PORT=3001
 RESEND_API_KEY=your_resend_key
+GMAIL_USER=your_gmail_address
+GMAIL_APP_PASSWORD=your_gmail_app_password
+EMAIL_FROM="GoGov <your_gmail_address>"
 ```
 
 前端在 `apps/web/.env` 中配置（可选）：

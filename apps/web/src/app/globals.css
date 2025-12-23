@@ -856,6 +856,27 @@ button {
   gap: 14px;
 }
 
+.email-suggest {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.email-suggest-item {
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: var(--glass-bg-subtle);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.email-suggest-item:hover {
+  border-color: rgba(181, 82, 43, 0.4);
+  background: rgba(181, 82, 43, 0.08);
+}
+
 .register-panel {
   max-width: 520px;
 }

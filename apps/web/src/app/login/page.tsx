@@ -40,6 +40,8 @@ const sessionKey = "gogov_session_token";
 
 type LoginMethod = "wallet" | "email";
 
+const EMAIL_DOMAINS = ["qq.com", "163.com", "gmail.com", "outlook.com", "126.com"];
+
 const HEADINGS = [
   "继续你的速算与资料分析训练",
   "保持专注，每天进步一点点",
@@ -67,6 +69,25 @@ const QUOTES = [
   "“博学之，审问之，慎思之，明辨之，笃行之。”",
   "“在这个浮躁的时代，只有自律者才能出众。”",
 ];
+
+function buildEmailSuggestions(value: string) {
+  const raw = value.trim();
+  if (!raw) {
+    return [];
+  }
+  const atIndex = raw.indexOf("@");
+  const local = atIndex >= 0 ? raw.slice(0, atIndex) : raw;
+  if (!local) {
+    return [];
+  }
+  const domainPart =
+    atIndex >= 0 ? raw.slice(atIndex + 1).toLowerCase() : "";
+  const candidates = EMAIL_DOMAINS.filter((domain) =>
+    domainPart ? domain.startsWith(domainPart) : true
+  );
+  const suggestions = candidates.map((domain) => `${local}@${domain}`);
+  return suggestions.filter((item) => item !== raw).slice(0, 6);
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -118,6 +139,13 @@ export default function LoginPage() {
       loginState !== "loading",
     [email, password, loginState]
   );
+
+  const emailSuggestions = useMemo(() => {
+    if (emailMode !== "register") {
+      return [];
+    }
+    return buildEmailSuggestions(email);
+  }, [email, emailMode]);
 
   const loadChallenge = async () => {
     try {
@@ -447,6 +475,20 @@ export default function LoginPage() {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                     />
+                    {emailSuggestions.length ? (
+                      <div className="email-suggest">
+                        {emailSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            className="email-suggest-item"
+                            onClick={() => setEmail(suggestion)}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="form-row captcha-row">
                     <label htmlFor="captcha">验证码</label>
