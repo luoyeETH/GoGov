@@ -281,9 +281,9 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
       if (!res.ok) {
         throw new Error((data as { error?: string }).error ?? "获取失败");
       }
-      const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+      const tasks: unknown[] = Array.isArray(data.tasks) ? data.tasks : [];
       const nextRecords = tasks
-        .map((item) => {
+        .map((item: unknown) => {
           if (!item || typeof item !== "object") {
             return null;
           }
@@ -294,7 +294,9 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
             tasks: ensureTasks(record.tasks)
           } as DailyTaskHistoryRecord;
         })
-        .filter((item) => item && item.id && item.date);
+        .filter(
+          (item): item is DailyTaskHistoryRecord => Boolean(item && item.id && item.date)
+        );
       setHistoryRecords(nextRecords);
     } catch (err) {
       setHistoryMessage(err instanceof Error ? err.message : "获取失败");
