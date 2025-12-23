@@ -483,11 +483,13 @@ body {
   --typing-width: 12;
   --typing-steps: 12;
   --typing-delay: 0s;
-  display: inline-block;
+  display: block;
   position: relative;
   overflow: hidden;
   white-space: nowrap;
-  width: 0;
+  width: 100%;
+  max-width: 100%;
+  clip-path: inset(0 100% 0 0);
   animation: heroTyping 1.1s steps(var(--typing-steps)) forwards;
   animation-delay: var(--typing-delay);
 }
@@ -503,10 +505,10 @@ body {
 
 @keyframes heroTyping {
   from {
-    width: 0;
+    clip-path: inset(0 100% 0 0);
   }
   to {
-    width: calc(var(--typing-width) * 1em);
+    clip-path: inset(0 0 0 0);
   }
 }
 
@@ -543,6 +545,7 @@ body {
   .hero-typing {
     width: auto;
     animation: none;
+    clip-path: none;
   }
 }
 
@@ -4045,6 +4048,19 @@ body.pomodoro-immersive .page {
 
   .hero {
     gap: 20px;
+  }
+
+  .hero-text {
+    min-height: 300px;
+  }
+
+  .hero-title {
+    line-height: 1.15;
+    min-height: calc(1.15em * 4);
+  }
+
+  .lead {
+    min-height: calc(1.6em * 2);
   }
 
   .hero-card {
