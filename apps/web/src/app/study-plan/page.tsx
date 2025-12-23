@@ -398,7 +398,13 @@ export default function StudyPlanPage() {
     ]
       .map((item) => item.trim())
       .filter(Boolean);
-    setStudyResources(resourceParts.join("\n"));
+    const uniqueResources: string[] = [];
+    for (const part of resourceParts) {
+      if (!uniqueResources.includes(part)) {
+        uniqueResources.push(part);
+      }
+    }
+    setStudyResources(uniqueResources.join("\n"));
     setInterviewExperience(
       typeof profile.interviewExperience === "boolean"
         ? profile.interviewExperience

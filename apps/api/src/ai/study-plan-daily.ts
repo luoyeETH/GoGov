@@ -18,6 +18,7 @@ type DailyTaskContext = {
   progressUpdate?: string | null;
   followUpAnswers?: string | null;
   existingTasks?: DailyTask[] | null;
+  recentCompletedTasks?: string[] | null;
 };
 
 function formatTask(task: DailyTask) {
@@ -38,7 +39,8 @@ export function buildDailyTaskPrompt(context: DailyTaskContext) {
     "你是公考备考执行助手，负责生成当天可执行的学习任务清单。",
     "任务清单需要细化到具体课程/题目/资料，并给出可执行时长。",
     "输出必须是 JSON，禁止添加额外说明文字。",
-    "如有调整需求，需要基于已有任务进行修订。"
+    "如有调整需求，需要基于已有任务进行修订。",
+    "避免重复安排近期已完成的任务（尤其是模考复盘），除非明确需要继续推进并说明原因。"
   ].join("\n");
 
   const userLines = [
@@ -56,6 +58,9 @@ export function buildDailyTaskPrompt(context: DailyTaskContext) {
     context.existingTasks?.length
       ? `已有任务：${context.existingTasks.map(formatTask).join("；")}`
       : "已有任务：无",
+    context.recentCompletedTasks?.length
+      ? `近期已完成任务：${context.recentCompletedTasks.join("；")}`
+      : "近期已完成任务：无",
     [
       "请输出以下 JSON 结构：",
       "{",

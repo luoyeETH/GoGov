@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DailyTasksModule from "../components/daily-tasks";
+import HomeHeroCopy from "../components/home-hero-copy";
 import MobileMoreNav from "../components/mobile-more-nav";
 
 export default function Home() {
@@ -7,12 +8,7 @@ export default function Home() {
     <main className="main">
       <section className="hero">
         <div className="hero-text">
-          <p className="eyebrow">AI 优先 · 公考全流程辅助</p>
-          <h1>让学习、练习与答疑进入同一条智能流水线</h1>
-          <p className="lead">
-            从常识积累到速算训练，从错题复盘到试卷排版，全部由可插拔 AI
-            能力贯穿。
-          </p>
+          <HomeHeroCopy />
           <div className="hero-actions">
             <Link href="/study-plan" className="primary button-link">
               创建学习计划

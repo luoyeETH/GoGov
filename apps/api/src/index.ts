@@ -153,6 +153,28 @@ function getDayRange(dateValue?: string | null) {
   return { start, end };
 }
 
+function getWeekRange(dateValue?: string | null) {
+  const base = parseOptionalDate(dateValue ?? null) ?? new Date();
+  const baseLabel = getBeijingDateString(base);
+  const [year, month, day] = baseLabel.split("-").map((value) => Number(value));
+  const baseUtc = Date.UTC(year, month - 1, day);
+  const dayOfWeek = new Date(baseUtc).getUTCDay();
+  const diff = (dayOfWeek + 6) % 7;
+  const weekStartUtc = baseUtc - diff * 24 * 60 * 60 * 1000;
+  const weekStartLabel = new Date(weekStartUtc).toISOString().slice(0, 10);
+  const start = parseOptionalDate(weekStartLabel) ?? new Date(weekStartUtc);
+  const labels: string[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    labels.push(
+      new Date(weekStartUtc + i * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10)
+    );
+  }
+  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { start, end, labels };
+}
+
 type ResolvedAiConfig = {
   provider: string;
   baseUrl?: string | null;
@@ -461,6 +483,64 @@ function normalizeDailyTasks(value: unknown) {
     });
   }
   return tasks;
+}
+
+function isDailyTaskCompleted(task: DailyTaskRecord) {
+  if (task.done) {
+    return true;
+  }
+  const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+  return subtasks.length > 0 && subtasks.every((sub) => Boolean(sub?.done));
+}
+
+function formatWeeklyTaskLine(task: DailyTaskRecord) {
+  const status = task.done ? "[x]" : "[ ]";
+  const title = task.title ?? "";
+  const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+  if (!subtasks.length) {
+    return `${status} ${title}`;
+  }
+  const doneCount = subtasks.filter((sub) => Boolean(sub?.done)).length;
+  return `${status} ${title}（子任务 ${doneCount}/${subtasks.length}）`;
+}
+
+function formatRecentCompletedTasks(
+  records: Array<{ date: Date; tasks: unknown }>
+) {
+  const lines: string[] = [];
+  for (const record of records) {
+    const dateLabel = getBeijingDateString(record.date);
+    const tasks = normalizeDailyTasks(record.tasks);
+    const completed = tasks.filter(isDailyTaskCompleted);
+    if (!completed.length) {
+      continue;
+    }
+    const titles = completed.map((task) => task.title ?? "").filter(Boolean);
+    const preview = titles.slice(0, 5);
+    const suffix = titles.length > preview.length ? ` 等${titles.length}项` : "";
+    lines.push(`${dateLabel}：${preview.join("；")}${suffix}`);
+  }
+  return lines;
+}
+
+function formatWeeklyTaskProgress(
+  records: Array<{ date: Date; tasks: unknown }>,
+  labels: string[]
+) {
+  const byDate = new Map<string, DailyTaskRecord[]>();
+  for (const record of records) {
+    const label = getBeijingDateString(record.date);
+    byDate.set(label, normalizeDailyTasks(record.tasks));
+  }
+  return labels.map((label) => {
+    const tasks = byDate.get(label) ?? [];
+    if (!tasks.length) {
+      return `${label}：无任务记录`;
+    }
+    const done = tasks.filter((task) => task.done).length;
+    const taskText = tasks.map(formatWeeklyTaskLine).join("；");
+    return `${label}：完成 ${done}/${tasks.length}。${taskText}`;
+  });
 }
 
 function normalizeOptionalText(value: unknown) {
@@ -2141,6 +2221,47 @@ server.get("/study-plan/daily", async (request, reply) => {
   }
 });
 
+server.get("/study-plan/daily/history", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const query = request.query as { date?: string; days?: string | number };
+    const rawDays = parseOptionalNumber(query.days);
+    const days =
+      typeof rawDays === "number" && Number.isFinite(rawDays)
+        ? Math.min(Math.max(Math.floor(rawDays), 1), 30)
+        : 7;
+    const { start: baseStart } = getDayRange(query.date ?? null);
+    const start = new Date(baseStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+    const end = new Date(baseStart.getTime() + 24 * 60 * 60 * 1000);
+    const records = await prisma.studyPlanDailyTask.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: start,
+          lt: end
+        }
+      },
+      orderBy: { date: "desc" }
+    });
+    reply.send({
+      tasks: records.map((record) => ({
+        id: record.id,
+        date: record.date.toISOString(),
+        tasks: record.tasks ?? []
+      }))
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
 server.patch("/study-plan/daily/:id", async (request, reply) => {
   try {
     const token = getTokenFromRequest(request);
@@ -2285,6 +2406,27 @@ server.post("/ai/study-plan/daily", async (request, reply) => {
         return `${record.title ?? "模考"} 正确率 ${accuracy}`;
       })
       .join("；");
+    const recentWindowDays = 7;
+    const recentStart = new Date(
+      start.getTime() - recentWindowDays * 24 * 60 * 60 * 1000
+    );
+    const recentRecords = await prisma.studyPlanDailyTask.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: recentStart,
+          lt: start
+        }
+      },
+      orderBy: { date: "desc" },
+      take: recentWindowDays
+    });
+    const recentCompletedTasks = formatRecentCompletedTasks(
+      recentRecords.map((record) => ({
+        date: record.date,
+        tasks: record.tasks
+      }))
+    );
 
     const prompt = buildDailyTaskPrompt({
       dateLabel: getBeijingDateString(start),
@@ -2305,7 +2447,8 @@ server.post("/ai/study-plan/daily", async (request, reply) => {
             notes: task.notes ?? null,
             subtasks: (task.subtasks ?? []).map((sub) => sub?.title ?? "")
           }))
-        : null
+        : null,
+      recentCompletedTasks: recentCompletedTasks.length ? recentCompletedTasks : null
     });
 
     const aiConfig = resolveAiConfig(session.user);
@@ -2478,6 +2621,24 @@ server.post("/ai/study-plan", async (request, reply) => {
         take: 2
       });
     }
+    const { start: weekStart, end: weekEnd, labels: weekLabels } = getWeekRange();
+    const weeklyDailyTasks = await prisma.studyPlanDailyTask.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: weekStart,
+          lt: weekEnd
+        }
+      },
+      orderBy: { date: "asc" }
+    });
+    const weeklyTaskProgress = formatWeeklyTaskProgress(
+      weeklyDailyTasks.map((record) => ({
+        date: record.date,
+        tasks: record.tasks
+      })),
+      weekLabels
+    );
     const prompt = buildStudyPlanPrompt({
       profile: profile
         ? {
@@ -2526,6 +2687,7 @@ server.post("/ai/study-plan", async (request, reply) => {
           followUpAnswers: record.followUpAnswers
         };
       }),
+      weeklyTaskProgress,
       progressUpdate,
       followUpAnswers,
       now: new Date()

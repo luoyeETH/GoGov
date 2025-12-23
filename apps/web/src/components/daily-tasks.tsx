@@ -45,6 +45,12 @@ type DailyTaskRecord = {
   updatedAt: string;
 };
 
+type DailyTaskHistoryRecord = {
+  id: string;
+  date: string;
+  tasks: TaskItem[];
+};
+
 type RequestState = "idle" | "loading" | "error";
 
 function getBeijingDateString(date = new Date()) {
@@ -54,6 +60,28 @@ function getBeijingDateString(date = new Date()) {
   const month = `${beijing.getMonth() + 1}`.padStart(2, "0");
   const day = `${beijing.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function shiftDateLabel(label: string, offsetDays: number) {
+  const [year, month, day] = label.split("-").map((value) => Number(value));
+  const baseUtc = Date.UTC(year, month - 1, day);
+  const next = new Date(baseUtc + offsetDays * 24 * 60 * 60 * 1000);
+  return next.toISOString().slice(0, 10);
+}
+
+function getWeekdayLabel(label: string) {
+  const [year, month, day] = label.split("-").map((value) => Number(value));
+  const utcDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const labels = ["日", "一", "二", "三", "四", "五", "六"];
+  return labels[utcDay] ?? "";
+}
+
+function formatHistoryDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return getBeijingDateString(date);
 }
 
 function ensureTasks(value: unknown): TaskItem[] {
@@ -124,9 +152,27 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
   const [breakdownTaskId, setBreakdownTaskId] = useState<string | null>(null);
   const [autoRequested, setAutoRequested] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyRecords, setHistoryRecords] = useState<DailyTaskHistoryRecord[]>([]);
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
 
   const today = useMemo(() => getBeijingDateString(), []);
+  const dateWindow = useMemo(() => {
+    const [year, month, day] = today.split("-").map((value) => Number(value));
+    const baseUtc = Date.UTC(year, month - 1, day);
+    const dayOfWeek = new Date(baseUtc).getUTCDay();
+    const diff = (dayOfWeek + 6) % 7;
+    const weekStart = shiftDateLabel(today, -diff);
+    const labels: string[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      labels.push(shiftDateLabel(weekStart, offset));
+    }
+    return labels;
+  }, [today]);
+  const historyDays = dateWindow.length;
+  const historyAnchorDate = dateWindow[dateWindow.length - 1];
   const [token, setToken] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(today);
 
   const loadTask = async () => {
     if (!token) {
@@ -182,6 +228,8 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
   useEffect(() => {
     if (!token) {
       setTaskRecord(null);
+      setHistoryRecords([]);
+      setHistoryMessage(null);
       return;
     }
     void loadTask();
@@ -209,6 +257,58 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
     setAutoRequested(true);
     void generateTask({ auto: true });
   }, [token, taskRecord, autoRequested, hasLoaded, state, today]);
+
+  useEffect(() => {
+    if (!dateWindow.includes(selectedDate)) {
+      setSelectedDate(today);
+    }
+  }, [dateWindow, selectedDate, today]);
+
+  const loadHistory = async () => {
+    if (!token) {
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryMessage(null);
+    try {
+      const res = await fetch(
+        `${apiBase}/study-plan/daily/history?days=${historyDays}&date=${historyAnchorDate}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "获取失败");
+      }
+      const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+      const nextRecords = tasks
+        .map((item) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
+          const record = item as Record<string, unknown>;
+          return {
+            id: typeof record.id === "string" ? record.id : "",
+            date: typeof record.date === "string" ? record.date : "",
+            tasks: ensureTasks(record.tasks)
+          } as DailyTaskHistoryRecord;
+        })
+        .filter((item) => item && item.id && item.date);
+      setHistoryRecords(nextRecords);
+    } catch (err) {
+      setHistoryMessage(err instanceof Error ? err.message : "获取失败");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    void loadHistory();
+  }, [token, historyAnchorDate]);
 
   const generateTask = async (options?: { note?: string | null; auto?: boolean }) => {
     if (!token) {
@@ -379,6 +479,19 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
 
   const taskCount = taskRecord?.tasks.length ?? 0;
   const previewTasks = taskRecord?.tasks.slice(0, 3) ?? [];
+  const historyByDate = useMemo(() => {
+    const map = new Map<string, DailyTaskHistoryRecord>();
+    for (const record of historyRecords) {
+      map.set(formatHistoryDate(record.date), record);
+    }
+    return map;
+  }, [historyRecords]);
+  const selectedIsToday = selectedDate === today;
+  const selectedIsFuture = selectedDate > today;
+  const selectedHistory = historyByDate.get(selectedDate) ?? null;
+  const selectedTasks = selectedIsToday
+    ? taskRecord?.tasks ?? []
+    : selectedHistory?.tasks ?? [];
 
   if (!token && variant === "summary") {
     return (
@@ -466,85 +579,155 @@ export default function DailyTasksModule({ variant = "standalone" }: DailyTasksM
         </div>
       </div>
 
-      {taskRecord ? (
-        <>
-          {taskRecord.summary ? (
-            <div className="daily-summary">{taskRecord.summary}</div>
-          ) : null}
-          <div className="daily-task-list">
-            {taskRecord.tasks.map((task) => (
-              <div key={task.id} className={`daily-task ${task.done ? "done" : ""}`}>
-                <label className="daily-task-main">
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() => toggleTask(task.id)}
-                  />
-                  <span>{task.title}</span>
-                </label>
-                <div className="daily-task-meta">
-                  {typeof task.durationMinutes === "number" ? (
-                    <span>{Math.round(task.durationMinutes)} 分钟</span>
-                  ) : null}
-                  {task.notes ? <span>{task.notes}</span> : null}
-                </div>
-                <div className="daily-task-actions">
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => handleBreakdown(task)}
-                    disabled={breakdownTaskId === task.id}
-                  >
-                    {breakdownTaskId === task.id ? "拆解中..." : "拆解"}
-                  </button>
-                </div>
-                {task.subtasks && task.subtasks.length ? (
-                  <div className="daily-subtasks">
-                    {task.subtasks.map((sub) => (
-                      <label key={sub.id}>
-                        <input
-                          type="checkbox"
-                          checked={sub.done}
-                          onChange={() => toggleSubtask(task.id, sub.id)}
-                        />
-                        <span>{sub.title}</span>
-                      </label>
-                    ))}
+      {variant === "standalone" ? (
+        <div className="daily-date-strip">
+          {dateWindow.map((label) => {
+            const isToday = label === today;
+            const isActive = label === selectedDate;
+            const isFuture = label > today;
+            return (
+              <button
+                key={label}
+                type="button"
+                className={[
+                  "daily-date-button",
+                  isActive ? "is-active" : "",
+                  isToday ? "is-today" : "",
+                  isFuture ? "is-future" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => setSelectedDate(label)}
+              >
+                <span className="daily-date-weekday">{getWeekdayLabel(label)}</span>
+                <span className="daily-date-day">
+                  {Number.parseInt(label.slice(8), 10)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {selectedIsToday ? (
+        taskRecord ? (
+          <>
+            {taskRecord.summary ? (
+              <div className="daily-summary">{taskRecord.summary}</div>
+            ) : null}
+            <div className="daily-task-list">
+              {taskRecord.tasks.map((task) => (
+                <div key={task.id} className={`daily-task ${task.done ? "done" : ""}`}>
+                  <label className="daily-task-main">
+                    <input
+                      type="checkbox"
+                      checked={task.done}
+                      onChange={() => toggleTask(task.id)}
+                    />
+                    <span>{task.title}</span>
+                  </label>
+                  <div className="daily-task-meta">
+                    {typeof task.durationMinutes === "number" ? (
+                      <span>{Math.round(task.durationMinutes)} 分钟</span>
+                    ) : null}
+                    {task.notes ? <span>{task.notes}</span> : null}
                   </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </>
+                  <div className="daily-task-actions">
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => handleBreakdown(task)}
+                      disabled={breakdownTaskId === task.id}
+                    >
+                      {breakdownTaskId === task.id ? "拆解中..." : "拆解"}
+                    </button>
+                  </div>
+                  {task.subtasks && task.subtasks.length ? (
+                    <div className="daily-subtasks">
+                      {task.subtasks.map((sub) => (
+                        <label key={sub.id}>
+                          <input
+                            type="checkbox"
+                            checked={sub.done}
+                            onChange={() => toggleSubtask(task.id, sub.id)}
+                          />
+                          <span>{sub.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="knowledge-empty">暂无任务，可先生成今日任务。</div>
+        )
+      ) : historyMessage ? (
+        <div className="knowledge-empty">{historyMessage}</div>
+      ) : historyLoading ? (
+        <div className="knowledge-empty">加载中...</div>
+      ) : selectedIsFuture ? (
+        <div className="knowledge-empty">
+          暂无任务，将根据学习情况和整体规划安排后续任务。
+        </div>
+      ) : selectedHistory && selectedTasks.length ? (
+        <div className="daily-task-list">
+          {selectedTasks.map((task) => (
+            <div
+              key={task.id}
+              className={`daily-task daily-task-readonly ${task.done ? "done" : ""}`}
+            >
+              <label className="daily-task-main">
+                <input type="checkbox" checked={task.done} disabled />
+                <span>{task.title}</span>
+              </label>
+              {task.subtasks && task.subtasks.length ? (
+                <div className="daily-subtasks">
+                  {task.subtasks.map((sub) => (
+                    <label key={sub.id}>
+                      <input type="checkbox" checked={sub.done} disabled />
+                      <span>{sub.title}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="knowledge-empty">暂无任务，可先生成今日任务。</div>
+        <div className="knowledge-empty">当日计划未生成。</div>
       )}
 
-      <div className="form-row">
-        <label htmlFor="daily-adjust">调整任务需求</label>
-        <textarea
-          id="daily-adjust"
-          rows={2}
-          placeholder="例如：今晚只能学习 1 小时，请调整任务"
-          value={adjustNote}
-          onChange={(event) => setAdjustNote(event.target.value)}
-        />
-      </div>
+      {selectedIsToday ? (
+        <>
+          <div className="form-row">
+            <label htmlFor="daily-adjust">调整任务需求</label>
+            <textarea
+              id="daily-adjust"
+              rows={2}
+              placeholder="例如：今晚只能学习 1 小时，请调整任务"
+              value={adjustNote}
+              onChange={(event) => setAdjustNote(event.target.value)}
+            />
+          </div>
 
-      <div className="assist-actions">
-        <LoadingButton
-          type="button"
-          className="primary"
-          loading={state === "loading"}
-          loadingText="生成中..."
-          onClick={() =>
-            generateTask({ note: adjustNote.trim() ? adjustNote : null, auto: false })
-          }
-        >
-          {taskRecord ? "调整今日任务" : "生成今日任务"}
-        </LoadingButton>
-        {message ? <span className="form-message">{message}</span> : null}
-      </div>
+          <div className="assist-actions">
+            <LoadingButton
+              type="button"
+              className="primary"
+              loading={state === "loading"}
+              loadingText="生成中..."
+              onClick={() =>
+                generateTask({ note: adjustNote.trim() ? adjustNote : null, auto: false })
+              }
+            >
+              {taskRecord ? "调整今日任务" : "生成今日任务"}
+            </LoadingButton>
+            {message ? <span className="form-message">{message}</span> : null}
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

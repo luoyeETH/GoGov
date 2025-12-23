@@ -192,6 +192,7 @@ export function buildStudyPlanPrompt(params: {
   preferences?: StudyPlanPreferenceInput | null;
   mockReports?: MockReportInput[] | null;
   planHistory?: PlanHistoryInput[] | null;
+  weeklyTaskProgress?: string[] | null;
   progressUpdate?: string | null;
   followUpAnswers?: string | null;
   now?: Date;
@@ -200,6 +201,9 @@ export function buildStudyPlanPrompt(params: {
   const preferences = params.preferences ?? null;
   const mockReports = Array.isArray(params.mockReports) ? params.mockReports : [];
   const planHistory = Array.isArray(params.planHistory) ? params.planHistory : [];
+  const weeklyTaskProgress = Array.isArray(params.weeklyTaskProgress)
+    ? params.weeklyTaskProgress
+    : [];
   const progressUpdate = params.progressUpdate?.trim() ?? "";
   const followUpAnswers = params.followUpAnswers?.trim() ?? "";
   const now = params.now ?? new Date();
@@ -261,6 +265,9 @@ export function buildStudyPlanPrompt(params: {
     : ["未填写可学习时间。"];
 
   const historyLines = formatPlanHistory(planHistory.slice(0, 2));
+  const weeklyTaskLines = weeklyTaskProgress.length
+    ? weeklyTaskProgress
+    : ["无本周任务记录。"];
 
   const user = [
     `当前时间：${nowText}`,
@@ -269,6 +276,8 @@ export function buildStudyPlanPrompt(params: {
     preferenceLines.join("\n"),
     "近期规划回顾：",
     historyLines.join("\n"),
+    "本周每日任务完成情况：",
+    weeklyTaskLines.join("\n"),
     progressUpdate ? `完成情况反馈：${progressUpdate}` : "完成情况反馈：未填写",
     followUpAnswers ? `对上次追问的回答：${followUpAnswers}` : "对上次追问的回答：未填写",
     "近期模考成绩：",
