@@ -246,6 +246,9 @@ function extractKlineSummary(value: unknown) {
   };
 }
 
+const FREE_AI_DAILY_REQUEST_LIMIT = 300;
+const FREE_AI_EXHAUSTED_MESSAGE =
+  "网站今日上游免费额度已耗尽，等待明日刷新后重试，建议自行配置AI代理";
 const freeAiConfig = loadFreeAiConfig();
 
 function loadFreeAiConfig(): FreeAiConfig | null {
@@ -347,6 +350,39 @@ async function consumeFreeAiUsage(userId: string, config: ResolvedAiConfig) {
   const limit = freeAiConfig.dailyLimit;
   const { start } = getDayRange();
   await prisma.$transaction(async (tx) => {
+    const globalUpdated = await tx.globalFreeAiUsage.updateMany({
+      where: {
+        date: start,
+        count: { lt: FREE_AI_DAILY_REQUEST_LIMIT }
+      },
+      data: { count: { increment: 1 } }
+    });
+    let globalAllowed = globalUpdated.count === 1;
+    if (!globalAllowed) {
+      try {
+        await tx.globalFreeAiUsage.create({
+          data: { date: start, count: 1 }
+        });
+        globalAllowed = true;
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const retry = await tx.globalFreeAiUsage.updateMany({
+            where: {
+              date: start,
+              count: { lt: FREE_AI_DAILY_REQUEST_LIMIT }
+            },
+            data: { count: { increment: 1 } }
+          });
+          globalAllowed = retry.count === 1;
+        }
+      }
+      if (!globalAllowed) {
+        throw new Error(FREE_AI_EXHAUSTED_MESSAGE);
+      }
+    }
     const updated = await tx.freeAiUsage.updateMany({
       where: {
         userId,

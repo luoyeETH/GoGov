@@ -106,6 +106,16 @@ model FreeAiUsage {
   @@index([userId, date])
 }
 
+model GlobalFreeAiUsage {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
 model PracticeSession {
   id              String       @id @default(cuid())
   userId          String

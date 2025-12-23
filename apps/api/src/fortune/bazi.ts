@@ -1,3 +1,5 @@
+import { Solar } from "lunar-javascript";
+
 type Gender = "male" | "female";
 type ZiHourMode = "late" | "early";
 
@@ -28,6 +30,7 @@ export type BaziResult = {
 const STEMS = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
 const BRANCHES = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
 const MONTH_BRANCHES = ["寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥", "子", "丑"];
+const YANG_STEMS = new Set(["甲", "丙", "戊", "庚", "壬"]);
 
 const DAY_MS = 86400000;
 const SOLAR_SPEED = 0.98564736;
@@ -184,6 +187,92 @@ function formatTimeFromMinutes(minutes: number) {
   const hour = Math.floor(minutes / 60);
   const minute = Math.floor(minutes - hour * 60);
   return `${`${hour}`.padStart(2, "0")}:${`${minute}`.padStart(2, "0")}`;
+}
+
+function formatTwoDigits(value: number) {
+  return `${value}`.padStart(2, "0");
+}
+
+function formatSolarTime(solar: any) {
+  if (solar && typeof solar.getHour === "function" && typeof solar.getMinute === "function") {
+    return `${formatTwoDigits(solar.getHour())}:${formatTwoDigits(solar.getMinute())}`;
+  }
+  if (solar && typeof solar.toYmdHms === "function") {
+    const text = solar.toYmdHms();
+    const timePart = text.split(" ")[1] ?? "";
+    if (timePart) {
+      return timePart.slice(0, 5);
+    }
+  }
+  return "00:00";
+}
+
+function formatLunarDate(lunar: any) {
+  if (!lunar) {
+    return "";
+  }
+  if (typeof lunar.toString === "function") {
+    return lunar.toString();
+  }
+  const year =
+    typeof lunar.getYearInChinese === "function" ? lunar.getYearInChinese() : "";
+  const month =
+    typeof lunar.getMonthInChinese === "function" ? lunar.getMonthInChinese() : "";
+  const day =
+    typeof lunar.getDayInChinese === "function" ? lunar.getDayInChinese() : "";
+  if (year && month && day) {
+    const isLeap = typeof lunar.isLeap === "function" ? lunar.isLeap() : false;
+    const leapLabel = isLeap ? "闰" : "";
+    return `${year}年${leapLabel}${month}月${day}`;
+  }
+  return "";
+}
+
+function resolveDayunDirection(
+  yun: any,
+  yearPillar: string,
+  gender: Gender
+): "顺行" | "逆行" {
+  if (yun && typeof yun.isForward === "function") {
+    return yun.isForward() ? "顺行" : "逆行";
+  }
+  if (yun && typeof yun.getForward === "function") {
+    const forward = yun.getForward();
+    if (typeof forward === "boolean") {
+      return forward ? "顺行" : "逆行";
+    }
+  }
+  if (yun && typeof yun.getDirection === "function") {
+    const direction = yun.getDirection();
+    if (direction === 1 || direction === "forward" || direction === "顺") {
+      return "顺行";
+    }
+    if (direction === -1 || direction === "backward" || direction === "逆") {
+      return "逆行";
+    }
+  }
+  const stem = yearPillar.slice(0, 1);
+  const isYang = YANG_STEMS.has(stem);
+  if ((isYang && gender === "male") || (!isYang && gender === "female")) {
+    return "顺行";
+  }
+  return "逆行";
+}
+
+function resolveDayunStartAge(yun: any, daYunArr: any[]) {
+  if (yun && typeof yun.getStartAge === "function") {
+    const age = Number(yun.getStartAge());
+    if (Number.isFinite(age)) {
+      return age;
+    }
+  }
+  if (daYunArr[1] && typeof daYunArr[1].getStartAge === "function") {
+    const age = Number(daYunArr[1].getStartAge());
+    if (Number.isFinite(age)) {
+      return age;
+    }
+  }
+  return 0;
 }
 
 function resolveLongitude(province?: string | null, longitude?: number | null) {
@@ -348,49 +437,36 @@ export function calculateBazi(input: BaziInput): BaziResult {
   const ziHourMode: ZiHourMode = input.ziHourMode === "early" ? "early" : "late";
   const longitude = resolveLongitude(input.province, input.longitude);
 
-  const birthDateTime = new Date(
-    `${input.birthDate}T${`${hour}`.padStart(2, "0")}:${`${minute}`.padStart(2, "0")}:00+08:00`
-  );
-  const birthJD = getJulianDay(birthDateTime);
-  const solarLongitude = getSolarLongitude(birthJD);
-  const yearCutoff = solarLongitude < 315;
-  const yearForCycle = yearCutoff ? year - 1 : year;
-  const yearCycleIndex = mod(yearForCycle - 1984, 60);
-  const yearStemIndex = yearCycleIndex % 10;
-  const yearBranchIndex = yearCycleIndex % 12;
-  const yearPillar = `${STEMS[yearStemIndex]}${BRANCHES[yearBranchIndex]}`;
-
-  const monthBranchIndex = getMonthBranchIndexFromLongitude(solarLongitude);
-  const monthBranch = MONTH_BRANCHES[monthBranchIndex];
-  const monthStemStart = getMonthStemStart(yearStemIndex);
-  const monthStemIndex = mod(monthStemStart + monthBranchIndex, 10);
-  const monthPillar = `${STEMS[monthStemIndex]}${monthBranch}`;
-
-  const solarTime = getTrueSolarTime(year, month, day, hour, minute, longitude);
-  let dayOffset = solarTime.dayOffset;
-  if (ziHourMode === "late" && solarTime.minutes >= 1380) {
-    dayOffset += 1;
+  const solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+  const solarTime =
+    Number.isFinite(longitude) && typeof solar.getSolarTime === "function"
+      ? solar.getSolarTime(longitude)
+      : solar;
+  const lunar = solarTime.getLunar();
+  const baZi = lunar.getEightChar();
+  if (typeof baZi.setSect === "function") {
+    baZi.setSect(ziHourMode === "late" ? 2 : 1);
   }
-  const baseDate = new Date(`${input.birthDate}T00:00:00+08:00`);
-  const solarDate = new Date(baseDate.getTime() + dayOffset * DAY_MS);
-  const jdn = getJulianDayNumber(solarDate);
-  const dayCycleIndex = mod(jdn + DAY_CYCLE_OFFSET, 60);
-  const dayStemIndex = dayCycleIndex % 10;
-  const dayBranchIndex = dayCycleIndex % 12;
-  const dayPillar = `${STEMS[dayStemIndex]}${BRANCHES[dayBranchIndex]}`;
 
-  const solarHour = Math.floor(solarTime.minutes / 60);
-  const hourBranchIndex = getHourBranchIndex(solarHour);
-  const ziStemIndexByDayStem = [0, 2, 4, 6, 8, 0, 2, 4, 6, 8];
-  const hourStemIndex = mod(ziStemIndexByDayStem[dayStemIndex] + hourBranchIndex, 10);
-  const hourBranchName = BRANCHES[hourBranchIndex];
-  const hourPillar = `${STEMS[hourStemIndex]}${hourBranchName}`;
+  const yearPillar = baZi.getYear();
+  const monthPillar = baZi.getMonth();
+  const dayPillar = baZi.getDay();
+  const hourPillar = baZi.getTime();
+  const hourBranchName =
+    typeof baZi.getTimeZhi === "function" ? baZi.getTimeZhi() : hourPillar.slice(1);
 
-  const direction = getDayunDirection(yearStemIndex, gender);
-  const dayunStartAge = getDayunStartAge(birthJD, direction);
-  const dayunSequence = buildDayunSequence(monthStemIndex, monthBranchIndex, direction);
+  const yun = baZi.getYun(gender === "female" ? 0 : 1);
+  const daYunArr = typeof yun.getDaYun === "function" ? yun.getDaYun() : [];
+  const dayunSequence = daYunArr
+    .slice(1)
+    .map((item: any) =>
+      typeof item.getGanZhi === "function" ? item.getGanZhi() : ""
+    )
+    .filter((item: string) => item);
+  const dayunStartAge = resolveDayunStartAge(yun, daYunArr);
+  const direction = resolveDayunDirection(yun, yearPillar, gender);
 
-  const lunarDate = buildLunarDate(birthDateTime);
+  const lunarDate = formatLunarDate(lunar);
 
   return {
     year_pillar: yearPillar,
@@ -401,8 +477,8 @@ export function calculateBazi(input: BaziInput): BaziResult {
     dayun_start_age: dayunStartAge,
     dayun_direction: direction,
     dayun_sequence: dayunSequence,
-    first_dayun: dayunSequence[0],
-    true_solar_time: solarTime.formatted,
+    first_dayun: dayunSequence[0] ?? "",
+    true_solar_time: formatSolarTime(solarTime),
     hour_branch_name: hourBranchName,
     lunar_date: lunarDate
   };
