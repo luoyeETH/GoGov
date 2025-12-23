@@ -69,6 +69,20 @@ type KlineReportRecord = {
 
 // Prisma client needs regeneration after schema changes; keep delegate typed loosely here.
 const klineReportDelegate = (prisma as unknown as { klineReport: any }).klineReport;
+const pomodoroSessionDelegate = (prisma as unknown as { pomodoroSession: any }).pomodoroSession;
+const pomodoroSubjectDelegate = (prisma as unknown as { pomodoroSubject: any }).pomodoroSubject;
+
+const POMODORO_SUBJECTS = [
+  "常识",
+  "政治理论",
+  "言语理解",
+  "判断推理",
+  "资料分析",
+  "专业知识",
+  "申论"
+];
+const POMODORO_PAUSE_LIMIT_SECONDS = 5 * 60;
+const MAX_CUSTOM_POMODORO_SUBJECTS = 5;
 
 function extractJsonPayload(value: string) {
   const trimmed = value.trim();
@@ -142,6 +156,12 @@ function getBeijingDateString(date = new Date()) {
   const month = `${beijing.getMonth() + 1}`.padStart(2, "0");
   const day = `${beijing.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getBeijingHour(date: Date) {
+  const utc = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
+  const beijing = new Date(utc + 8 * 60 * 60 * 1000);
+  return beijing.getHours();
 }
 
 function getDayRange(dateValue?: string | null) {
@@ -982,7 +1002,7 @@ server.post(
         additionalProperties: false,
         properties: {
           token: { type: "string", minLength: 10 },
-          username: { type: "string", minLength: 3, maxLength: 30 },
+          username: { type: "string", minLength: 2, maxLength: 10 },
           password: { type: "string", minLength: 8 },
           gender: { type: "string" },
           age: { type: "number", minimum: 10, maximum: 80 },
@@ -1368,6 +1388,469 @@ server.get("/stats/overview", async (request, reply) => {
         accuracy: Math.round(entry.accuracy * 1000) / 10,
         durationSeconds: entry.durationSeconds,
         createdAt: entry.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.post(
+  "/pomodoro/subjects",
+  {
+    schema: {
+      body: {
+        type: "object",
+        required: ["name"],
+        additionalProperties: false,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 20 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body as { name?: string };
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) {
+      reply.code(400).send({ error: "请输入学习项目名称" });
+      return;
+    }
+    if (name.length > 20) {
+      reply.code(400).send({ error: "学习项目名称过长" });
+      return;
+    }
+
+    const count = await pomodoroSubjectDelegate.count({
+      where: { userId: session.user.id }
+    });
+    if (count >= MAX_CUSTOM_POMODORO_SUBJECTS) {
+      reply.code(400).send({ error: "最多添加 5 个自定义科目" });
+      return;
+    }
+
+    const existing = await pomodoroSubjectDelegate.findFirst({
+      where: { userId: session.user.id, name }
+    });
+    if (existing) {
+      reply.code(400).send({ error: "学习项目已存在" });
+      return;
+    }
+
+    const created = await pomodoroSubjectDelegate.create({
+      data: {
+        userId: session.user.id,
+        name
+      }
+    });
+
+    reply.send({
+      id: created.id,
+      name: created.name,
+      createdAt: created.createdAt.toISOString()
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "添加失败" });
+  }
+  }
+);
+
+server.get("/pomodoro/subjects", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const subjects = await pomodoroSubjectDelegate.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "asc" }
+    });
+    reply.send({
+      subjects: subjects.map((item: { id: string; name: string; createdAt: Date }) => ({
+        id: item.id,
+        name: item.name,
+        createdAt: item.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.delete(
+  "/pomodoro/subjects/:id",
+  {
+    schema: {
+      params: {
+        type: "object",
+        required: ["id"],
+        properties: {
+          id: { type: "string", minLength: 1 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id: string };
+    const existing = await pomodoroSubjectDelegate.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    await pomodoroSubjectDelegate.delete({ where: { id } });
+    reply.send({ id });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "删除失败" });
+  }
+  }
+);
+
+server.post(
+  "/pomodoro/start",
+  {
+    schema: {
+      body: {
+        type: "object",
+        required: ["subject", "plannedMinutes"],
+        additionalProperties: false,
+        properties: {
+          subject: { type: "string", minLength: 1 },
+          plannedMinutes: { type: "number", minimum: 1, maximum: 240 }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body as { subject?: string; plannedMinutes?: number };
+    const subject = typeof body.subject === "string" ? body.subject.trim() : "";
+    if (!subject) {
+      reply.code(400).send({ error: "请选择学习科目" });
+      return;
+    }
+    if (subject.length > 20) {
+      reply.code(400).send({ error: "学习科目名称过长" });
+      return;
+    }
+    const planned = parseOptionalNumber(body.plannedMinutes);
+    if (!planned || !Number.isFinite(planned) || planned <= 0) {
+      reply.code(400).send({ error: "专注时长不合法" });
+      return;
+    }
+
+    const plannedMinutes = Math.min(240, Math.max(1, Math.round(planned)));
+    const startedAt = new Date();
+
+    const created = await pomodoroSessionDelegate.create({
+      data: {
+        userId: session.user.id,
+        subject,
+        plannedMinutes,
+        startedAt
+      }
+    });
+
+    reply.send({
+      id: created.id,
+      subject: created.subject,
+      plannedMinutes: created.plannedMinutes,
+      startedAt: created.startedAt.toISOString()
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "创建失败" });
+  }
+  }
+);
+
+server.post(
+  "/pomodoro/:id/finish",
+  {
+    schema: {
+      params: {
+        type: "object",
+        required: ["id"],
+        properties: {
+          id: { type: "string", minLength: 1 }
+        }
+      },
+      body: {
+        type: "object",
+        required: ["status"],
+        additionalProperties: false,
+        properties: {
+          status: { type: "string", minLength: 1 },
+          durationSeconds: { type: "number", minimum: 0 },
+          pauseSeconds: { type: "number", minimum: 0 },
+          pauseCount: { type: "number", minimum: 0 },
+          failureReason: { type: "string" }
+        }
+      }
+    }
+  },
+  async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      status?: string;
+      durationSeconds?: number;
+      pauseSeconds?: number;
+      pauseCount?: number;
+      failureReason?: string;
+    };
+
+    const status = typeof body.status === "string" ? body.status : "";
+    const allowedStatuses = new Set(["completed", "failed", "abandoned"]);
+    if (!allowedStatuses.has(status)) {
+      reply.code(400).send({ error: "结束状态不合法" });
+      return;
+    }
+
+    const existing = await pomodoroSessionDelegate.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    if (existing.status && existing.status !== "in_progress") {
+      reply.send({
+        id: existing.id,
+        status: existing.status,
+        durationSeconds: existing.durationSeconds
+      });
+      return;
+    }
+
+    const pauseSecondsInput = parseOptionalNumber(body.pauseSeconds);
+    const pauseSeconds =
+      typeof pauseSecondsInput === "number" && Number.isFinite(pauseSecondsInput)
+        ? Math.max(0, Math.round(pauseSecondsInput))
+        : null;
+    const durationSecondsInput = parseOptionalNumber(body.durationSeconds);
+    let durationSeconds =
+      typeof durationSecondsInput === "number" && Number.isFinite(durationSecondsInput)
+        ? Math.max(0, Math.round(durationSecondsInput))
+        : null;
+    const pauseCountInput = parseOptionalNumber(body.pauseCount);
+    const pauseCount =
+      typeof pauseCountInput === "number" && Number.isFinite(pauseCountInput)
+        ? Math.max(0, Math.round(pauseCountInput))
+        : null;
+    const failureReason =
+      typeof body.failureReason === "string" && body.failureReason.trim()
+        ? body.failureReason.trim()
+        : null;
+
+    let finalStatus = status;
+    let finalFailureReason = failureReason;
+    if (pauseSeconds !== null && pauseSeconds >= POMODORO_PAUSE_LIMIT_SECONDS) {
+      finalStatus = "failed";
+      if (!finalFailureReason) {
+        finalFailureReason = "pause_timeout";
+      }
+    }
+
+    const endedAt = new Date();
+    if (durationSeconds === null) {
+      const rawDuration = Math.round(
+        (endedAt.getTime() - existing.startedAt.getTime()) / 1000
+      );
+      const deducted = pauseSeconds ?? 0;
+      durationSeconds = Math.max(0, rawDuration - deducted);
+    }
+
+    const updated = await pomodoroSessionDelegate.update({
+      where: { id },
+      data: {
+        status: finalStatus,
+        endedAt,
+        durationSeconds,
+        pauseSeconds,
+        pauseCount,
+        failureReason: finalFailureReason
+      }
+    });
+
+    reply.send({
+      id: updated.id,
+      status: updated.status,
+      durationSeconds: updated.durationSeconds,
+      pauseSeconds: updated.pauseSeconds
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "保存失败" });
+  }
+  }
+);
+
+server.get("/pomodoro/insights", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const query = request.query as { days?: string | number };
+    const daysInput = parseOptionalNumber(query?.days);
+    const days = Math.min(180, Math.max(28, Math.round(daysInput ?? 84)));
+    const dayMs = 24 * 60 * 60 * 1000;
+    const todayLabel = getBeijingDateString();
+    const todayBase = parseOptionalDate(todayLabel) ?? new Date();
+    const start = new Date(todayBase.getTime() - (days - 1) * dayMs);
+    const end = new Date(todayBase.getTime() + dayMs);
+
+    const records = await pomodoroSessionDelegate.findMany({
+      where: {
+        userId: session.user.id,
+        startedAt: { gte: start, lt: end }
+      },
+      orderBy: { startedAt: "asc" }
+    });
+
+    const resolvedRecords = records.filter(
+      (record: { status?: string }) => record.status !== "in_progress"
+    );
+    const subjects: string[] = [];
+    const subjectSet = new Set<string>();
+    for (const subject of POMODORO_SUBJECTS) {
+      subjects.push(subject);
+      subjectSet.add(subject);
+    }
+    for (const record of resolvedRecords) {
+      if (record.subject && !subjectSet.has(record.subject)) {
+        subjects.push(record.subject);
+        subjectSet.add(record.subject);
+      }
+    }
+
+    const dayMap = new Map<
+      string,
+      { date: string; totalMinutes: number; totals: Record<string, number> }
+    >();
+    const dayLabels: string[] = [];
+    for (let i = 0; i < days; i += 1) {
+      const date = new Date(start.getTime() + i * dayMs);
+      const label = getBeijingDateString(date);
+      dayLabels.push(label);
+      dayMap.set(label, { date: label, totalMinutes: 0, totals: {} });
+    }
+
+    const bucketDefs = [
+      { key: "morning", label: "早晨", range: "05:00-11:59" },
+      { key: "afternoon", label: "下午", range: "12:00-17:59" },
+      { key: "night", label: "深夜", range: "18:00-04:59" }
+    ];
+    const bucketStats = bucketDefs.map((bucket) => ({
+      key: bucket.key,
+      label: bucket.label,
+      range: bucket.range,
+      count: 0,
+      minutes: 0
+    }));
+
+    const radarTotals = new Map<string, number>();
+    for (const subject of subjects) {
+      radarTotals.set(subject, 0);
+    }
+
+    let completedCount = 0;
+    let failedCount = 0;
+    let focusSeconds = 0;
+
+    for (const record of resolvedRecords) {
+      if (record.status === "failed") {
+        failedCount += 1;
+      }
+      if (record.status !== "completed") {
+        continue;
+      }
+      completedCount += 1;
+      const durationSeconds =
+        typeof record.durationSeconds === "number" ? record.durationSeconds : 0;
+      focusSeconds += durationSeconds;
+      const minutes = Math.round(durationSeconds / 60);
+
+      const label = getBeijingDateString(record.startedAt);
+      const day = dayMap.get(label);
+      if (day) {
+        day.totalMinutes += minutes;
+        day.totals[record.subject] =
+          (day.totals[record.subject] ?? 0) + minutes;
+      }
+
+      radarTotals.set(
+        record.subject,
+        (radarTotals.get(record.subject) ?? 0) + minutes
+      );
+
+      const bucketHour = getBeijingHour(record.endedAt ?? record.startedAt);
+      let bucket = bucketStats[2];
+      if (bucketHour >= 5 && bucketHour < 12) {
+        bucket = bucketStats[0];
+      } else if (bucketHour >= 12 && bucketHour < 18) {
+        bucket = bucketStats[1];
+      }
+      bucket.count += 1;
+      bucket.minutes += minutes;
+    }
+
+    const heatmapDays = dayLabels.map((label) => {
+      const day = dayMap.get(label);
+      return (
+        day ?? {
+          date: label,
+          totalMinutes: 0,
+          totals: {}
+        }
+      );
+    });
+
+    reply.send({
+      totals: {
+        sessions: resolvedRecords.length,
+        completed: completedCount,
+        failed: failedCount,
+        focusMinutes: Math.round((focusSeconds / 60) * 10) / 10
+      },
+      subjects,
+      heatmap: {
+        days: heatmapDays
+      },
+      timeBuckets: bucketStats,
+      radar: subjects.map((subject) => ({
+        subject,
+        minutes: radarTotals.get(subject) ?? 0
       }))
     });
   } catch (error) {

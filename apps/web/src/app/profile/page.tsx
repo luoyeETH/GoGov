@@ -43,6 +43,14 @@ type ProfileData = {
   freeAi: FreeAiStatus | null;
 };
 
+function isValidUsername(value: string) {
+  const trimmed = value.trim();
+  if (/\s/.test(trimmed)) {
+    return false;
+  }
+  return trimmed.length >= 2 && trimmed.length <= 10;
+}
+
 function maskKey(value: string) {
   if (!value) {
     return "";
@@ -73,7 +81,7 @@ export default function ProfilePage() {
     if (state === "saving") {
       return false;
     }
-    if (!draft || draft.username.trim().length < 3) {
+    if (!draft || !isValidUsername(draft.username.trim())) {
       return false;
     }
     return true;
@@ -313,7 +321,7 @@ export default function ProfilePage() {
                     <input
                       id="username"
                       value={draft.username}
-                      placeholder="3-20 位字母/数字/下划线"
+                      placeholder="2-10 位字符"
                       onChange={(event) =>
                         setDraft({ ...draft, username: event.target.value })
                       }

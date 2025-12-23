@@ -3313,6 +3313,541 @@ select {
   color: var(--brand-dark);
 }
 
+.pomodoro-page {
+  gap: 28px;
+}
+
+.pomodoro-header {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.pomodoro-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  min-width: 260px;
+}
+
+.pomodoro-summary span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.pomodoro-summary strong {
+  font-size: 16px;
+}
+
+.pomodoro-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.pomodoro-result-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.pomodoro-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.pomodoro-setup-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.pomodoro-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pomodoro-card-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pomodoro-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.pomodoro-subject-card {
+  position: relative;
+}
+
+.pomodoro-subject {
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  background: var(--glass-bg);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  width: 100%;
+  height: 100%;
+}
+
+.pomodoro-subject strong {
+  font-size: 14px;
+}
+
+.pomodoro-subject span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-subject.active {
+  border-color: rgba(56, 161, 105, 0.45);
+  background: rgba(56, 161, 105, 0.12);
+  transform: translateY(-1px);
+}
+
+.pomodoro-subject-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.pomodoro-custom {
+  display: grid;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+.pomodoro-custom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pomodoro-custom-header h4 {
+  font-size: 14px;
+}
+
+.pomodoro-custom-counter {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-custom-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pomodoro-custom-row input {
+  flex: 1 1 160px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: var(--card);
+  color: inherit;
+}
+
+.pomodoro-custom-message {
+  font-size: 12px;
+  color: #b43c32;
+}
+
+.pomodoro-duration {
+  display: grid;
+  gap: 12px;
+}
+
+.pomodoro-duration label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.pomodoro-duration input {
+  width: 110px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: var(--card);
+  color: inherit;
+}
+
+.pomodoro-duration-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pomodoro-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  background: var(--glass-bg);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.pomodoro-chip.active {
+  border-color: rgba(56, 161, 105, 0.6);
+  color: #276749;
+}
+
+.pomodoro-start {
+  width: 100%;
+  justify-content: center;
+}
+
+.pomodoro-map {
+  display: grid;
+  gap: 16px;
+}
+
+.pomodoro-map-header {
+  display: grid;
+  gap: 6px;
+}
+
+.pomodoro-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.pomodoro-map-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.pomodoro-today {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.pomodoro-today-chart {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.pomodoro-pie {
+  width: 128px;
+  height: 128px;
+}
+
+.pomodoro-today-total {
+  text-align: center;
+  display: grid;
+  gap: 4px;
+}
+
+.pomodoro-today-total span {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.pomodoro-today-total strong {
+  font-size: 14px;
+}
+
+.pomodoro-today-legend {
+  display: grid;
+  gap: 10px;
+}
+
+.pomodoro-today-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pomodoro-today-item strong {
+  display: block;
+  font-size: 13px;
+}
+
+.pomodoro-today-item span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-today-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pomodoro-today-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-heatmap-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pomodoro-heatmap {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 12px);
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--glass-bg);
+  display: inline-block;
+}
+
+.heatmap-level-0 {
+  background: var(--glass-bg);
+}
+
+.heatmap-level-1 {
+  background: rgba(56, 161, 105, 0.15);
+}
+
+.heatmap-level-2 {
+  background: rgba(56, 161, 105, 0.3);
+}
+
+.heatmap-level-3 {
+  background: rgba(56, 161, 105, 0.5);
+}
+
+.heatmap-level-4 {
+  background: rgba(56, 161, 105, 0.75);
+}
+
+.pomodoro-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.heatmap-scale {
+  display: flex;
+  gap: 4px;
+}
+
+.pomodoro-buckets {
+  display: grid;
+  gap: 12px;
+}
+
+.pomodoro-bucket {
+  display: grid;
+  grid-template-columns: minmax(80px, 120px) 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.pomodoro-bucket span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-bucket-bar {
+  height: 10px;
+  background: var(--glass-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pomodoro-bucket-bar div {
+  height: 100%;
+  background: rgba(56, 161, 105, 0.7);
+  border-radius: 999px;
+}
+
+.pomodoro-bucket-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-radar {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.pomodoro-radar-grid {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.pomodoro-radar-line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.pomodoro-radar-shape {
+  fill: rgba(56, 161, 105, 0.25);
+  stroke: rgba(39, 103, 73, 0.8);
+  stroke-width: 1.5;
+}
+
+.pomodoro-radar-label {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.pomodoro-radar-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.pomodoro-radar-meta span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+body.pomodoro-immersive {
+  overflow: hidden;
+}
+
+body.pomodoro-immersive .header,
+body.pomodoro-immersive .footer {
+  display: none;
+}
+
+body.pomodoro-immersive .page {
+  min-height: 100vh;
+}
+
+.pomodoro-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 999;
+}
+
+.pomodoro-overlay-card {
+  width: min(520px, 92vw);
+  background: var(--card);
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  padding: 32px 28px;
+  display: grid;
+  gap: 18px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.pomodoro-overlay-subject {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.pomodoro-overlay-timer {
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--brand-dark);
+}
+
+.pomodoro-overlay-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--glass-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pomodoro-overlay-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(56, 161, 105, 0.35), rgba(56, 161, 105, 0.75));
+}
+
+.pomodoro-overlay-state {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.pomodoro-overlay-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pomodoro-overlay-tip {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .mistakes-page {
   gap: 28px;
 }
@@ -3394,6 +3929,20 @@ select {
   .font-size-label-text,
   .theme-label-text {
     display: none;
+  }
+
+  .pomodoro-overlay-timer {
+    font-size: 48px;
+    letter-spacing: 2px;
+  }
+
+  .pomodoro-bucket {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .pomodoro-today {
+    grid-template-columns: 1fr;
   }
 }
 

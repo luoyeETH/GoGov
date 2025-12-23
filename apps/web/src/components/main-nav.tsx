@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/study-plan", label: "备考规划" },
   { href: "/kline", label: "上岸K线" },
   { href: "/daily-tasks", label: "今日任务" },
+  { href: "/pomodoro", label: "番茄钟" },
   { href: "/stats", label: "统计看板" },
   { href: "/mistakes", label: "错题本" },
   { href: "/ai/assist", label: "AI 答疑" },

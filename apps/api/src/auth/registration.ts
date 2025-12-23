@@ -16,7 +16,11 @@ function isValidEmail(email: string) {
 }
 
 function isValidUsername(username: string) {
-  return /^[a-zA-Z0-9_]{3,20}$/.test(username);
+  const trimmed = username.trim();
+  if (/\s/.test(trimmed)) {
+    return false;
+  }
+  return trimmed.length >= 2 && trimmed.length <= 10;
 }
 
 function normalizeGender(gender?: string) {
@@ -143,7 +147,7 @@ export async function completeRegistration(params: {
 
   const username = params.username.trim();
   if (!isValidUsername(username)) {
-    throw new Error("用户名需为 3-20 位字母/数字/下划线");
+    throw new Error("用户名需为 2-10 位字符");
   }
 
   const existingUsername = await prisma.user.findUnique({

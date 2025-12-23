@@ -19,6 +19,13 @@ enum PracticeMode {
   challenge
 }
 
+enum PomodoroStatus {
+  in_progress
+  completed
+  failed
+  abandoned
+}
+
 model User {
   id              String   @id @default(cuid())
   email           String?  @unique
@@ -42,6 +49,8 @@ model User {
   practiceRecords  PracticeRecord[]
   mistakes         Mistake[]
   studyTimeLogs    StudyTimeLog[]
+  pomodoroSessions PomodoroSession[]
+  pomodoroSubjects PomodoroSubject[]
   mockExamReports  MockExamReport[]
   knowledgeImports KnowledgeImport[]
   studyPlanProfile StudyPlanProfile?
@@ -171,6 +180,39 @@ model StudyTimeLog {
   session         PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, startedAt])
+}
+
+model PomodoroSession {
+  id              String         @id @default(cuid())
+  userId          String
+  subject         String
+  plannedMinutes  Int
+  status          PomodoroStatus @default(in_progress)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int?
+  pauseSeconds    Int?
+  pauseCount      Int?
+  failureReason   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([userId, subject])
+  @@index([userId, status])
+}
+
+model PomodoroSubject {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, createdAt])
 }
 
 model MockExamReport {

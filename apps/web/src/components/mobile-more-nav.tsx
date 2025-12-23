@@ -9,6 +9,7 @@ const MORE_ITEMS = [
   { href: "/practice/quick", label: "速算练习" },
   { href: "/mock-report", label: "模考解读" },
   { href: "/daily-tasks", label: "今日任务" },
+  { href: "/pomodoro", label: "番茄钟" },
   { href: "/stats", label: "统计看板" },
   { href: "/mistakes", label: "错题本" },
 ];

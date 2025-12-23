@@ -25,6 +25,14 @@ type SubmitState = "idle" | "submitting" | "success" | "error";
 
 type GenderOption = "male" | "female" | "hidden";
 
+function isValidUsername(value: string) {
+  const trimmed = value.trim();
+  if (/\s/.test(trimmed)) {
+    return false;
+  }
+  return trimmed.length >= 2 && trimmed.length <= 10;
+}
+
 function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,7 +52,7 @@ function RegisterPageContent() {
     if (!token || !email) {
       return false;
     }
-    if (username.trim().length < 3) {
+    if (!isValidUsername(username.trim())) {
       return false;
     }
     if (password.length < 8 || password !== confirmPassword) {
@@ -159,7 +167,7 @@ function RegisterPageContent() {
                 <input
                   id="username"
                   value={username}
-                  placeholder="3-20 位字母/数字/下划线"
+                  placeholder="2-10 位字符"
                   onChange={(event) => setUsername(event.target.value)}
                 />
               </div>
