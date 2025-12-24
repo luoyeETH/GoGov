@@ -386,7 +386,7 @@ type BaziResult = {
   lunar_date: string;
 };
 
-type RequestState = "idle" | "loading" | "error";
+type RequestState = "idle" | "loading" | "queued" | "error";
 type KlineAnalysis = {
   summary?: string;
   landingYear?: string;
@@ -421,6 +421,8 @@ type KlineHistoryRecord = {
     };
 };
 
+type KlineHistoryInput = NonNullable<KlineHistoryRecord["input"]>;
+
 export default function KlinePage() {
   const router = useRouter();
   const [birthDate, setBirthDate] = useState("2000-01-01");
@@ -437,6 +439,14 @@ export default function KlinePage() {
   const [countdownPhase, setCountdownPhase] = useState<"initial" | "extend" | null>(
     null
   );
+  const [queueInfo, setQueueInfo] = useState<{
+    id: string;
+    position: number;
+    etaMinutes: number;
+    status?: "queued" | "processing";
+  } | null>(null);
+  const [analysisInputSnapshot, setAnalysisInputSnapshot] =
+    useState<KlineHistoryInput | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
   const [education, setEducation] = useState("");
   const [schoolTier, setSchoolTier] = useState("");
@@ -473,6 +483,14 @@ export default function KlinePage() {
         analysisMessage.includes("免费 AI 今日额度已用完") ||
         analysisMessage.includes("额度受限"))
   );
+  const queuePositionText = queueInfo?.position
+    ? `第 ${queueInfo.position} 位`
+    : "等待中";
+  const queueEtaText = queueInfo?.etaMinutes
+    ? `${queueInfo.etaMinutes} 分钟`
+    : "2 分钟";
+  const queueLabel =
+    queueInfo?.status === "processing" ? "已进入处理" : "排队中";
 
   const promptText = useMemo(() => {
     if (!result) {
@@ -577,6 +595,99 @@ export default function KlinePage() {
   }, [analysisState, countdownSeconds, countdownPhase]);
 
   useEffect(() => {
+    if (analysisState !== "queued" || !queueInfo?.id) {
+      return;
+    }
+    let isActive = true;
+    let pollTimer: number | null = null;
+    const pollQueue = async () => {
+      const token = window.localStorage.getItem(sessionKey);
+      if (!token) {
+        if (isActive) {
+          setAnalysisState("error");
+          setAnalysisMessage("请先登录后再使用 AI 测算。");
+          setQueueInfo(null);
+        }
+        return;
+      }
+      try {
+        const response = await fetch(`${apiBase}/ai/kline/queue/${queueInfo.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = (await response.json()) as {
+          status?: string;
+          queueId?: string;
+          position?: number;
+          etaMinutes?: number;
+          id?: string;
+          createdAt?: string;
+          analysis?: unknown;
+          raw?: string;
+          model?: string;
+          warning?: string | null;
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(data.error || "排队状态获取失败");
+        }
+        if (data.status === "queued") {
+          setQueueInfo((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  position: data.position ?? prev.position,
+                  etaMinutes: data.etaMinutes ?? prev.etaMinutes,
+                  status: "queued"
+                }
+              : prev
+          );
+          return;
+        }
+        if (data.status === "processing") {
+          setQueueInfo((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "processing"
+                }
+              : prev
+          );
+          return;
+        }
+        if (data.status === "done") {
+          setQueueInfo(null);
+          setAnalysisState("idle");
+          applyAnalysisResult(data, analysisInputSnapshot);
+          return;
+        }
+        if (data.status === "failed") {
+          setQueueInfo(null);
+          setAnalysisState("error");
+          setAnalysisMessage(data.error || "测算失败，请稍后再试。");
+          return;
+        }
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        setQueueInfo(null);
+        setAnalysisState("error");
+        setAnalysisMessage(
+          error instanceof Error ? error.message : "排队状态获取失败"
+        );
+      }
+    };
+    pollQueue();
+    pollTimer = window.setInterval(pollQueue, 5000);
+    return () => {
+      isActive = false;
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+      }
+    };
+  }, [analysisState, queueInfo?.id, analysisInputSnapshot]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -653,11 +764,84 @@ export default function KlinePage() {
     loadHistory();
   }, []);
 
+  const applyAnalysisResult = (
+    data: {
+      id?: string;
+      createdAt?: string;
+      analysis?: unknown;
+      raw?: string;
+      model?: string;
+      warning?: string | null;
+    },
+    inputOverride?: KlineHistoryInput | null
+  ) => {
+    const inputSnapshot =
+      inputOverride ??
+      analysisInputSnapshot ?? {
+        birthDate,
+        birthTime,
+        gender,
+        province,
+        ziHourMode,
+        education,
+        schoolTier,
+        prepTime,
+        interviewCount,
+        fenbiForecastXingce,
+        fenbiForecastShenlun,
+        historyScoreXingce,
+        historyScoreShenlun,
+        promptStyle
+      };
+    if (!data.analysis || typeof data.analysis !== "object") {
+      setAnalysisState("error");
+      setAnalysisMessage("AI 返回格式异常，请稍后重试。");
+      return;
+    }
+    const analysis = data.analysis as KlineAnalysis;
+    const payload: KlineHistoryRecord = {
+      id: data.id || `kline-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+      analysis,
+      raw: data.raw ?? null,
+      model: data.model ?? null,
+      warning: data.warning ?? null,
+      createdAt: data.createdAt ?? new Date().toISOString(),
+      input: inputSnapshot
+    };
+    window.sessionStorage.setItem(analysisKey, JSON.stringify(payload));
+    setHistoryItems((prev) => [
+      payload,
+      ...prev.filter((item) => item.id !== payload.id)
+    ].slice(0, 20));
+    setAnalysisInputSnapshot(null);
+    setAnalysisState("idle");
+    router.push("/kline/result");
+  };
+
+  const buildInputSnapshot = (): KlineHistoryInput => ({
+    birthDate,
+    birthTime,
+    gender,
+    province,
+    ziHourMode,
+    education,
+    schoolTier,
+    prepTime,
+    interviewCount,
+    fenbiForecastXingce,
+    fenbiForecastShenlun,
+    historyScoreXingce,
+    historyScoreShenlun,
+    promptStyle
+  });
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage(null);
     setAnalysisMessage(null);
     setAnalysisState("idle");
+    setQueueInfo(null);
+    setAnalysisInputSnapshot(null);
     if (!birthDate) {
       setMessage("请填写出生日期。");
       return;
@@ -710,12 +894,17 @@ export default function KlinePage() {
     if (!result) {
       return;
     }
+    if (analysisState === "loading" || analysisState === "queued") {
+      return;
+    }
     setAnalysisMessage(null);
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
       setAnalysisMessage("请先登录后再使用 AI 测算。");
       return;
     }
+    const inputSnapshot = buildInputSnapshot();
+    setAnalysisInputSnapshot(inputSnapshot);
     setAnalysisState("loading");
     try {
       const response = await fetch(`${apiBase}/ai/kline`, {
@@ -748,6 +937,10 @@ export default function KlinePage() {
         })
       });
       const data = (await response.json()) as {
+        status?: string;
+        queueId?: string;
+        position?: number;
+        etaMinutes?: number;
         id?: string;
         createdAt?: string;
         analysis?: unknown;
@@ -759,44 +952,20 @@ export default function KlinePage() {
       if (!response.ok) {
         throw new Error(data.error || "测算失败，请稍后再试。");
       }
-      if (!data.analysis || typeof data.analysis !== "object") {
-        setAnalysisState("error");
-        setAnalysisMessage("AI 返回格式异常，请稍后重试。");
+      if (response.status === 202 || data.status === "queued") {
+        if (!data.queueId) {
+          throw new Error("排队编号缺失，请稍后重试。");
+        }
+        setQueueInfo({
+          id: data.queueId,
+          position: data.position ?? 1,
+          etaMinutes: data.etaMinutes ?? 2,
+          status: "queued"
+        });
+        setAnalysisState("queued");
         return;
       }
-      const analysis = data.analysis as KlineAnalysis;
-      const payload: KlineHistoryRecord = {
-        id: data.id || `kline-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
-        analysis,
-        raw: data.raw ?? null,
-        model: data.model ?? null,
-        warning: data.warning ?? null,
-        createdAt: data.createdAt ?? new Date().toISOString(),
-        input: {
-          birthDate,
-          birthTime,
-          gender,
-          province,
-          ziHourMode,
-          education,
-          schoolTier,
-          prepTime,
-          interviewCount,
-          fenbiForecastXingce,
-          fenbiForecastShenlun,
-          historyScoreXingce,
-          historyScoreShenlun,
-          promptStyle
-        }
-      };
-      window.sessionStorage.setItem(analysisKey, JSON.stringify(payload));
-      const nextHistory = [
-        payload,
-        ...historyItems.filter((item) => item.id !== payload.id)
-      ].slice(0, 20);
-      setHistoryItems(nextHistory);
-      setAnalysisState("idle");
-      router.push("/kline/result");
+      applyAnalysisResult(data, inputSnapshot);
     } catch (error) {
       setAnalysisState("error");
       setAnalysisMessage(error instanceof Error ? error.message : "测算失败，请稍后再试。");
@@ -822,6 +991,8 @@ export default function KlinePage() {
     setMessage(null);
     setAnalysisMessage(null);
     setAnalysisState("idle");
+    setQueueInfo(null);
+    setAnalysisInputSnapshot(null);
     setIsEditingBazi(false);
     setShowPrompt(false);
     setPromptCopyMessage(null);
@@ -901,13 +1072,25 @@ export default function KlinePage() {
 
   return (
     <main className="main kline-page">
-      {analysisState === "loading" ? (
+      {analysisState === "loading" || analysisState === "queued" ? (
         <div className="kline-countdown">
-          <div className="kline-countdown-label">
-            {countdownPhase === "extend" ? "仍在生成，继续等待" : "AI 正在生成报告"}
-          </div>
-          <div className="kline-countdown-time">{countdownText}</div>
-          <div className="kline-countdown-note">预计等待 {countdownText}</div>
+          {analysisState === "queued" ? (
+            <>
+              <div className="kline-countdown-label">{queueLabel}</div>
+              <div className="kline-countdown-time">{queuePositionText}</div>
+              <div className="kline-countdown-note">预计等待 {queueEtaText}</div>
+            </>
+          ) : (
+            <>
+              <div className="kline-countdown-label">
+                {countdownPhase === "extend"
+                  ? "仍在生成，继续等待"
+                  : "AI 正在生成报告"}
+              </div>
+              <div className="kline-countdown-time">{countdownText}</div>
+              <div className="kline-countdown-note">预计等待 {countdownText}</div>
+            </>
+          )}
         </div>
       ) : null}
       <section className="kline-hero">
@@ -1409,8 +1592,8 @@ export default function KlinePage() {
               <LoadingButton
                 type="button"
                 className="primary"
-                loading={analysisState === "loading"}
-                loadingText="测算中..."
+                loading={analysisState === "loading" || analysisState === "queued"}
+                loadingText={analysisState === "queued" ? "排队中..." : "测算中..."}
                 onClick={handleAnalyze}
               >
                 开始测算

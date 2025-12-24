@@ -246,7 +246,7 @@ function extractKlineSummary(value: unknown) {
   };
 }
 
-const FREE_AI_DAILY_REQUEST_LIMIT = 500;
+const FREE_AI_DAILY_REQUEST_LIMIT = 600;
 const FREE_AI_EXHAUSTED_MESSAGE =
   "网站今日上游免费额度已耗尽，等待明日刷新后重试，建议自行配置AI代理";
 const AI_SERVICE_UNAVAILABLE_MESSAGE =
@@ -454,6 +454,227 @@ async function getFreeAiStatus(
     usedToday: used,
     remaining
   };
+}
+
+const KLINE_FREE_AI_CONCURRENCY_LIMIT = 3;
+const KLINE_QUEUE_ESTIMATE_MINUTES = 2;
+const KLINE_QUEUE_TTL_MS = 30 * 60 * 1000;
+
+type NormalizedKlineInput = {
+  bazi: string[];
+  dayunSequence: string[];
+  dayunStartAge: number | null;
+  dayunDirection: string | null;
+  trueSolarTime: string | null;
+  lunarDate: string | null;
+  birthDate: string | null;
+  birthTime: string | null;
+  gender: string | null;
+  province: string | null;
+  ziHourMode: string | null;
+  education: string | null;
+  schoolTier: string | null;
+  prepTime: string | null;
+  interviewCount: string | null;
+  fenbiForecastXingce: string | null;
+  fenbiForecastShenlun: string | null;
+  historyScoreXingce: string | null;
+  historyScoreShenlun: string | null;
+  promptStyle: "default" | "gentle";
+};
+
+type KlineQueueStatus = "queued" | "processing" | "done" | "failed";
+
+type KlineQueueResponse = {
+  id?: string;
+  createdAt?: string;
+  analysis: unknown;
+  raw?: string;
+  model?: string;
+  warning?: string | null;
+};
+
+type KlineQueueJob = {
+  id: string;
+  userId: string;
+  status: KlineQueueStatus;
+  createdAt: number;
+  updatedAt: number;
+  normalized: NormalizedKlineInput;
+  aiConfig: ResolvedAiConfig;
+  result?: KlineQueueResponse;
+  error?: string;
+};
+
+const klineQueue: KlineQueueJob[] = [];
+const klineJobs = new Map<string, KlineQueueJob>();
+let klineActive = 0;
+
+function getKlineQueuePosition(jobId: string) {
+  const index = klineQueue.findIndex((job) => job.id === jobId);
+  return index >= 0 ? index + 1 : 0;
+}
+
+function getKlineQueueEtaMinutes(position: number) {
+  const normalized = position > 0 ? position : 1;
+  return normalized * KLINE_QUEUE_ESTIMATE_MINUTES;
+}
+
+function scheduleKlineJobCleanup(jobId: string) {
+  const timer = setTimeout(() => {
+    klineJobs.delete(jobId);
+  }, KLINE_QUEUE_TTL_MS);
+  if (typeof timer.unref === "function") {
+    timer.unref();
+  }
+}
+
+async function runKlineAnalysis(
+  normalized: NormalizedKlineInput,
+  userId: string,
+  aiConfig: ResolvedAiConfig
+): Promise<KlineQueueResponse> {
+  const prompt = buildKlinePrompt(normalized);
+  await consumeFreeAiUsage(userId, aiConfig);
+  const result = await generateAssistAnswer({
+    provider: aiConfig.provider,
+    baseUrl: aiConfig.baseUrl,
+    apiKey: aiConfig.apiKey,
+    model: aiConfig.model,
+    messages: [
+      { role: "system", content: prompt.system },
+      { role: "user", content: prompt.user }
+    ]
+  });
+  const parsed = extractJsonPayload(result.answer) as
+    | {
+        chartPoints?: Array<{ age?: number }>;
+      }
+    | null;
+  if (!parsed || Array.isArray(parsed)) {
+    return {
+      analysis: null,
+      raw: result.answer,
+      model: result.model,
+      warning: "AI 返回格式异常"
+    };
+  }
+  const warningParts: string[] = [];
+  const chartPoints = Array.isArray(parsed.chartPoints) ? parsed.chartPoints : [];
+  if (chartPoints.length !== 18) {
+    warningParts.push("chartPoints 长度不为 18");
+  }
+  const ageMismatch = chartPoints.some(
+    (item, index) => typeof item.age !== "number" || item.age !== 23 + index
+  );
+  if (ageMismatch) {
+    warningParts.push("age 未按 23-40 顺序递增");
+  }
+  const warning = warningParts.length ? warningParts.join("；") : null;
+  const inputPayload = {
+    birthDate: normalized.birthDate,
+    birthTime: normalized.birthTime,
+    gender: normalized.gender,
+    province: normalized.province,
+    ziHourMode: normalized.ziHourMode,
+    education: normalized.education,
+    schoolTier: normalized.schoolTier,
+    prepTime: normalized.prepTime,
+    interviewCount: normalized.interviewCount,
+    fenbiForecastXingce: normalized.fenbiForecastXingce,
+    fenbiForecastShenlun: normalized.fenbiForecastShenlun,
+    historyScoreXingce: normalized.historyScoreXingce,
+    historyScoreShenlun: normalized.historyScoreShenlun,
+    promptStyle: normalized.promptStyle,
+    dayunSequence: normalized.dayunSequence,
+    dayunStartAge: normalized.dayunStartAge,
+    dayunDirection: normalized.dayunDirection,
+    trueSolarTime: normalized.trueSolarTime,
+    lunarDate: normalized.lunarDate
+  };
+  const report = (await klineReportDelegate.create({
+    data: {
+      userId,
+      bazi: normalized.bazi,
+      input: inputPayload,
+      analysis: parsed,
+      raw: result.answer,
+      model: result.model,
+      warning
+    }
+  })) as KlineReportRecord;
+  return {
+    id: report.id,
+    createdAt: report.createdAt.toISOString(),
+    analysis: parsed,
+    raw: result.answer,
+    model: result.model,
+    warning
+  };
+}
+
+async function runKlineWithSlot(
+  normalized: NormalizedKlineInput,
+  userId: string,
+  aiConfig: ResolvedAiConfig
+) {
+  klineActive += 1;
+  try {
+    return await runKlineAnalysis(normalized, userId, aiConfig);
+  } finally {
+    klineActive -= 1;
+    processKlineQueue();
+  }
+}
+
+function enqueueKlineJob(
+  normalized: NormalizedKlineInput,
+  userId: string,
+  aiConfig: ResolvedAiConfig
+) {
+  const job: KlineQueueJob = {
+    id: makeTaskId(),
+    userId,
+    status: "queued",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    normalized,
+    aiConfig
+  };
+  klineQueue.push(job);
+  klineJobs.set(job.id, job);
+  return job;
+}
+
+function processKlineQueue() {
+  while (
+    klineActive < KLINE_FREE_AI_CONCURRENCY_LIMIT &&
+    klineQueue.length > 0
+  ) {
+    const job = klineQueue.shift();
+    if (!job || job.status !== "queued") {
+      continue;
+    }
+    runQueuedKlineJob(job);
+  }
+}
+
+async function runQueuedKlineJob(job: KlineQueueJob) {
+  klineActive += 1;
+  job.status = "processing";
+  job.updatedAt = Date.now();
+  try {
+    job.result = await runKlineAnalysis(job.normalized, job.userId, job.aiConfig);
+    job.status = "done";
+  } catch (error) {
+    job.status = "failed";
+    job.error = error instanceof Error ? error.message : "测算失败，请稍后再试。";
+  } finally {
+    job.updatedAt = Date.now();
+    klineActive -= 1;
+    processKlineQueue();
+    scheduleKlineJobCleanup(job.id);
+  }
 }
 
 function ensureStringArray(value: unknown) {
@@ -2209,88 +2430,78 @@ server.post("/ai/kline", async (request, reply) => {
       historyScoreShenlun: normalizeOptionalText(body.historyScoreShenlun) ?? null,
       promptStyle
     };
-    const prompt = buildKlinePrompt(normalized);
     const aiConfig = resolveAiConfig(session.user);
-    await consumeFreeAiUsage(session.user.id, aiConfig);
-    const result = await generateAssistAnswer({
-      provider: aiConfig.provider,
-      baseUrl: aiConfig.baseUrl,
-      apiKey: aiConfig.apiKey,
-      model: aiConfig.model,
-      messages: [
-        { role: "system", content: prompt.system },
-        { role: "user", content: prompt.user }
-      ]
-    });
-    const parsed = extractJsonPayload(result.answer) as
-      | {
-          chartPoints?: Array<{ age?: number }>;
-        }
-      | null;
-    if (!parsed || Array.isArray(parsed)) {
-      reply.send({
-        analysis: null,
-        raw: result.answer,
-        model: result.model,
-        warning: "AI 返回格式异常"
+    if (aiConfig.usingFree && klineActive >= KLINE_FREE_AI_CONCURRENCY_LIMIT) {
+      const job = enqueueKlineJob(normalized, session.user.id, aiConfig);
+      const position = getKlineQueuePosition(job.id);
+      const etaMinutes = getKlineQueueEtaMinutes(position);
+      reply.code(202).send({
+        status: "queued",
+        queueId: job.id,
+        position,
+        etaMinutes
       });
       return;
     }
-    const warningParts: string[] = [];
-    const chartPoints = Array.isArray(parsed.chartPoints) ? parsed.chartPoints : [];
-    if (chartPoints.length !== 18) {
-      warningParts.push("chartPoints 长度不为 18");
-    }
-    const ageMismatch = chartPoints.some(
-      (item, index) => typeof item.age !== "number" || item.age !== 23 + index
-    );
-    if (ageMismatch) {
-      warningParts.push("age 未按 23-40 顺序递增");
-    }
-    const warning = warningParts.length ? warningParts.join("；") : null;
-    const inputPayload = {
-      birthDate: normalized.birthDate,
-      birthTime: normalized.birthTime,
-      gender: normalized.gender,
-      province: normalized.province,
-      ziHourMode: normalized.ziHourMode,
-      education: normalized.education,
-      schoolTier: normalized.schoolTier,
-      prepTime: normalized.prepTime,
-      interviewCount: normalized.interviewCount,
-      fenbiForecastXingce: normalized.fenbiForecastXingce,
-      fenbiForecastShenlun: normalized.fenbiForecastShenlun,
-      historyScoreXingce: normalized.historyScoreXingce,
-      historyScoreShenlun: normalized.historyScoreShenlun,
-      promptStyle: normalized.promptStyle,
-      dayunSequence: normalized.dayunSequence,
-      dayunStartAge: normalized.dayunStartAge,
-      dayunDirection: normalized.dayunDirection,
-      trueSolarTime: normalized.trueSolarTime,
-      lunarDate: normalized.lunarDate
-    };
-    const report = (await klineReportDelegate.create({
-      data: {
-        userId: session.user.id,
-        bazi: normalized.bazi,
-        input: inputPayload,
-        analysis: parsed,
-        raw: result.answer,
-        model: result.model,
-        warning
-      }
-    })) as KlineReportRecord;
-    reply.send({
-      id: report.id,
-      createdAt: report.createdAt.toISOString(),
-      analysis: parsed,
-      raw: result.answer,
-      model: result.model,
-      warning
-    });
+    const response = aiConfig.usingFree
+      ? await runKlineWithSlot(normalized, session.user.id, aiConfig)
+      : await runKlineAnalysis(normalized, session.user.id, aiConfig);
+    reply.send(response);
   } catch (error) {
     reply.code(400).send({
       error: error instanceof Error ? error.message : "测算失败"
+    });
+  }
+});
+
+server.get("/ai/kline/queue/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少队列 ID" });
+      return;
+    }
+    const job = klineJobs.get(id);
+    if (!job || job.userId !== session.user.id) {
+      reply.code(404).send({ error: "队列记录不存在" });
+      return;
+    }
+    if (job.status === "queued") {
+      const position = getKlineQueuePosition(job.id);
+      const etaMinutes = getKlineQueueEtaMinutes(position);
+      reply.send({
+        status: "queued",
+        queueId: job.id,
+        position,
+        etaMinutes
+      });
+      return;
+    }
+    if (job.status === "processing") {
+      reply.send({ status: "processing", queueId: job.id });
+      return;
+    }
+    if (job.status === "failed") {
+      reply.code(400).send({
+        status: "failed",
+        error: job.error || "测算失败，请稍后再试。"
+      });
+      return;
+    }
+    if (!job.result) {
+      reply.code(400).send({ error: "队列结果缺失，请稍后重试。" });
+      return;
+    }
+    reply.send({ status: "done", ...job.result });
+  } catch (error) {
+    reply.code(400).send({
+      error: error instanceof Error ? error.message : "获取队列状态失败"
     });
   }
 });
