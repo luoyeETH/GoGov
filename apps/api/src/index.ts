@@ -246,9 +246,11 @@ function extractKlineSummary(value: unknown) {
   };
 }
 
-const FREE_AI_DAILY_REQUEST_LIMIT = 300;
+const FREE_AI_DAILY_REQUEST_LIMIT = 500;
 const FREE_AI_EXHAUSTED_MESSAGE =
   "网站今日上游免费额度已耗尽，等待明日刷新后重试，建议自行配置AI代理";
+const AI_SERVICE_UNAVAILABLE_MESSAGE =
+  "AI 服务繁忙或额度受限，请稍后再试，也可使用提示词自行测算。";
 const freeAiConfig = loadFreeAiConfig();
 
 function loadFreeAiConfig(): FreeAiConfig | null {
@@ -349,26 +351,21 @@ async function consumeFreeAiUsage(userId: string, config: ResolvedAiConfig) {
   }
   const limit = freeAiConfig.dailyLimit;
   const { start } = getDayRange();
-  await prisma.$transaction(async (tx) => {
-    const globalUpdated = await tx.globalFreeAiUsage.updateMany({
-      where: {
-        date: start,
-        count: { lt: FREE_AI_DAILY_REQUEST_LIMIT }
-      },
-      data: { count: { increment: 1 } }
-    });
-    let globalAllowed = globalUpdated.count === 1;
-    if (!globalAllowed) {
-      try {
-        await tx.globalFreeAiUsage.create({
-          data: { date: start, count: 1 }
+  try {
+    await prisma.$transaction(async (tx) => {
+      const globalUpdated = await tx.globalFreeAiUsage.updateMany({
+        where: {
+          date: start,
+          count: { lt: FREE_AI_DAILY_REQUEST_LIMIT }
+        },
+        data: { count: { increment: 1 } }
+      });
+      if (globalUpdated.count !== 1) {
+        const created = await tx.globalFreeAiUsage.createMany({
+          data: [{ date: start, count: 1 }],
+          skipDuplicates: true
         });
-        globalAllowed = true;
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
+        if (created.count !== 1) {
           const retry = await tx.globalFreeAiUsage.updateMany({
             where: {
               date: start,
@@ -376,49 +373,54 @@ async function consumeFreeAiUsage(userId: string, config: ResolvedAiConfig) {
             },
             data: { count: { increment: 1 } }
           });
-          globalAllowed = retry.count === 1;
+          if (retry.count !== 1) {
+            throw new Error(FREE_AI_EXHAUSTED_MESSAGE);
+          }
         }
       }
-      if (!globalAllowed) {
-        throw new Error(FREE_AI_EXHAUSTED_MESSAGE);
-      }
-    }
-    const updated = await tx.freeAiUsage.updateMany({
-      where: {
-        userId,
-        date: start,
-        count: { lt: limit }
-      },
-      data: { count: { increment: 1 } }
-    });
-    if (updated.count === 1) {
-      return;
-    }
-    try {
-      await tx.freeAiUsage.create({
-        data: { userId, date: start, count: 1 }
+      const updated = await tx.freeAiUsage.updateMany({
+        where: {
+          userId,
+          date: start,
+          count: { lt: limit }
+        },
+        data: { count: { increment: 1 } }
       });
-      return;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        const retry = await tx.freeAiUsage.updateMany({
-          where: {
-            userId,
-            date: start,
-            count: { lt: limit }
-          },
-          data: { count: { increment: 1 } }
-        });
-        if (retry.count === 1) {
-          return;
-        }
+      if (updated.count === 1) {
+        return;
+      }
+      const created = await tx.freeAiUsage.createMany({
+        data: [{ userId, date: start, count: 1 }],
+        skipDuplicates: true
+      });
+      if (created.count === 1) {
+        return;
+      }
+      const retry = await tx.freeAiUsage.updateMany({
+        where: {
+          userId,
+          date: start,
+          count: { lt: limit }
+        },
+        data: { count: { increment: 1 } }
+      });
+      if (retry.count === 1) {
+        return;
       }
       throw new Error("免费 AI 今日额度已用完，请在个人资料配置自己的 AI 继续使用。");
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      const message = error.message.trim();
+      if (
+        message === FREE_AI_EXHAUSTED_MESSAGE ||
+        message.includes("免费 AI 今日额度已用完")
+      ) {
+        throw error;
+      }
     }
-  });
+    throw new Error(AI_SERVICE_UNAVAILABLE_MESSAGE);
+  }
 }
 
 async function getFreeAiStatus(
@@ -2171,11 +2173,18 @@ server.post("/ai/kline", async (request, reply) => {
       schoolTier?: string | null;
       prepTime?: string | null;
       interviewCount?: string | null;
+      fenbiForecastXingce?: string | null;
+      fenbiForecastShenlun?: string | null;
+      historyScoreXingce?: string | null;
+      historyScoreShenlun?: string | null;
+      promptStyle?: "default" | "gentle" | null;
     };
     if (!Array.isArray(body.bazi) || body.bazi.length !== 4) {
       reply.code(400).send({ error: "缺少有效的八字信息" });
       return;
     }
+    const promptStyle: "default" | "gentle" =
+      body.promptStyle === "gentle" ? "gentle" : "default";
     const normalized = {
       bazi: body.bazi.filter((item) => typeof item === "string"),
       dayunSequence: Array.isArray(body.dayunSequence)
@@ -2193,7 +2202,12 @@ server.post("/ai/kline", async (request, reply) => {
       education: normalizeOptionalText(body.education) ?? null,
       schoolTier: normalizeOptionalText(body.schoolTier) ?? null,
       prepTime: normalizeOptionalText(body.prepTime) ?? null,
-      interviewCount: normalizeOptionalText(body.interviewCount) ?? null
+      interviewCount: normalizeOptionalText(body.interviewCount) ?? null,
+      fenbiForecastXingce: normalizeOptionalText(body.fenbiForecastXingce) ?? null,
+      fenbiForecastShenlun: normalizeOptionalText(body.fenbiForecastShenlun) ?? null,
+      historyScoreXingce: normalizeOptionalText(body.historyScoreXingce) ?? null,
+      historyScoreShenlun: normalizeOptionalText(body.historyScoreShenlun) ?? null,
+      promptStyle
     };
     const prompt = buildKlinePrompt(normalized);
     const aiConfig = resolveAiConfig(session.user);
@@ -2244,6 +2258,11 @@ server.post("/ai/kline", async (request, reply) => {
       schoolTier: normalized.schoolTier,
       prepTime: normalized.prepTime,
       interviewCount: normalized.interviewCount,
+      fenbiForecastXingce: normalized.fenbiForecastXingce,
+      fenbiForecastShenlun: normalized.fenbiForecastShenlun,
+      historyScoreXingce: normalized.historyScoreXingce,
+      historyScoreShenlun: normalized.historyScoreShenlun,
+      promptStyle: normalized.promptStyle,
       dayunSequence: normalized.dayunSequence,
       dayunStartAge: normalized.dayunStartAge,
       dayunDirection: normalized.dayunDirection,

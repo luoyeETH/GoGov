@@ -1982,6 +1982,22 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.kline-grid-split {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.kline-left-stack {
+  display: grid;
+  gap: 24px;
+}
+
+@media (max-width: 980px) {
+  .kline-grid-split {
+    grid-template-columns: 1fr;
+  }
+}
+
 .kline-pillars {
   display: grid;
   gap: 12px;
@@ -2106,7 +2122,82 @@ button {
 .kline-extra-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.kline-extra-grid .form-row {
+  min-width: 0;
+}
+
+.kline-extra-grid .form-row input,
+.kline-extra-grid .form-row select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.kline-prompt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.kline-prompt-note {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.kline-prompt-alert {
+  border: 1px solid rgba(181, 82, 43, 0.35);
+  background: rgba(181, 82, 43, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--brand-dark);
+}
+
+.kline-prompt-alert.is-urgent {
+  border-color: rgba(181, 82, 43, 0.6);
+  background: rgba(181, 82, 43, 0.14);
+}
+
+.kline-prompt-panel {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--glass-bg-subtle);
+  display: grid;
+  gap: 10px;
+}
+
+.kline-prompt-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.kline-prompt-panel-header span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kline-prompt-textarea {
+  width: 100%;
+  min-height: 200px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+  background: var(--card);
+  color: var(--text);
+  resize: vertical;
+  box-sizing: border-box;
 }
 
 .kline-countdown {
