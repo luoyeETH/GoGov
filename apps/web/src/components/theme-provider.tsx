@@ -56,6 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const prefs = current ? JSON.parse(current) : {};
       prefs.theme = theme;
       localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+      document.cookie = `gogov_theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`;
       
       // Cleanup legacy
       localStorage.removeItem("theme");

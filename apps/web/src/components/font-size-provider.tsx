@@ -56,6 +56,7 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
       const prefs = current ? JSON.parse(current) : {};
       prefs.fontSize = fontSize;
       localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+      document.cookie = `gogov_font_size=${fontSize}; Path=/; Max-Age=31536000; SameSite=Lax`;
       
       // Cleanup legacy
       localStorage.removeItem("fontSize");

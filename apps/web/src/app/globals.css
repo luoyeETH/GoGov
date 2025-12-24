@@ -146,6 +146,13 @@ body {
   font-weight: var(--weight-normal);
 }
 
+input,
+textarea,
+select {
+  color: var(--text);
+  font-family: inherit;
+}
+
 .page {
   display: flex;
   flex-direction: column;
@@ -562,6 +569,7 @@ button {
   padding: 10px 18px;
   font-size: var(--text-sm);
   cursor: pointer;
+  color: inherit;
 }
 
 .primary {
@@ -3848,6 +3856,10 @@ select {
   display: grid;
   gap: 12px;
   justify-items: center;
+}
+
+.pomodoro-radar svg {
+  overflow: visible;
 }
 
 .pomodoro-radar-grid {

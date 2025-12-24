@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Script from "next/script";
+import { cookies } from "next/headers";
 import NavUser from "../components/nav-user";
 import MainNav from "../components/main-nav";
 import { ThemeProvider } from "../components/theme-provider";
@@ -34,8 +35,22 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = cookies();
+  const themeCookie = cookieStore.get("gogov_theme")?.value;
+  const fontSizeCookie = cookieStore.get("gogov_font_size")?.value;
+  const initialTheme =
+    themeCookie === "eyecare" || themeCookie === "light" || themeCookie === "dark"
+      ? themeCookie
+      : "eyecare";
+  const initialFontSize =
+    fontSizeCookie === "default" ||
+    fontSizeCookie === "large" ||
+    fontSizeCookie === "extra-large"
+      ? fontSizeCookie
+      : "default";
+
   return (
-    <html lang="zh-CN" data-theme="eyecare" data-font-size="default">
+    <html lang="zh-CN" data-theme={initialTheme} data-font-size={initialFontSize}>
       <head>
         <Script id="theme-init" strategy="beforeInteractive">{`
           (function () {
@@ -54,7 +69,7 @@ export default function RootLayout({
               var theme =
                 storedTheme === "light" || storedTheme === "dark" || storedTheme === "eyecare"
                   ? storedTheme
-                  : "eyecare";
+                  : document.documentElement.getAttribute("data-theme") || "eyecare";
               document.documentElement.setAttribute("data-theme", theme);
 
               // Font Size Init
@@ -62,7 +77,7 @@ export default function RootLayout({
               var fontSize =
                 storedFontSize === "default" || storedFontSize === "large" || storedFontSize === "extra-large"
                   ? storedFontSize
-                  : "default";
+                  : document.documentElement.getAttribute("data-font-size") || "default";
               document.documentElement.setAttribute("data-font-size", fontSize);
             } catch (e) {
               document.documentElement.setAttribute("data-theme", "eyecare");

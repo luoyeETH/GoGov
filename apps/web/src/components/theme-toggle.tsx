@@ -6,6 +6,7 @@ import { Theme, useTheme } from "./theme-provider";
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -15,6 +16,11 @@ export default function ThemeToggle() {
     }
     return () => document.removeEventListener("click", closeMenu);
   }, [isOpen]);
+
+  // Avoid hydration mismatch by rendering default before mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const labels: Record<Theme, string> = {
     eyecare: "护眼模式",
@@ -49,6 +55,8 @@ export default function ThemeToggle() {
     ),
   };
 
+  const currentTheme = mounted ? theme : "eyecare";
+
   return (
     <div className="nav-user-dropdown nav-control" onClick={(e) => e.stopPropagation()}>
       <button
@@ -59,8 +67,8 @@ export default function ThemeToggle() {
         title="切换主题"
       >
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {icons[theme]}
-          <span className="theme-label-text">{labels[theme]}</span>
+          {icons[currentTheme]}
+          <span className="theme-label-text">{labels[currentTheme]}</span>
         </span>
         <span className="dropdown-arrow">▼</span>
       </button>
@@ -69,7 +77,7 @@ export default function ThemeToggle() {
           {(Object.keys(labels) as Theme[]).map((t) => (
             <button
               key={t}
-              className={`dropdown-item ${theme === t ? "active" : ""}`}
+              className={`dropdown-item ${currentTheme === t ? "active" : ""}`}
               onClick={() => {
                 setTheme(t);
                 setIsOpen(false);
