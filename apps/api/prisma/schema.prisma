@@ -57,6 +57,7 @@ model User {
   studyPlanHistories StudyPlanHistory[]
   studyPlanDailyTasks StudyPlanDailyTask[]
   klineReports      KlineReport[]
+  expenseLogs       ExpenseLog[]
 }
 
 model Session {
@@ -323,5 +324,20 @@ model KlineReport {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+}
+
+model ExpenseLog {
+  id         String   @id @default(cuid())
+  userId     String
+  item       String
+  amount     Float
+  occurredAt DateTime
+  rawText    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
   @@index([userId, createdAt])
 }

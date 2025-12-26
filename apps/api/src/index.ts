@@ -13,6 +13,7 @@ import { buildKnowledgePrompt } from "./ai/knowledge";
 import { buildStudyPlanPrompt } from "./ai/study-plan";
 import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
 import { buildKlinePrompt } from "./ai/kline";
+import { buildExpenseParsePrompt } from "./ai/expense";
 import { calculateBazi } from "./fortune/bazi";
 import { createChallenge } from "./auth/challenge";
 import {
@@ -71,6 +72,7 @@ type KlineReportRecord = {
 const klineReportDelegate = (prisma as unknown as { klineReport: any }).klineReport;
 const pomodoroSessionDelegate = (prisma as unknown as { pomodoroSession: any }).pomodoroSession;
 const pomodoroSubjectDelegate = (prisma as unknown as { pomodoroSubject: any }).pomodoroSubject;
+const expenseLogDelegate = (prisma as unknown as { expenseLog: any }).expenseLog;
 
 const POMODORO_SUBJECTS = [
   "常识",
@@ -83,6 +85,8 @@ const POMODORO_SUBJECTS = [
 ];
 const POMODORO_PAUSE_LIMIT_SECONDS = 5 * 60;
 const MAX_CUSTOM_POMODORO_SUBJECTS = 5;
+const MAX_EXPENSE_TEXT_LENGTH = 200;
+const MAX_EXPENSE_ITEM_LENGTH = 40;
 
 function extractJsonPayload(value: string) {
   const trimmed = value.trim();
@@ -149,6 +153,87 @@ function parseOptionalNumber(value: unknown) {
   return null;
 }
 
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function pad2(value: number) {
+  return `${value}`.padStart(2, "0");
+}
+
+function getMonthBucketLabel(dateLabel: string) {
+  const year = Number(dateLabel.slice(0, 4));
+  const month = Number(dateLabel.slice(5, 7));
+  const day = Number(dateLabel.slice(8, 10));
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    month < 1 ||
+    month > 12
+  ) {
+    return dateLabel;
+  }
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day >= 26) {
+    return `26-${pad2(daysInMonth)}`;
+  }
+  const startDay = Math.floor((day - 1) / 5) * 5 + 1;
+  const endDay = Math.min(startDay + 4, 25);
+  return `${pad2(startDay)}-${pad2(endDay)}`;
+}
+
+type NormalizedExpenseInput = {
+  dateLabel: string;
+  occurredAt: Date;
+  item: string;
+  amount: number;
+  formatted: string;
+};
+
+function normalizeExpenseInput(
+  value: unknown,
+  fallbackDateLabel: string
+): { entry: NormalizedExpenseInput | null; error: string | null } {
+  if (!value || typeof value !== "object") {
+    return { entry: null, error: "记录格式不正确" };
+  }
+  const record = value as Record<string, unknown>;
+  const dateText = typeof record.date === "string" ? record.date.trim() : "";
+  const dateValue =
+    parseOptionalDate(dateText) ?? parseOptionalDate(fallbackDateLabel);
+  if (!dateValue) {
+    return { entry: null, error: "日期格式不正确" };
+  }
+  const item = typeof record.item === "string" ? record.item.trim() : "";
+  if (!item) {
+    return { entry: null, error: "缺少项目名称" };
+  }
+  if (item.length > MAX_EXPENSE_ITEM_LENGTH) {
+    return { entry: null, error: "项目名称过长" };
+  }
+  const amountValue = parseOptionalNumber(record.amount);
+  if (typeof amountValue !== "number" || !Number.isFinite(amountValue)) {
+    return { entry: null, error: "金额格式不正确" };
+  }
+  if (amountValue <= 0) {
+    return { entry: null, error: "金额必须大于 0" };
+  }
+  const amount = roundCurrency(amountValue);
+  const dateLabel = getBeijingDateString(dateValue);
+  const occurredAt = parseOptionalDate(dateLabel) ?? dateValue;
+  return {
+    entry: {
+      dateLabel,
+      occurredAt,
+      item,
+      amount,
+      formatted: `${dateLabel}：${item}：${amount}`
+    },
+    error: null
+  };
+}
+
 function getBeijingDateString(date = new Date()) {
   const utc = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
   const beijing = new Date(utc + 8 * 60 * 60 * 1000);
@@ -156,6 +241,19 @@ function getBeijingDateString(date = new Date()) {
   const month = `${beijing.getMonth() + 1}`.padStart(2, "0");
   const day = `${beijing.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getBeijingDateTimeString(date = new Date()) {
+  const utc = date.getTime() + date.getTimezoneOffset() * 60 * 1000;
+  const beijing = new Date(utc + 8 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(beijing);
 }
 
 function getBeijingHour(date: Date) {
@@ -192,6 +290,53 @@ function getWeekRange(dateValue?: string | null) {
     );
   }
   const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { start, end, labels };
+}
+
+function getMonthRange(dateValue?: string | null) {
+  const base = parseOptionalDate(dateValue ?? null) ?? new Date();
+  const baseLabel = getBeijingDateString(base);
+  const [year, month] = baseLabel.split("-").map((value) => Number(value));
+  const monthLabel = `${month}`.padStart(2, "0");
+  const startLabel = `${year}-${monthLabel}-01`;
+  const start = parseOptionalDate(startLabel) ?? new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(start.getTime());
+  end.setMonth(end.getMonth() + 1);
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const labels: string[] = [];
+  for (let i = 1; i <= daysInMonth; i += 1) {
+    labels.push(`${year}-${monthLabel}-${`${i}`.padStart(2, "0")}`);
+  }
+  return { start, end, labels };
+}
+
+function getMonthBucketLabels(dateValue?: string | null) {
+  const base = parseOptionalDate(dateValue ?? null) ?? new Date();
+  const baseLabel = getBeijingDateString(base);
+  const [year, month] = baseLabel.split("-").map((value) => Number(value));
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return [
+    "01-05",
+    "06-10",
+    "11-15",
+    "16-20",
+    "21-25",
+    `26-${pad2(daysInMonth)}`
+  ];
+}
+
+function getYearRange(dateValue?: string | null) {
+  const base = parseOptionalDate(dateValue ?? null) ?? new Date();
+  const baseLabel = getBeijingDateString(base);
+  const year = Number(baseLabel.slice(0, 4));
+  const startLabel = `${year}-01-01`;
+  const start = parseOptionalDate(startLabel) ?? new Date(Date.UTC(year, 0, 1));
+  const end = new Date(start.getTime());
+  end.setFullYear(end.getFullYear() + 1);
+  const labels: string[] = [];
+  for (let i = 1; i <= 12; i += 1) {
+    labels.push(`${year}-${`${i}`.padStart(2, "0")}`);
+  }
   return { start, end, labels };
 }
 
@@ -1567,6 +1712,428 @@ server.post(
   }
   }
 );
+
+server.post("/expenses/parse", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as { text?: string };
+    const text = normalizeOptionalText(body.text) ?? "";
+    if (!text) {
+      reply.code(400).send({ error: "请输入记账描述" });
+      return;
+    }
+    if (text.length > MAX_EXPENSE_TEXT_LENGTH) {
+      reply.code(400).send({ error: "描述过长，请控制在 200 字以内" });
+      return;
+    }
+
+    const prompt = buildExpenseParsePrompt({ input: text, now: new Date() });
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
+    const result = await generateAssistAnswer({
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
+      ]
+    });
+    const parsed = extractJsonPayload(result.answer) as
+      | {
+          items?: Array<{
+            date?: string | null;
+            item?: string | null;
+            amount?: number | string | null;
+          }>;
+          date?: string | null;
+          item?: string | null;
+          amount?: number | string | null;
+        }
+      | null;
+    const fallbackDate = getBeijingDateString();
+    const candidates = Array.isArray(parsed?.items) && parsed?.items?.length
+      ? parsed?.items
+      : parsed
+      ? [parsed]
+      : [];
+
+    const entries: Array<{
+      date: string;
+      item: string;
+      amount: number;
+      formatted: string;
+    }> = [];
+    let invalidCount = 0;
+    for (const candidate of candidates) {
+      const { entry } = normalizeExpenseInput(candidate, fallbackDate);
+      if (!entry) {
+        invalidCount += 1;
+        continue;
+      }
+      entries.push({
+        date: entry.dateLabel,
+        item: entry.item,
+        amount: entry.amount,
+        formatted: entry.formatted
+      });
+    }
+
+    if (!entries.length) {
+      reply.code(400).send({
+        error: "无法识别有效支出，请补充项目和金额"
+      });
+      return;
+    }
+    const warning =
+      invalidCount > 0 ? `有 ${invalidCount} 条记录未解析成功` : null;
+
+    reply.send({
+      entries,
+      warning,
+      date: entries[0].date,
+      item: entries[0].item,
+      amount: entries[0].amount,
+      formatted: entries[0].formatted,
+      raw: result.answer,
+      model: result.model,
+      beijingNow: getBeijingDateTimeString()
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "解析失败" });
+  }
+});
+
+server.post("/expenses", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body ?? {};
+    const payload = Array.isArray(body) ? body : (body as Record<string, unknown>);
+    const recordsInput = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload.records)
+      ? payload.records
+      : [payload];
+    if (!recordsInput.length) {
+      reply.code(400).send({ error: "缺少记账记录" });
+      return;
+    }
+    const fallbackDate = getBeijingDateString();
+    const rawTextFallback =
+      !Array.isArray(payload) && typeof payload.rawText === "string"
+        ? normalizeOptionalText(payload.rawText)
+        : null;
+
+    const createData: Array<{
+      userId: string;
+      item: string;
+      amount: number;
+      occurredAt: Date;
+      rawText: string | null;
+    }> = [];
+    const responseRecords: Array<{
+      dateLabel: string;
+      item: string;
+      amount: number;
+    }> = [];
+    for (let i = 0; i < recordsInput.length; i += 1) {
+      const record = recordsInput[i] as Record<string, unknown>;
+      const { entry, error } = normalizeExpenseInput(record, fallbackDate);
+      if (!entry) {
+        reply.code(400).send({
+          error: `第 ${i + 1} 条记录${error ? `：${error}` : "不合法"}`
+        });
+        return;
+      }
+      const rawText =
+        typeof record.rawText === "string"
+          ? normalizeOptionalText(record.rawText)
+          : rawTextFallback;
+      createData.push({
+        userId: session.user.id,
+        item: entry.item,
+        amount: entry.amount,
+        occurredAt: entry.occurredAt,
+        rawText: rawText ?? null
+      });
+      responseRecords.push({
+        dateLabel: entry.dateLabel,
+        item: entry.item,
+        amount: entry.amount
+      });
+    }
+
+    const createdRecords = await prisma.$transaction(
+      createData.map((data) => expenseLogDelegate.create({ data }))
+    );
+
+    const records = createdRecords.map((record: any, index: number) => ({
+      id: record.id,
+      date: responseRecords[index]?.dateLabel ?? getBeijingDateString(record.occurredAt),
+      item: record.item,
+      amount: roundCurrency(record.amount ?? 0),
+      rawText: record.rawText ?? null,
+      createdAt: record.createdAt.toISOString()
+    }));
+
+    reply.send({
+      count: records.length,
+      records,
+      record: records[0]
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "保存失败" });
+  }
+});
+
+server.get("/expenses/overview", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { range, date, limit } = request.query as {
+      range?: string;
+      date?: string;
+      limit?: string;
+    };
+    const rangeInput = typeof range === "string" ? range.toLowerCase() : "";
+    const rangeKey =
+      rangeInput && ["day", "week", "month", "year"].includes(rangeInput)
+        ? (rangeInput as "day" | "week" | "month" | "year")
+        : "month";
+    const dateText = typeof date === "string" ? date.trim() : null;
+
+    let start: Date;
+    let end: Date;
+    let labels: string[];
+    if (rangeKey === "day") {
+      const rangeInfo = getDayRange(dateText);
+      start = rangeInfo.start;
+      end = rangeInfo.end;
+      labels = [getBeijingDateString(start)];
+    } else if (rangeKey === "week") {
+      const rangeInfo = getWeekRange(dateText);
+      start = rangeInfo.start;
+      end = rangeInfo.end;
+      labels = rangeInfo.labels;
+    } else if (rangeKey === "year") {
+      const rangeInfo = getYearRange(dateText);
+      start = rangeInfo.start;
+      end = rangeInfo.end;
+      labels = rangeInfo.labels;
+    } else {
+      const rangeInfo = getMonthRange(dateText);
+      start = rangeInfo.start;
+      end = rangeInfo.end;
+      labels = getMonthBucketLabels(dateText);
+    }
+
+    const statsRecords = await expenseLogDelegate.findMany({
+      where: {
+        userId: session.user.id,
+        occurredAt: { gte: start, lt: end }
+      },
+      select: {
+        item: true,
+        amount: true,
+        occurredAt: true
+      }
+    });
+    const take = Math.min(Math.max(Number(limit) || 80, 1), 200);
+    const records = await expenseLogDelegate.findMany({
+      where: {
+        userId: session.user.id,
+        occurredAt: { gte: start, lt: end }
+      },
+      orderBy: { occurredAt: "desc" },
+      take
+    });
+
+    const itemMap = new Map<string, { amount: number; count: number }>();
+    const seriesMap = new Map<string, number>();
+    let totalAmount = 0;
+    for (const record of statsRecords) {
+      totalAmount += record.amount ?? 0;
+      const itemKey = record.item?.trim() || "未分类";
+      const itemEntry = itemMap.get(itemKey) ?? { amount: 0, count: 0 };
+      itemEntry.amount += record.amount ?? 0;
+      itemEntry.count += 1;
+      itemMap.set(itemKey, itemEntry);
+
+      const dateLabel = getBeijingDateString(record.occurredAt);
+      const seriesLabel =
+        rangeKey === "year"
+          ? dateLabel.slice(0, 7)
+          : rangeKey === "month"
+          ? getMonthBucketLabel(dateLabel)
+          : dateLabel;
+      seriesMap.set(seriesLabel, (seriesMap.get(seriesLabel) ?? 0) + record.amount);
+    }
+
+    const sortedItems = Array.from(itemMap.entries()).sort(
+      (a, b) => b[1].amount - a[1].amount
+    );
+    const maxItems = 7;
+    const breakdown = sortedItems.slice(0, maxItems).map(([item, info]) => ({
+      item,
+      amount: roundCurrency(info.amount),
+      count: info.count,
+      percent:
+        totalAmount > 0
+          ? Math.round((info.amount / totalAmount) * 1000) / 10
+          : 0
+    }));
+    if (sortedItems.length > maxItems) {
+      const rest = sortedItems.slice(maxItems);
+      const restAmount = rest.reduce((sum, [, info]) => sum + info.amount, 0);
+      const restCount = rest.reduce((sum, [, info]) => sum + info.count, 0);
+      breakdown.push({
+        item: "其他",
+        amount: roundCurrency(restAmount),
+        count: restCount,
+        percent:
+          totalAmount > 0
+            ? Math.round((restAmount / totalAmount) * 1000) / 10
+            : 0
+      });
+    }
+
+    const series = labels.map((label) => ({
+      label,
+      amount: roundCurrency(seriesMap.get(label) ?? 0)
+    }));
+
+    reply.send({
+      range: {
+        type: rangeKey,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        labels
+      },
+      totals: {
+        amount: roundCurrency(totalAmount),
+        count: statsRecords.length
+      },
+      breakdown,
+      series,
+      records: records.map((record: any) => ({
+        id: record.id,
+        date: getBeijingDateString(record.occurredAt),
+        item: record.item,
+        amount: roundCurrency(record.amount ?? 0),
+        rawText: record.rawText ?? null,
+        createdAt: record.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.patch("/expenses/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少记录 ID" });
+      return;
+    }
+    const existing = await expenseLogDelegate.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    const body = (request.body ?? {}) as {
+      date?: string;
+      item?: string;
+      amount?: number | string;
+    };
+    const fallbackDate = getBeijingDateString(existing.occurredAt);
+    const { entry, error } = normalizeExpenseInput(body, fallbackDate);
+    if (!entry) {
+      reply.code(400).send({ error: error ?? "记录不合法" });
+      return;
+    }
+    const updated = await expenseLogDelegate.update({
+      where: { id },
+      data: {
+        item: entry.item,
+        amount: entry.amount,
+        occurredAt: entry.occurredAt
+      }
+    });
+    reply.send({
+      record: {
+        id: updated.id,
+        date: getBeijingDateString(updated.occurredAt),
+        item: updated.item,
+        amount: roundCurrency(updated.amount ?? 0),
+        rawText: updated.rawText ?? null,
+        createdAt: updated.createdAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.delete("/expenses/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少记录 ID" });
+      return;
+    }
+    const existing = await expenseLogDelegate.findFirst({
+      where: { id, userId: session.user.id }
+    });
+    if (!existing) {
+      reply.code(404).send({ error: "记录不存在" });
+      return;
+    }
+    await expenseLogDelegate.delete({ where: { id } });
+    reply.send({ ok: true });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "删除失败" });
+  }
+});
 
 server.get("/stats/overview", async (request, reply) => {
   try {
