@@ -78,13 +78,14 @@ const SUBJECTS = [
   { value: "常识", hint: "政策与常识积累" },
   { value: "政治理论", hint: "理论框架巩固" },
   { value: "言语理解", hint: "语感与逻辑" },
+  { value: "数量关系", hint: "运算与数量思维" },
   { value: "判断推理", hint: "图形与逻辑" },
   { value: "资料分析", hint: "数据速算" },
   { value: "专业知识", hint: "专项深入" },
   { value: "申论", hint: "表达与结构" }
 ];
 
-const DURATION_PRESETS = [15, 25, 35, 45, 60];
+const DURATION_PRESETS = [5, 15, 25, 35, 45, 60];
 
 function formatSeconds(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds));
