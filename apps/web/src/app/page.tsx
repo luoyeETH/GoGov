@@ -74,6 +74,11 @@ export default function Home() {
             <p>OCR 导入思维导图，AI 生成常识学习卡片。</p>
             <span className="module-status active">已上线</span>
           </Link>
+          <Link href="/computer" className="module-card module-card-active">
+            <div className="module-title">计算机专项</div>
+            <p>计算机专业科目学习板块 + AI 提问 + 轻量判题。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
           <Link href="/mistakes" className="module-card module-card-active">
             <div className="module-title">错题整理</div>
             <p>自动归因 + 复盘路径，AI 给出纠错建议。</p>

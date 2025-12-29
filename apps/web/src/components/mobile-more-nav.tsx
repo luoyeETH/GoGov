@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 const MORE_ITEMS = [
   { href: "/knowledge", label: "常识学习" },
+  { href: "/computer", label: "计算机专项" },
   { href: "/practice/quick", label: "速算练习" },
   { href: "/mock-report", label: "模考解读" },
   { href: "/daily-tasks", label: "今日任务" },

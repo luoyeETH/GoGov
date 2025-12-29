@@ -52,6 +52,16 @@ export default function MistakesPage() {
   const [categories, setCategories] = useState<QuickPracticeCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
 
+  const computerCategory: QuickPracticeCategory = useMemo(
+    () => ({
+      id: "computer",
+      name: "计算机专项",
+      group: "计算机专项",
+      description: "计算机专业科目错题"
+    }),
+    []
+  );
+
   const categoryMap = useMemo(() => {
     return new Map(categories.map((item) => [item.id, item.name]));
   }, [categories]);
@@ -92,14 +102,17 @@ export default function MistakesPage() {
         const res = await fetch(`${apiBase}/practice/quick/categories`);
         const data = await res.json();
         if (res.ok) {
-          setCategories(data.categories ?? []);
+          const quickCategories = Array.isArray(data.categories)
+            ? data.categories
+            : [];
+          setCategories([computerCategory, ...quickCategories]);
         }
       } catch (_err) {
-        setCategories([]);
+        setCategories([computerCategory]);
       }
     };
     void loadCategories();
-  }, []);
+  }, [computerCategory]);
 
   useEffect(() => {
     void loadMistakes(selectedCategory === "all" ? undefined : selectedCategory);
@@ -112,7 +125,7 @@ export default function MistakesPage() {
           <p className="eyebrow">错题复盘</p>
           <h1>我的错题本</h1>
           <p className="lead">
-            汇总速算练习中的错误题目，随时回看答案与解析。
+            汇总速算与计算机专项练习中的错误题目，随时回看答案与解析。
           </p>
         </div>
         <div className="mistakes-controls">

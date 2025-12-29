@@ -33,6 +33,21 @@ import {
   generateQuickQuestion,
   listQuickCategories
 } from "./practice/quick";
+import {
+  checkComputerAnswer,
+  checkComputerCTask,
+  checkComputerSqlTask,
+  getComputerCTaskById,
+  getComputerOverview,
+  getComputerQuestionById,
+  getComputerSqlTaskById,
+  getComputerTopic,
+  getRandomComputerQuestion,
+  listComputerQuestionPublic,
+  listComputerSqlTasks,
+  listComputerCTasks,
+  listComputerTopics
+} from "./practice/computer";
 
 const server = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
 const port = Number(process.env.API_PORT ?? 3031);
@@ -1112,6 +1127,32 @@ function normalizeKnowledgeSource(value?: string | null) {
   return "manual";
 }
 
+function formatMistakeAnswer(value?: string | string[] | boolean) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join("、");
+  }
+  if (typeof value === "boolean") {
+    return value ? "正确" : "错误";
+  }
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  return "";
+}
+
+function buildComputerPrompt(question: {
+  stem: string;
+  options?: string[];
+}) {
+  if (!question.options?.length) {
+    return question.stem;
+  }
+  const options = question.options
+    .map((option, index) => `${String.fromCharCode(65 + index)}. ${option}`)
+    .join(" ");
+  return `${question.stem}\n${options}`;
+}
+
 server.get("/health", async () => {
   return {
     status: "ok",
@@ -1147,6 +1188,214 @@ server.get("/practice/quick/batch", async (request) => {
   return {
     questions: generateQuickBatch(category, total)
   };
+});
+
+server.get("/practice/computer/overview", async () => {
+  return getComputerOverview();
+});
+
+server.get("/practice/computer/topics", async () => {
+  return { topics: listComputerTopics() };
+});
+
+server.get("/practice/computer/topics/:id", async (request, reply) => {
+  const { id } = request.params as { id?: string };
+  if (!id) {
+    reply.code(400).send({ error: "缺少知识点 ID" });
+    return;
+  }
+  const topic = getComputerTopic(id);
+  if (!topic) {
+    reply.code(404).send({ error: "未找到知识点" });
+    return;
+  }
+  reply.send({ topic });
+});
+
+server.get("/practice/computer/questions", async (request) => {
+  const { topicId, type, limit } = request.query as {
+    topicId?: string;
+    type?: string;
+    limit?: string;
+  };
+  const allowedTypes = new Set(["single", "multi", "judge", "blank", "short"]);
+  const normalizedType =
+    typeof type === "string" && allowedTypes.has(type) ? (type as any) : undefined;
+  const parsedLimit = Number(limit);
+  const safeLimit = Number.isFinite(parsedLimit) ? parsedLimit : undefined;
+  return {
+    questions: listComputerQuestionPublic({
+      topicId: topicId ?? undefined,
+      type: normalizedType,
+      limit: safeLimit
+    })
+  };
+});
+
+server.get("/practice/computer/next", async (request, reply) => {
+  const { topicId, type } = request.query as { topicId?: string; type?: string };
+  const allowedTypes = new Set(["single", "multi", "judge", "blank", "short"]);
+  const normalizedType =
+    typeof type === "string" && allowedTypes.has(type) ? (type as any) : undefined;
+  const question = getRandomComputerQuestion({
+    topicId: topicId ?? undefined,
+    type: normalizedType
+  });
+  if (!question) {
+    reply.code(404).send({ error: "暂无匹配题目" });
+    return;
+  }
+  reply.send({ question });
+});
+
+server.post("/practice/computer/answer", async (request, reply) => {
+  const body = request.body as {
+    questionId?: string;
+    userAnswer?: string | string[] | boolean;
+  };
+  if (!body?.questionId) {
+    reply.code(400).send({ error: "缺少题目 ID" });
+    return;
+  }
+  const result = checkComputerAnswer({
+    questionId: body.questionId,
+    userAnswer: body.userAnswer ?? ""
+  });
+  if ("error" in result) {
+    reply.code(400).send({ error: result.error });
+    return;
+  }
+  const token = getTokenFromRequest(request);
+  const userAnswerText = formatMistakeAnswer(body.userAnswer);
+  if (token && result.correct === false && userAnswerText) {
+    try {
+      const session = await verifySession(token);
+      const question = getComputerQuestionById(body.questionId);
+      if (question) {
+        const prompt = buildComputerPrompt(question);
+        await prisma.mistake.create({
+          data: {
+            userId: session.user.id,
+            practiceType: "computer",
+            categoryId: "computer",
+            questionId: question.id,
+            prompt,
+            answer: result.answer,
+            userAnswer: userAnswerText,
+            explanation: result.analysis
+          }
+        });
+      }
+    } catch {
+      // Ignore mistake recording failures for anonymous or invalid sessions.
+    }
+  }
+  reply.send(result);
+});
+
+server.get("/practice/computer/c/tasks", async () => {
+  return { tasks: listComputerCTasks() };
+});
+
+server.post("/practice/computer/c/check", async (request, reply) => {
+  const body = request.body as {
+    taskId?: string;
+    answers?: Record<string, string>;
+  };
+  if (!body?.taskId) {
+    reply.code(400).send({ error: "缺少题目 ID" });
+    return;
+  }
+  const result = checkComputerCTask({
+    taskId: body.taskId,
+    answers: body.answers ?? {}
+  });
+  if ("error" in result) {
+    reply.code(400).send({ error: result.error });
+    return;
+  }
+  const token = getTokenFromRequest(request);
+  if (token && result.correct === false) {
+    try {
+      const session = await verifySession(token);
+      const task = getComputerCTaskById(body.taskId);
+      if (task) {
+        const prompt = [
+          `C 语言填空：${task.title}`,
+          task.template.replace(/{{(\d+)}}/g, "【空$1】")
+        ].join("\n");
+        const userAnswer = task.blanks
+          .map((blank) => `空${blank.id}=${body.answers?.[blank.id] ?? ""}`)
+          .join("；")
+          .trim();
+        if (userAnswer) {
+          const answer = task.blanks
+            .map((blank) => `空${blank.id}=${task.answers?.[blank.id]?.[0] ?? ""}`)
+            .join("；");
+          await prisma.mistake.create({
+            data: {
+              userId: session.user.id,
+              practiceType: "computer",
+              categoryId: "computer",
+              questionId: `c-${task.id}`,
+              prompt,
+              answer,
+              userAnswer,
+              explanation: task.description
+            }
+          });
+        }
+      }
+    } catch {
+      // Ignore mistake recording failures for anonymous or invalid sessions.
+    }
+  }
+  reply.send(result);
+});
+
+server.get("/practice/computer/sql/tasks", async () => {
+  return { tasks: listComputerSqlTasks() };
+});
+
+server.post("/practice/computer/sql/check", async (request, reply) => {
+  const body = request.body as { taskId?: string; query?: string };
+  if (!body?.taskId) {
+    reply.code(400).send({ error: "缺少题目 ID" });
+    return;
+  }
+  const result = checkComputerSqlTask({
+    taskId: body.taskId,
+    query: body.query ?? ""
+  });
+  if ("error" in result) {
+    reply.code(400).send({ error: result.error });
+    return;
+  }
+  const token = getTokenFromRequest(request);
+  if (token && result.correct === false && body.query?.trim()) {
+    try {
+      const session = await verifySession(token);
+      const task = getComputerSqlTaskById(body.taskId);
+      if (task) {
+        const prompt = `SQL 练习：${task.title}\n${task.description}`;
+        await prisma.mistake.create({
+          data: {
+            userId: session.user.id,
+            practiceType: "computer",
+            categoryId: "computer",
+            questionId: `sql-${task.id}`,
+            prompt,
+            answer: task.expectedQuery,
+            userAnswer: body.query.trim(),
+            explanation: task.hint
+          }
+        });
+      }
+    } catch {
+      // Ignore mistake recording failures for anonymous or invalid sessions.
+    }
+  }
+  reply.send(result);
 });
 
 server.post("/practice/quick/session", async (request, reply) => {
