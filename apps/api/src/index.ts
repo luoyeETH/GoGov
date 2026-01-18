@@ -12,6 +12,7 @@ import { buildMockAnalysisPrompt } from "./ai/mock";
 import { buildKnowledgePrompt } from "./ai/knowledge";
 import { buildStudyPlanPrompt } from "./ai/study-plan";
 import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
+import { buildChatSystemPrompt } from "./ai/chat";
 import { buildKlinePrompt } from "./ai/kline";
 import { buildExpenseParsePrompt } from "./ai/expense";
 import { calculateBazi } from "./fortune/bazi";
@@ -83,11 +84,19 @@ type KlineReportRecord = {
   createdAt: Date;
 };
 
+type ChatMessageRecord = {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: Date;
+};
+
 // Prisma client needs regeneration after schema changes; keep delegate typed loosely here.
 const klineReportDelegate = (prisma as unknown as { klineReport: any }).klineReport;
 const pomodoroSessionDelegate = (prisma as unknown as { pomodoroSession: any }).pomodoroSession;
 const pomodoroSubjectDelegate = (prisma as unknown as { pomodoroSubject: any }).pomodoroSubject;
 const expenseLogDelegate = (prisma as unknown as { expenseLog: any }).expenseLog;
+const aiChatMessageDelegate = (prisma as unknown as { aiChatMessage: any }).aiChatMessage;
 
 const POMODORO_SUBJECTS = [
   "常识",
@@ -103,6 +112,9 @@ const POMODORO_PAUSE_LIMIT_SECONDS = 5 * 60;
 const MAX_CUSTOM_POMODORO_SUBJECTS = 5;
 const MAX_EXPENSE_TEXT_LENGTH = 200;
 const MAX_EXPENSE_ITEM_LENGTH = 40;
+const CHAT_HISTORY_DAYS = 30;
+const CHAT_HISTORY_LIMIT = 100;
+const MAX_CHAT_MESSAGE_LENGTH = 2000;
 
 function extractJsonPayload(value: string) {
   const trimmed = value.trim();
@@ -123,6 +135,48 @@ function extractJsonPayload(value: string) {
     }
   }
   return null;
+}
+
+function getChatCutoffDate() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - CHAT_HISTORY_DAYS);
+  return cutoff;
+}
+
+async function trimChatHistory(userId: string) {
+  const cutoff = getChatCutoffDate();
+  await aiChatMessageDelegate.deleteMany({
+    where: {
+      userId,
+      createdAt: { lt: cutoff }
+    }
+  });
+  const total = await aiChatMessageDelegate.count({ where: { userId } });
+  if (total <= CHAT_HISTORY_LIMIT) {
+    return;
+  }
+  const overflow = total - CHAT_HISTORY_LIMIT;
+  const oldest = (await aiChatMessageDelegate.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    take: overflow,
+    select: { id: true }
+  })) as Array<{ id: string }>;
+  if (!oldest.length) {
+    return;
+  }
+  await aiChatMessageDelegate.deleteMany({
+    where: { id: { in: oldest.map((item) => item.id) } }
+  });
+}
+
+function formatChatRecord(record: ChatMessageRecord) {
+  return {
+    id: record.id,
+    role: record.role,
+    content: record.content,
+    createdAt: record.createdAt.toISOString()
+  };
 }
 
 function parseOptionalDate(value: unknown) {
@@ -3028,6 +3082,114 @@ server.post("/ai/assist", async (request, reply) => {
   }
 });
 
+server.post("/ai/chat", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = request.body as { message?: string };
+    const message = body?.message?.trim() ?? "";
+    if (!message) {
+      reply.code(400).send({ error: "请输入问题" });
+      return;
+    }
+    if (message.length > MAX_CHAT_MESSAGE_LENGTH) {
+      reply.code(400).send({ error: "内容过长" });
+      return;
+    }
+    await trimChatHistory(session.user.id);
+    const [studyPlanProfile, latestPlanHistory, mockReports, historyRecords] =
+      await Promise.all([
+        prisma.studyPlanProfile.findUnique({
+          where: { userId: session.user.id }
+        }),
+        prisma.studyPlanHistory.findFirst({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "desc" }
+        }),
+        prisma.mockExamReport.findMany({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "desc" },
+          take: 3
+        }),
+        aiChatMessageDelegate.findMany({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "asc" },
+          take: CHAT_HISTORY_LIMIT
+        })
+      ]);
+
+    const latestSummary =
+      typeof latestPlanHistory?.summary === "string" && latestPlanHistory.summary.trim()
+        ? latestPlanHistory.summary
+        : null;
+    const planData = latestPlanHistory?.planData as { summary?: string } | null;
+    const planSummary =
+      latestSummary ?? (typeof planData?.summary === "string" ? planData.summary : null);
+    const systemPrompt = buildChatSystemPrompt({
+      user: session.user,
+      studyPlanProfile,
+      planSummary,
+      mockReports
+    });
+
+    const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
+      (record) => {
+        if (record.role !== "user" && record.role !== "assistant") {
+          return [];
+        }
+        return [{ role: record.role as "user" | "assistant", content: record.content }];
+      }
+    );
+    const aiConfig = resolveAiConfig(session.user);
+    await consumeFreeAiUsage(session.user.id, aiConfig);
+    const result = await generateAssistAnswer({
+      provider: aiConfig.provider,
+      baseUrl: aiConfig.baseUrl,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...historyMessages,
+        { role: "user", content: message }
+      ]
+    });
+
+    const now = new Date();
+    const assistantTime = new Date(now.getTime() + 1);
+    const [userRecord, assistantRecord] = (await prisma.$transaction([
+      aiChatMessageDelegate.create({
+        data: {
+          userId: session.user.id,
+          role: "user",
+          content: message,
+          createdAt: now
+        }
+      }),
+      aiChatMessageDelegate.create({
+        data: {
+          userId: session.user.id,
+          role: "assistant",
+          content: result.answer,
+          createdAt: assistantTime
+        }
+      })
+    ])) as ChatMessageRecord[];
+
+    await trimChatHistory(session.user.id);
+    reply.send({
+      answer: result.answer,
+      model: result.model,
+      messages: [formatChatRecord(userRecord), formatChatRecord(assistantRecord)]
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "答疑失败" });
+  }
+});
+
 server.post("/ai/knowledge", async (request, reply) => {
   try {
     const token = getTokenFromRequest(request);
@@ -4596,6 +4758,28 @@ server.delete("/mock/reports/:id", async (request, reply) => {
     reply.code(400).send({
       error: error instanceof Error ? error.message : "删除失败"
     });
+  }
+});
+
+server.get("/ai/chat/history", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    await trimChatHistory(session.user.id);
+    const records = (await aiChatMessageDelegate.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "asc" },
+      take: CHAT_HISTORY_LIMIT
+    })) as ChatMessageRecord[];
+    reply.send({
+      messages: records.map(formatChatRecord)
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "获取失败" });
   }
 });
 

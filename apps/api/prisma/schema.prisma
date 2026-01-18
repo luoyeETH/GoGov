@@ -44,6 +44,7 @@ model User {
   updatedAt       DateTime @updatedAt
   sessions        Session[]
   aiAssistHistory AiAssistHistory[]
+  aiChatMessages  AiChatMessage[]
   freeAiUsages    FreeAiUsage[]
   practiceSessions PracticeSession[]
   practiceRecords  PracticeRecord[]
@@ -90,6 +91,17 @@ model AiAssistHistory {
   model      String?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AiChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }

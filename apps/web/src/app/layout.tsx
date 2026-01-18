@@ -7,6 +7,7 @@ import { ThemeProvider } from "../components/theme-provider";
 import ThemeToggle from "../components/theme-toggle";
 import { FontSizeProvider } from "../components/font-size-provider";
 import FontSizeSwitcher from "../components/font-size-switcher";
+import FloatingChat from "../components/floating-chat";
 import "./globals.css";
 
 export const metadata = {
@@ -138,6 +139,7 @@ export default function RootLayout({
                   Gemini. Design by humans.
                 </span>
               </footer>
+              <FloatingChat />
             </div>
           </ThemeProvider>
         </FontSizeProvider>
