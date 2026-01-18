@@ -32,7 +32,8 @@ const manualSubjects = [
 ];
 
 const baseSeasonDate = "2025-12-21";
-const baseSeasonIndex = 3;
+const baseNationalSeasonIndex = 3;
+const baseProvincialSeasonNumber = 4;
 const seasons = ["一", "二", "三", "四"];
 
 type Metric = {
@@ -83,6 +84,7 @@ type UploadImage = {
 };
 
 type RequestState = "idle" | "loading" | "error";
+type TitlePreset = "provincial" | "national" | "custom";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -118,17 +120,36 @@ function getWeekStart(date: Date) {
   return start;
 }
 
-function getDefaultMockTitle() {
+function formatChineseNumber(value: number) {
+  const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+  if (value <= 10) {
+    return value === 10 ? "十" : digits[value] ?? "一";
+  }
+  if (value < 20) {
+    return `十${digits[value % 10] ?? ""}`;
+  }
+  const tens = Math.floor(value / 10);
+  const ones = value % 10;
+  return `${digits[tens] ?? ""}十${ones ? digits[ones] : ""}`;
+}
+
+function getDefaultMockTitles() {
   const now = getBeijingDate();
   const weekStart = getWeekStart(now);
   const base = new Date(`${baseSeasonDate}T00:00:00+08:00`);
   const diffWeeks = Math.floor(
     (weekStart.getTime() - base.getTime()) / (7 * 24 * 60 * 60 * 1000)
   );
-  const rawSeason = baseSeasonIndex - 1 + diffWeeks;
-  const seasonIndex = ((rawSeason % 4) + 4) % 4;
   const examYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-  return `${examYear}粉笔模考第${seasons[seasonIndex]}季`;
+  const nationalRawSeason = baseNationalSeasonIndex - 1 + diffWeeks;
+  const nationalSeasonIndex = ((nationalRawSeason % 4) + 4) % 4;
+  const provincialSeasonNumber = Math.max(1, baseProvincialSeasonNumber + diffWeeks);
+  return {
+    national: `${examYear}粉笔模考（国考）第${seasons[nationalSeasonIndex]}季`,
+    provincial: `${examYear}粉笔模考（省考）第${formatChineseNumber(
+      provincialSeasonNumber
+    )}季`
+  };
 }
 
 function buildManualMetrics(entries: ManualEntry[]) {
@@ -399,7 +420,7 @@ function buildAnalysisMarkdown(data: AnalysisResponse) {
 
 export default function MockReportPage() {
   const [title, setTitle] = useState("");
-  const [titleTouched, setTitleTouched] = useState(false);
+  const [titlePreset, setTitlePreset] = useState<TitlePreset>("provincial");
   const [note, setNote] = useState("");
   const [uploads, setUploads] = useState<UploadImage[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
@@ -421,13 +442,14 @@ export default function MockReportPage() {
     [manualEntries]
   );
 
-  const defaultTitle = useMemo(() => getDefaultMockTitle(), []);
+  const defaultTitles = useMemo(() => getDefaultMockTitles(), []);
 
   useEffect(() => {
-    if (!titleTouched && !title.trim()) {
-      setTitle(defaultTitle);
+    if (titlePreset === "custom") {
+      return;
     }
-  }, [defaultTitle, title, titleTouched]);
+    setTitle(defaultTitles[titlePreset]);
+  }, [defaultTitles, titlePreset]);
 
   const loadHistory = async () => {
     const token = window.localStorage.getItem(sessionKey);
@@ -687,15 +709,27 @@ export default function MockReportPage() {
 
           <div className="form-row">
             <label htmlFor="mock-title">模考名称</label>
+            <select
+              id="mock-title-preset"
+              value={titlePreset}
+              onChange={(event) => {
+                setTitlePreset(event.target.value as TitlePreset);
+              }}
+            >
+              <option value="provincial">{defaultTitles.provincial}</option>
+              <option value="national">{defaultTitles.national}</option>
+              <option value="custom">自定义</option>
+            </select>
             <input
               id="mock-title"
               value={title}
               placeholder="例如：粉笔 2025 国考模考一"
               onChange={(event) => {
                 setTitle(event.target.value);
-                setTitleTouched(true);
+                setTitlePreset("custom");
               }}
             />
+            <span className="form-message">可选择默认名称或自行填写。</span>
           </div>
 
           <div className="mock-upload">
