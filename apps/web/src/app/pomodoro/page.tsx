@@ -12,6 +12,8 @@ type PomodoroStatus =
   | "failed"
   | "abandoned";
 
+type PomodoroMode = "countdown" | "timer";
+
 type PomodoroInsightDay = {
   date: string;
   totalMinutes: number;
@@ -157,11 +159,13 @@ export default function PomodoroPage() {
   const [token, setToken] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<PomodoroStatus>("idle");
+  const [mode, setMode] = useState<PomodoroMode>("countdown");
   const [subject, setSubject] = useState<string>(SUBJECTS[0].value);
   const [plannedMinutes, setPlannedMinutes] = useState<number>(25);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [pauseElapsedSeconds, setPauseElapsedSeconds] = useState<number>(0);
+  const [segments, setSegments] = useState<number[]>([]);
   const [lastResult, setLastResult] = useState<{
     status: PomodoroStatus;
     focusMinutes: number;
@@ -169,6 +173,8 @@ export default function PomodoroPage() {
     pauseCount: number;
     subject: string;
     plannedMinutes: number;
+    mode: PomodoroMode;
+    segments: number[];
   } | null>(null);
   const [insights, setInsights] = useState<PomodoroInsights | null>(null);
   const [insightsState, setInsightsState] = useState<LoadState>("loading");
@@ -186,11 +192,15 @@ export default function PomodoroPage() {
   const pauseStartRef = useRef<number | null>(null);
   const pauseCountRef = useRef<number>(0);
   const finishingRef = useRef<boolean>(false);
+  const lastSegmentElapsedRef = useRef<number>(0);
 
-  const plannedSeconds = useMemo(
-    () => Math.max(60, Math.round(plannedMinutes * 60)),
-    [plannedMinutes]
-  );
+  const normalizedPlannedMinutes = Math.max(1, Math.round(plannedMinutes || 1));
+  const plannedSeconds = useMemo(() => {
+    if (mode !== "countdown") {
+      return 0;
+    }
+    return Math.max(60, normalizedPlannedMinutes * 60);
+  }, [mode, normalizedPlannedMinutes]);
   const builtInSubjectSet = useMemo(
     () => new Set(SUBJECTS.map((item) => item.value)),
     []
@@ -222,9 +232,21 @@ export default function PomodoroPage() {
     ];
   }, [customSubjects]);
 
-  const remainingSeconds = Math.max(0, plannedSeconds - elapsedSeconds);
-  const progress = plannedSeconds ? elapsedSeconds / plannedSeconds : 0;
+  const remainingSeconds =
+    mode === "countdown" ? Math.max(0, plannedSeconds - elapsedSeconds) : 0;
+  const progress =
+    mode === "countdown" && plannedSeconds ? elapsedSeconds / plannedSeconds : 0;
   const isImmersive = status === "running" || status === "paused";
+  const segmentsTotalSeconds = useMemo(
+    () => segments.reduce((sum, value) => sum + value, 0),
+    [segments]
+  );
+  const currentSegmentSeconds = Math.max(
+    0,
+    elapsedSeconds - segmentsTotalSeconds
+  );
+  const displaySeconds =
+    mode === "countdown" ? remainingSeconds : elapsedSeconds;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -252,6 +274,21 @@ export default function PomodoroPage() {
       document.body.classList.remove("pomodoro-immersive");
     };
   }, [isImmersive]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && status === "running") {
+        pauseSession();
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [status]);
 
   useEffect(() => {
     if (!token) {
@@ -331,7 +368,7 @@ export default function PomodoroPage() {
           (now - startTimeRef.current - pausedTotalMsRef.current) / 1000
         );
         setElapsedSeconds(elapsed);
-        if (elapsed >= plannedSeconds) {
+        if (mode === "countdown" && elapsed >= plannedSeconds) {
           void finishSession("completed");
         }
       }
@@ -345,7 +382,7 @@ export default function PomodoroPage() {
     }, 500);
 
     return () => window.clearInterval(timer);
-  }, [status, plannedSeconds]);
+  }, [mode, status, plannedSeconds]);
 
   const resetSessionState = () => {
     setElapsedSeconds(0);
@@ -355,6 +392,8 @@ export default function PomodoroPage() {
     pauseStartRef.current = null;
     startTimeRef.current = null;
     finishingRef.current = false;
+    lastSegmentElapsedRef.current = 0;
+    setSegments([]);
     setSessionId(null);
   };
 
@@ -367,7 +406,7 @@ export default function PomodoroPage() {
       setMessage("请选择学习科目。");
       return;
     }
-    if (plannedMinutes <= 0) {
+    if (mode === "countdown" && plannedMinutes <= 0) {
       setMessage("请设置专注时长。");
       return;
     }
@@ -384,7 +423,7 @@ export default function PomodoroPage() {
         },
         body: JSON.stringify({
           subject,
-          plannedMinutes
+          plannedMinutes: normalizedPlannedMinutes
         })
       });
       const data = await res.json();
@@ -395,6 +434,8 @@ export default function PomodoroPage() {
       startTimeRef.current = Date.now();
       pausedTotalMsRef.current = 0;
       pauseStartRef.current = null;
+      lastSegmentElapsedRef.current = 0;
+      setSegments([]);
       setStatus("running");
       if (document.documentElement.requestFullscreen) {
         void document.documentElement.requestFullscreen().catch(() => undefined);
@@ -425,6 +466,24 @@ export default function PomodoroPage() {
     pauseStartRef.current = null;
     setPauseElapsedSeconds(0);
     setStatus("running");
+    if (document.documentElement.requestFullscreen) {
+      void document.documentElement.requestFullscreen().catch(() => undefined);
+    }
+  };
+
+  const addSegment = () => {
+    if (status !== "running") {
+      return;
+    }
+    const segmentSeconds = Math.max(
+      0,
+      elapsedSeconds - lastSegmentElapsedRef.current
+    );
+    if (segmentSeconds <= 0) {
+      return;
+    }
+    setSegments((prev) => [...prev, segmentSeconds]);
+    lastSegmentElapsedRef.current = elapsedSeconds;
   };
 
   const finishSession = async (
@@ -435,6 +494,15 @@ export default function PomodoroPage() {
       return;
     }
     finishingRef.current = true;
+    const segmentsSnapshot =
+      mode === "timer"
+        ? segments.length
+          ? [
+              ...segments,
+              ...(currentSegmentSeconds > 0 ? [currentSegmentSeconds] : [])
+            ]
+          : []
+        : [];
     const now = Date.now();
     const totalPausedMs =
       pausedTotalMsRef.current +
@@ -454,7 +522,9 @@ export default function PomodoroPage() {
       pauseMinutes,
       pauseCount: pauseCountRef.current,
       subject,
-      plannedMinutes
+      plannedMinutes: normalizedPlannedMinutes,
+      mode,
+      segments: segmentsSnapshot
     });
 
     if (!token || !sessionId) {
@@ -712,18 +782,38 @@ export default function PomodoroPage() {
             <p className="eyebrow">本次结果</p>
             <h2>
               {lastResult.status === "completed"
-                ? "专注完成"
+                ? lastResult.mode === "timer"
+                  ? "计时完成"
+                  : "专注完成"
                 : lastResult.status === "failed"
-                ? "番茄钟失败"
+                ? lastResult.mode === "timer"
+                  ? "计时失败"
+                  : "番茄钟失败"
                 : "提前结束"}
             </h2>
             <p className="lead">
-              {lastResult.subject} · 计划 {lastResult.plannedMinutes} 分钟 ·
+              {lastResult.subject} ·
+              {lastResult.mode === "countdown"
+                ? `计划 ${lastResult.plannedMinutes} 分钟 · `
+                : ""}
               实际专注 {lastResult.focusMinutes} 分钟
             </p>
             <p className="pomodoro-result-note">
               暂停 {lastResult.pauseMinutes} 分钟 · 共 {lastResult.pauseCount} 次
+              {lastResult.mode === "timer" && lastResult.segments.length
+                ? ` · 分段 ${lastResult.segments.length} 段`
+                : ""}
             </p>
+            {lastResult.mode === "timer" && lastResult.segments.length ? (
+              <div className="pomodoro-result-segments">
+                {lastResult.segments.map((segment, index) => (
+                  <div key={`${segment}-${index}`}>
+                    <span>第 {index + 1} 段</span>
+                    <strong>{formatSeconds(segment)}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -817,44 +907,76 @@ export default function PomodoroPage() {
         </div>
         <div className="pomodoro-setup-card">
           <div className="pomodoro-card-header">
-            <h3>专注时长</h3>
-            <span>建议 25-45 分钟，形成稳定节奏</span>
+            <h3>计时方式</h3>
+            <span>
+              {mode === "countdown"
+                ? "番茄钟模式，时间到自动完成"
+                : "计时器模式，手动停止保存"}
+            </span>
           </div>
-          <div className="pomodoro-duration">
-            <label>
-              <span>分钟</span>
-              <input
-                type="number"
-                min={5}
-                max={120}
-                value={plannedMinutes}
-                onChange={(event) =>
-                  setPlannedMinutes(Number(event.target.value))
-                }
-              />
-            </label>
-            <div className="pomodoro-duration-presets">
-              {DURATION_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`pomodoro-chip ${
-                    plannedMinutes === preset ? "active" : ""
-                  }`}
-                  onClick={() => setPlannedMinutes(preset)}
-                >
-                  {preset} 分钟
-                </button>
-              ))}
+          <div className="pomodoro-mode">
+            <button
+              type="button"
+              className={`pomodoro-chip ${
+                mode === "countdown" ? "active" : ""
+              }`}
+              onClick={() => setMode("countdown")}
+            >
+              番茄钟
+            </button>
+            <button
+              type="button"
+              className={`pomodoro-chip ${mode === "timer" ? "active" : ""}`}
+              onClick={() => setMode("timer")}
+            >
+              计时器
+            </button>
+          </div>
+          {mode === "countdown" ? (
+            <div className="pomodoro-duration">
+              <label>
+                <span>分钟</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={120}
+                  value={plannedMinutes}
+                  onChange={(event) =>
+                    setPlannedMinutes(Number(event.target.value))
+                  }
+                />
+              </label>
+              <div className="pomodoro-duration-presets">
+                {DURATION_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`pomodoro-chip ${
+                      plannedMinutes === preset ? "active" : ""
+                    }`}
+                    onClick={() => setPlannedMinutes(preset)}
+                  >
+                    {preset} 分钟
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="pomodoro-timer-note">
+              计时器将持续累计专注时间，可随时暂停或停止保存，并支持分段记录。
+            </div>
+          )}
           <button
             type="button"
             className="primary button-link pomodoro-start"
             onClick={startSession}
             disabled={isStarting}
           >
-            {isStarting ? "正在开启..." : "开始专注"}
+            {isStarting
+              ? "正在开启..."
+              : mode === "timer"
+              ? "开始计时"
+              : "开始专注"}
           </button>
         </div>
       </section>
@@ -1096,24 +1218,54 @@ export default function PomodoroPage() {
           <div className="pomodoro-overlay-card">
             <span className="pomodoro-overlay-subject">{subject}</span>
             <div className="pomodoro-overlay-timer">
-              {formatSeconds(remainingSeconds)}
+              {formatSeconds(displaySeconds)}
             </div>
-            <div className="pomodoro-overlay-progress">
-              <div
-                className="pomodoro-overlay-progress-fill"
-                style={{ width: `${Math.min(100, progress * 100)}%` }}
-              />
-            </div>
+            {mode === "countdown" ? (
+              <div className="pomodoro-overlay-progress">
+                <div
+                  className="pomodoro-overlay-progress-fill"
+                  style={{ width: `${Math.min(100, progress * 100)}%` }}
+                />
+              </div>
+            ) : null}
             {status === "paused" ? (
               <div className="pomodoro-overlay-state">
                 已暂停 {formatSeconds(pauseElapsedSeconds)} ·
-                剩余 {formatSeconds(pauseRemaining)}
+                {mode === "countdown"
+                  ? `剩余 ${formatSeconds(pauseRemaining)}`
+                  : `已计时 ${formatSeconds(elapsedSeconds)}`}
               </div>
             ) : (
               <div className="pomodoro-overlay-state">
-                已专注 {formatSeconds(elapsedSeconds)}
+                {mode === "countdown"
+                  ? `已专注 ${formatSeconds(elapsedSeconds)}`
+                  : `已计时 ${formatSeconds(elapsedSeconds)} · 当前段 ${formatSeconds(
+                      currentSegmentSeconds
+                    )}`}
               </div>
             )}
+            {mode === "timer" ? (
+              <div className="pomodoro-segments">
+                <div className="pomodoro-segments-header">
+                  <span>分段 {segments.length}</span>
+                  <span>当前段 {formatSeconds(currentSegmentSeconds)}</span>
+                </div>
+                {segments.length ? (
+                  <div className="pomodoro-segments-list">
+                    {segments.map((segment, index) => (
+                      <div key={`${segment}-${index}`}>
+                        <span>第 {index + 1} 段</span>
+                        <strong>{formatSeconds(segment)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pomodoro-segments-empty">
+                    点击“分段”记录每一段专注时间。
+                  </div>
+                )}
+              </div>
+            ) : null}
             <div className="pomodoro-overlay-actions">
               {status === "running" ? (
                 <button
@@ -1132,16 +1284,27 @@ export default function PomodoroPage() {
                   返回继续
                 </button>
               )}
+              {mode === "timer" && status === "running" ? (
+                <button
+                  type="button"
+                  className="ghost button-link"
+                  onClick={addSegment}
+                >
+                  分段
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="ghost button-link"
-                onClick={() => finishSession("abandoned")}
+                onClick={() =>
+                  finishSession(mode === "timer" ? "completed" : "abandoned")
+                }
               >
-                结束本次
+                {mode === "timer" ? "停止并保存" : "结束本次"}
               </button>
             </div>
             <p className="pomodoro-overlay-tip">
-              暂停超过 5 分钟将判定失败。
+              退出全屏会自动暂停，暂停超过 5 分钟将判定失败。
             </p>
           </div>
         </div>

@@ -4497,6 +4497,26 @@ select {
   margin-top: 6px;
 }
 
+.pomodoro-result-segments {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-result-segments div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pomodoro-result-segments strong {
+  color: var(--brand-dark);
+  font-weight: 600;
+}
+
 .pomodoro-setup {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -4624,6 +4644,22 @@ select {
 .pomodoro-custom-message {
   font-size: 12px;
   color: #b43c32;
+}
+
+.pomodoro-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pomodoro-timer-note {
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: var(--glass-bg);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .pomodoro-duration {
@@ -4976,6 +5012,49 @@ body.pomodoro-immersive .page {
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.pomodoro-segments {
+  border: 1px dashed var(--border);
+  background: var(--glass-bg);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.pomodoro-segments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pomodoro-segments-list {
+  display: grid;
+  gap: 6px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.pomodoro-segments-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.pomodoro-segments-list strong {
+  color: var(--brand-dark);
+  font-weight: 600;
+}
+
+.pomodoro-segments-empty {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .pomodoro-overlay-tip {
