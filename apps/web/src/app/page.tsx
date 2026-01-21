@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DailyTasksModule from "../components/daily-tasks";
+import HomeLearningDashboard from "../components/home-learning-dashboard";
 import HomeHeroCopy from "../components/home-hero-copy";
 import MobileMoreNav from "../components/mobile-more-nav";
 
@@ -27,41 +28,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid">
-        <div className="grid-item">
-          <h3>知识学习</h3>
-          <p>结构化知识卡片 + AI 解释，快速建立框架。</p>
-        </div>
-        <div className="grid-item">
-          <h3>速算训练</h3>
-          <p>可定制题目难度与时长，实时记录进步。</p>
-        </div>
-        <div className="grid-item">
-          <h3>错题整理</h3>
-          <p>自动归类错因，AI 给出纠错路径。</p>
-        </div>
-        <div className="grid-item">
-          <h3>试卷排版</h3>
-          <p>智能组卷与排版模板，适配打印与移动端。</p>
-        </div>
-      </section>
-
-      <section className="ai-panel">
-        <div>
-          <h2>AI 适配层</h2>
-          <p>
-            支持多家模型供应商与自定义 API，统一接口、统一成本与质量
-            监控。
-          </p>
-        </div>
-        <div className="ai-tags">
-          <span>问答</span>
-          <span>解析</span>
-          <span>组卷</span>
-          <span>排版</span>
-          <span>学习建议</span>
-        </div>
-      </section>
+      <HomeLearningDashboard />
 
       <section className="module-section">
         <div className="module-header">
