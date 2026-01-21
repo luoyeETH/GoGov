@@ -11,7 +11,7 @@ import FloatingChat from "../components/floating-chat";
 import "./globals.css";
 
 export const metadata = {
-  title: "GoGov 公考助手",
+  title: "学了么 公考助手",
   description: "AI 驱动的公考学习与训练平台",
   icons: {
     icon: [
@@ -96,12 +96,12 @@ export default function RootLayout({
                   <Link href="/" className="brand-link">
                     <img
                       src="/icon-96.png"
-                      alt="GoGov"
+                      alt="学了么"
                       className="brand-logo"
                       width={24}
                       height={24}
                     />
-                    <span className="brand-text">GoGov</span>
+                    <span className="brand-text">学了么</span>
                   </Link>
                   <MainNav />
                 </div>
@@ -120,7 +120,7 @@ export default function RootLayout({
                     href="https://github.com/luoyeETH/GoGov"
                     target="_blank"
                     rel="noreferrer"
-                    aria-label="GoGov GitHub"
+                    aria-label="学了么 GitHub"
                   >
                     <svg
                       viewBox="0 0 24 24"

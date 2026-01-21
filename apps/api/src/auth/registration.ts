@@ -69,7 +69,7 @@ export async function requestEmailVerification(params: {
   });
 
   const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3030";
-  const from = process.env.EMAIL_FROM ?? "GoGov <no-reply@noreply.519312.xyz>";
+  const from = process.env.EMAIL_FROM ?? "学了么 <no-reply@noreply.519312.xyz>";
   const gmailUser = process.env.GMAIL_USER?.trim() ?? "";
   const gmailPass = (process.env.GMAIL_APP_PASSWORD ?? "").replace(/\s+/g, "");
 
@@ -98,7 +98,7 @@ export async function requestEmailVerification(params: {
       }
     });
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM ?? `GoGov <${gmailUser}>`,
+      from: process.env.EMAIL_FROM ?? `学了么 <${gmailUser}>`,
       to: email,
       subject: "GoGov 注册验证",
       html

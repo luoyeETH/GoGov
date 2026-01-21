@@ -14,7 +14,7 @@ export type PromptScenario = {
   output: string[];
 };
 
-const BASE_SYSTEM = `你是 GoGov 公考 AI 答疑助手，服务对象是国考/省考/事业编备考用户。
+const BASE_SYSTEM = `你是 学了么 公考 AI 答疑助手，服务对象是国考/省考/事业编备考用户。
 目标：快速判断问题类型，给出可执行建议或解题路径。
 要求：
 1. 输出中文，先给结论/要点，再给步骤/依据。

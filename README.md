@@ -1,6 +1,6 @@
-# GoGov 公考助手
+# 学了么（GoGov）公考助手
 
-GoGov 是一个面向公考备考的 AI 学习与训练平台，覆盖常识学习、速算训练、模考解读、备考规划与每日任务等模块。实测使用 `gemini-3-flash-preview` 模型取得了不错的效果。
+学了么（GoGov）是一个面向公考备考的 AI 学习与训练平台，覆盖常识学习、速算训练、模考解读、备考规划与每日任务等模块。实测使用 `gemini-3-flash-preview` 模型取得了不错的效果。
 
 技术栈：前端使用 Next.js + React，后端基于 Fastify + Prisma（PostgreSQL）。
 
@@ -34,7 +34,7 @@ API_PORT=3001
 RESEND_API_KEY=your_resend_key
 GMAIL_USER=your_gmail_address
 GMAIL_APP_PASSWORD=your_gmail_app_password
-EMAIL_FROM="GoGov <your_gmail_address>"
+EMAIL_FROM="学了么（GoGov） <your_gmail_address>"
 ```
 
 前端在 `apps/web/.env` 中配置（可选）：

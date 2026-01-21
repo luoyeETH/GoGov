@@ -132,7 +132,7 @@ function RegisterPageContent() {
       <section className="login-hero">
         <div>
           <p className="eyebrow">邮箱注册</p>
-          <h1>完善资料，创建 GoGov 账号</h1>
+          <h1>完善资料，创建 学了么 账号</h1>
           <p className="lead">验证成功后即可设置用户名与密码。</p>
         </div>
         <div className="login-status">
@@ -260,7 +260,7 @@ export default function RegisterPage() {
           <section className="login-hero">
             <div>
               <p className="eyebrow">邮箱注册</p>
-              <h1>完善资料，创建 GoGov 账号</h1>
+              <h1>完善资料，创建 学了么 账号</h1>
               <p className="lead">验证中，请稍候...</p>
             </div>
           </section>
