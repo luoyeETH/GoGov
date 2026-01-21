@@ -87,6 +87,17 @@ function formatMinutes(minutes: number) {
   return `${Math.round(minutes)} 分钟`;
 }
 
+function formatMinutesShort(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return "0m";
+  }
+  if (minutes >= 60) {
+    const hours = Math.round((minutes / 60) * 10) / 10;
+    return `${hours}h`;
+  }
+  return `${Math.round(minutes)}m`;
+}
+
 function getHeatLevel(value: number, max: number) {
   if (!max || value <= 0) {
     return 0;
@@ -623,7 +634,7 @@ export default function HomeLearningDashboard() {
               {radarSource.map((item) => (
                 <div key={item.subject}>
                   <strong>{item.subject}</strong>
-                  <span>{formatMinutes(item.minutes)}</span>
+                  <span>{formatMinutesShort(item.minutes)}</span>
                 </div>
               ))}
             </div>
