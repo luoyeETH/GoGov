@@ -110,6 +110,32 @@ function formatMinutes(minutes: number) {
   return `${Math.round(minutes)} 分钟`;
 }
 
+function formatMinutesCompact(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return "0m";
+  }
+  if (minutes >= 60) {
+    const rounded = Math.round(minutes);
+    const hours = Math.floor(rounded / 60);
+    const rest = rounded % 60;
+    return `${hours}h${rest}m`;
+  }
+  return `${Math.round(minutes)}m`;
+}
+
+function formatMinutesText(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return "0分钟";
+  }
+  const rounded = Math.round(minutes);
+  if (rounded >= 60) {
+    const hours = Math.floor(rounded / 60);
+    const rest = rounded % 60;
+    return `${hours}小时${rest}分钟`;
+  }
+  return `${rounded}分钟`;
+}
+
 function getHeatLevel(value: number, max: number) {
   if (!max || value <= 0) {
     return 0;
@@ -768,7 +794,7 @@ export default function PomodoroPage() {
           <div>
             <span>累计专注</span>
             <strong>
-              {insights ? `${insights.totals.focusMinutes} 分钟` : "--"}
+              {insights ? formatMinutesText(insights.totals.focusMinutes) : "--"}
             </strong>
           </div>
         </div>
@@ -1203,7 +1229,7 @@ export default function PomodoroPage() {
                   {insights.radar.map((item) => (
                     <div key={item.subject}>
                       <strong>{item.subject}</strong>
-                      <span>{formatMinutes(item.minutes)}</span>
+                      <span>{formatMinutesCompact(item.minutes)}</span>
                     </div>
                   ))}
                 </div>
