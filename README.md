@@ -13,7 +13,8 @@
 - 娱乐功能：上岸 K 线，根据出生信息与补充资料生成上岸概率与逐年分析。
 
 ## 演示网站
-访问：`https://gogov.0xluoye.xyz/`
+访问：`https://学了么.com/`
+备用：`https://gogov.0xluoye.xyz/`
 
 ## 部署与运行
 
