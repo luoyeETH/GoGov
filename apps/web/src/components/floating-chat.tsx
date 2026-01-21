@@ -80,6 +80,8 @@ export default function FloatingChat() {
   const [alignRight, setAlignRight] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const dragState = useRef({
@@ -91,6 +93,7 @@ export default function FloatingChat() {
     moved: false
   });
   const skipClickRef = useRef(false);
+  const scrollLockRef = useRef<{ body: string; html: string } | null>(null);
 
   const loadHistory = async () => {
     const token = window.localStorage.getItem(sessionKey);
@@ -176,15 +179,58 @@ export default function FloatingChat() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) {
+      return;
+    }
+    const updateViewport = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) {
+        return;
+      }
+      const visualBottom = viewport.height + viewport.offsetTop;
+      const offset = Math.max(0, window.innerHeight - visualBottom);
+      setKeyboardOffset(offset);
+      document.documentElement.style.setProperty(
+        "--floating-chat-viewport-height",
+        `${viewport.height}px`
+      );
+    };
+    updateViewport();
+    window.visualViewport.addEventListener("resize", updateViewport);
+    window.visualViewport.addEventListener("scroll", updateViewport);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+      document.documentElement.style.removeProperty("--floating-chat-viewport-height");
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    const handleResize = () => {
-      setPosition((prev) => (prev ? clampPosition(prev) : prev));
+    const media = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const updateMobile = () => setIsMobile(media.matches);
+    updateMobile();
+    if (media.addEventListener) {
+      media.addEventListener("change", updateMobile);
+    } else {
+      media.addListener(updateMobile);
+    }
+    return () => {
+      if (media.removeEventListener) {
+        media.removeEventListener("change", updateMobile);
+      } else {
+        media.removeListener(updateMobile);
+      }
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (isOpen && isMobile && !isFullscreen) {
+      setIsFullscreen(true);
+    }
+  }, [isOpen, isMobile, isFullscreen]);
 
   useEffect(() => {
     void checkAuth();
@@ -201,6 +247,36 @@ export default function FloatingChat() {
     }
     setAlignRight(position.x > window.innerWidth / 2);
   }, [position]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    if (!isFullscreen) {
+      if (scrollLockRef.current) {
+        document.body.style.overflow = scrollLockRef.current.body;
+        document.documentElement.style.overflow = scrollLockRef.current.html;
+        scrollLockRef.current = null;
+      }
+      return;
+    }
+    if (!scrollLockRef.current) {
+      scrollLockRef.current = {
+        body: document.body.style.overflow,
+        html: document.documentElement.style.overflow
+      };
+    }
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      if (!scrollLockRef.current) {
+        return;
+      }
+      document.body.style.overflow = scrollLockRef.current.body;
+      document.documentElement.style.overflow = scrollLockRef.current.html;
+      scrollLockRef.current = null;
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -233,6 +309,9 @@ export default function FloatingChat() {
   };
 
   const toggleFullscreen = () => {
+    if (isMobile) {
+      return;
+    }
     setIsFullscreen((prev) => !prev);
   };
 
@@ -386,11 +465,18 @@ export default function FloatingChat() {
   const panelClass = `floating-chat-panel${
     isFullscreen ? " is-fullscreen" : alignRight ? "" : " left"
   }`;
+  const displayPosition =
+    !isFullscreen && isOpen && keyboardOffset > 0
+      ? {
+          x: position.x,
+          y: Math.max(boundaryPadding, position.y - keyboardOffset)
+        }
+      : position;
 
   return (
     <div
       className={`floating-chat${isFullscreen ? " is-fullscreen" : ""}`}
-      style={{ left: position.x, top: position.y }}
+      style={{ left: displayPosition.x, top: displayPosition.y }}
     >
       {isOpen ? (
         <div
@@ -404,16 +490,18 @@ export default function FloatingChat() {
               <span>记忆保留 30 天 / 100 条</span>
             </div>
             <div className="floating-chat-header-actions">
-              <button
-                type="button"
-                className={`floating-chat-control${
-                  isFullscreen ? " is-active" : ""
-                }`}
-                onClick={toggleFullscreen}
-                aria-label={isFullscreen ? "退出全屏" : "全屏"}
-              >
-                {isFullscreen ? "退出全屏" : "全屏"}
-              </button>
+              {!isMobile ? (
+                <button
+                  type="button"
+                  className={`floating-chat-control${
+                    isFullscreen ? " is-active" : ""
+                  }`}
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? "退出全屏" : "全屏"}
+                >
+                  {isFullscreen ? "退出全屏" : "全屏"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="floating-chat-control"

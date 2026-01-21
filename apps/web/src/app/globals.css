@@ -1,5 +1,6 @@
 :root {
   font-synthesis-weight: none;
+  --floating-chat-viewport-height: 100vh;
 
   /* Font Size & Weight Variables */
   --text-xs: 12px;
@@ -144,6 +145,18 @@ body {
   min-height: 100vh;
   font-size: var(--text-base);
   font-weight: var(--weight-normal);
+}
+
+@supports (-webkit-touch-callout: none) {
+  html,
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: "PingFang SC", "SF Pro Text", "SF Pro Display",
+      -apple-system, "Helvetica Neue", Arial, sans-serif !important;
+  }
 }
 
 input,
@@ -5514,7 +5527,7 @@ body.pomodoro-immersive .page {
   bottom: 70px;
   right: 0;
   width: min(360px, 80vw);
-  height: min(520px, 70vh);
+  height: min(520px, calc(var(--floating-chat-viewport-height) * 0.7));
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -5531,10 +5544,15 @@ body.pomodoro-immersive .page {
 
 .floating-chat-panel.is-fullscreen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: auto;
   width: 100vw;
-  height: 100vh;
+  height: var(--floating-chat-viewport-height);
   border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .floating-chat.is-fullscreen {
@@ -5673,6 +5691,12 @@ body.pomodoro-immersive .page {
   color: inherit;
 }
 
+@supports (-webkit-touch-callout: none) {
+  .floating-chat-input textarea {
+    font-size: 16px;
+  }
+}
+
 .floating-chat-send {
   padding: 8px 14px;
   border-radius: 12px;
@@ -5695,6 +5719,11 @@ body.pomodoro-immersive .page {
 @media (max-width: 640px) {
   .floating-chat-panel {
     width: min(92vw, 360px);
-    height: min(70vh, 520px);
+    height: min(520px, calc(var(--floating-chat-viewport-height) * 0.7));
+  }
+
+  .floating-chat-panel.is-fullscreen {
+    width: 100vw;
+    height: var(--floating-chat-viewport-height);
   }
 }
