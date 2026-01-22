@@ -5527,7 +5527,7 @@ body.pomodoro-immersive .page {
   bottom: 70px;
   right: 0;
   width: min(360px, 80vw);
-  height: min(520px, calc(var(--floating-chat-viewport-height) * 0.7));
+  height: min(624px, calc(var(--floating-chat-viewport-height) * 0.84));
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;

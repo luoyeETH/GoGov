@@ -9,6 +9,7 @@ import { FontSizeProvider } from "../components/font-size-provider";
 import FontSizeSwitcher from "../components/font-size-switcher";
 import FloatingChat from "../components/floating-chat";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 
 export const metadata = {
   title: "学了么 公考助手",

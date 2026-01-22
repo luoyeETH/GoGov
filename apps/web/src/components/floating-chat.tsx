@@ -4,6 +4,8 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -71,6 +73,17 @@ function clampPosition(position: Position) {
   };
 }
 
+function getInitialChatMode(): ChatMode {
+  if (typeof window === "undefined") {
+    return "planner";
+  }
+  const storedMode = window.localStorage.getItem(modeKey);
+  if (storedMode === "planner" || storedMode === "tutor") {
+    return storedMode;
+  }
+  return "planner";
+}
+
 export default function FloatingChat() {
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -85,11 +98,11 @@ export default function FloatingChat() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>("planner");
+  const [chatMode, setChatMode] = useState<ChatMode>(() => getInitialChatMode());
   const [historyCount, setHistoryCount] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const chatModeRef = useRef<ChatMode>("planner");
+  const chatModeRef = useRef<ChatMode>(chatMode);
   const historyRequestIdRef = useRef(0);
   const modeChangeTokenRef = useRef(0);
   const dragState = useRef({
@@ -196,10 +209,6 @@ export default function FloatingChat() {
     const storedOpen = window.localStorage.getItem(openKey);
     if (storedOpen === "1") {
       setIsOpen(true);
-    }
-    const storedMode = window.localStorage.getItem(modeKey);
-    if (storedMode === "planner" || storedMode === "tutor") {
-      setChatMode(storedMode);
     }
   }, []);
 
@@ -611,11 +620,14 @@ export default function FloatingChat() {
                     item.failed ? " failed" : ""
                   }`}
                 >
-                  {item.role === "assistant" ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {item.content}
-                    </ReactMarkdown>
-                  ) : (
+                {item.role === "assistant" ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {item.content}
+                  </ReactMarkdown>
+                ) : (
                     <p>{item.content}</p>
                   )}
                   {item.pending ? (
