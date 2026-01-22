@@ -5671,12 +5671,68 @@ body.pomodoro-immersive .page {
   color: var(--muted);
 }
 
+.floating-chat-divider {
+  align-self: center;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.floating-chat-footer {
+  border-top: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.floating-chat-mode {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.floating-chat-mode-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.floating-chat-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.floating-chat-mode-button {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 999px;
+  color: inherit;
+}
+
+.floating-chat-mode-button.is-active {
+  background: rgba(181, 82, 43, 0.16);
+  color: var(--brand-dark);
+}
+
 .floating-chat-input {
   display: flex;
   gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--border);
-  background: var(--glass-bg-strong);
+  padding: 0;
+  border-top: none;
+  background: transparent;
 }
 
 .floating-chat-input textarea {

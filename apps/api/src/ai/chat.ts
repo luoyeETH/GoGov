@@ -27,6 +27,8 @@ type MockReportSnapshot = {
   createdAt: Date;
 };
 
+export type ChatMode = "planner" | "tutor";
+
 function formatText(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : "未提供";
@@ -108,13 +110,25 @@ function extractMockSummary(report: MockReportSnapshot) {
 }
 
 export function buildChatSystemPrompt(params: {
-  user: UserSnapshot;
-  studyPlanProfile: StudyPlanProfileSnapshot | null;
-  planSummary: string | null;
-  mockReports: MockReportSnapshot[];
+  mode: ChatMode;
+  user?: UserSnapshot;
+  studyPlanProfile?: StudyPlanProfileSnapshot | null;
+  planSummary?: string | null;
+  mockReports?: MockReportSnapshot[];
 }) {
+  if (params.mode === "tutor") {
+    return [
+      "你是 GoGov AI 行测申论老师，负责针对具体题目与解题方法进行答疑教学。",
+      "回答要求：中文、清晰、简短。先给结论/要点，再给关键步骤或理由。",
+      "仅基于当前对话内容作答，不加载用户档案或长期记忆。",
+      "除非用户要求展开，回复尽量控制在 150 字以内。",
+      "题干或材料不完整时，提出 1-2 个关键补充问题。",
+      "不要编造未提供的信息。"
+    ].join("\n");
+  }
+
   const baseSystem = [
-    "你是 GoGov 公考 AI 伴学助手，负责长期跟踪用户备考并提供指导。",
+    "你是 GoGov 公考 AI 伴学助手（规划指导老师），负责长期跟踪用户备考并提供指导。",
     "回答要求：中文、简洁、可执行。先给结论/要点，再给步骤或建议。",
     "回复尽量控制在 200 字以内，避免长篇大论。",
     "如信息不足，提出 1-3 个关键澄清问题。",
@@ -122,14 +136,15 @@ export function buildChatSystemPrompt(params: {
     "不要编造未提供的信息。"
   ].join("\n");
 
+  const user = params.user ?? {};
   const profileLines = [
-    `- 昵称: ${formatText(params.user.username)}`,
-    `- 性别: ${formatGender(params.user.gender)}`,
-    `- 年龄: ${formatNumber(params.user.age)}`,
-    `- 备考起始: ${formatDate(params.user.examStartDate)}`
+    `- 昵称: ${formatText(user.username)}`,
+    `- 性别: ${formatGender(user.gender)}`,
+    `- 年龄: ${formatNumber(user.age)}`,
+    `- 备考起始: ${formatDate(user.examStartDate)}`
   ].join("\n");
 
-  const plan = params.studyPlanProfile;
+  const plan = params.studyPlanProfile ?? null;
   const totalStudyHours =
     typeof plan?.totalStudyHours === "number" && Number.isFinite(plan.totalStudyHours)
       ? `${Math.round(plan.totalStudyHours * 10) / 10} 小时`
@@ -150,7 +165,7 @@ export function buildChatSystemPrompt(params: {
     ? truncateText(params.planSummary.trim(), 160)
     : "暂无";
 
-  const mockReportLines = params.mockReports.map((report, index) => {
+  const mockReportLines = (params.mockReports ?? []).map((report, index) => {
     const title = report.title?.trim() || `模考记录 ${index + 1}`;
     const summary = extractMockSummary(report);
     return [

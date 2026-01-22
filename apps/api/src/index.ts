@@ -12,7 +12,7 @@ import { buildMockAnalysisPrompt } from "./ai/mock";
 import { buildKnowledgePrompt } from "./ai/knowledge";
 import { buildStudyPlanPrompt } from "./ai/study-plan";
 import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
-import { buildChatSystemPrompt } from "./ai/chat";
+import { buildChatSystemPrompt, type ChatMode } from "./ai/chat";
 import { buildKlinePrompt } from "./ai/kline";
 import { buildExpenseParsePrompt } from "./ai/expense";
 import { calculateBazi } from "./fortune/bazi";
@@ -89,6 +89,7 @@ type ChatMessageRecord = {
   role: string;
   content: string;
   createdAt: Date;
+  mode?: string;
 };
 
 // Prisma client needs regeneration after schema changes; keep delegate typed loosely here.
@@ -114,6 +115,7 @@ const MAX_EXPENSE_TEXT_LENGTH = 200;
 const MAX_EXPENSE_ITEM_LENGTH = 40;
 const CHAT_HISTORY_DAYS = 30;
 const CHAT_HISTORY_LIMIT = 100;
+const CHAT_TUTOR_CONTEXT_HOURS = 3;
 const MAX_CHAT_MESSAGE_LENGTH = 2000;
 
 function extractJsonPayload(value: string) {
@@ -143,7 +145,17 @@ function getChatCutoffDate() {
   return cutoff;
 }
 
-async function trimChatHistory(userId: string) {
+function getTutorContextCutoff() {
+  const cutoff = new Date();
+  cutoff.setHours(cutoff.getHours() - CHAT_TUTOR_CONTEXT_HOURS);
+  return cutoff;
+}
+
+function normalizeChatMode(value?: string): ChatMode {
+  return value === "tutor" ? "tutor" : "planner";
+}
+
+async function trimChatHistory(userId: string, mode?: ChatMode) {
   const cutoff = getChatCutoffDate();
   await aiChatMessageDelegate.deleteMany({
     where: {
@@ -151,13 +163,14 @@ async function trimChatHistory(userId: string) {
       createdAt: { lt: cutoff }
     }
   });
-  const total = await aiChatMessageDelegate.count({ where: { userId } });
+  const where = mode ? { userId, mode } : { userId };
+  const total = await aiChatMessageDelegate.count({ where });
   if (total <= CHAT_HISTORY_LIMIT) {
     return;
   }
   const overflow = total - CHAT_HISTORY_LIMIT;
   const oldest = (await aiChatMessageDelegate.findMany({
-    where: { userId },
+    where,
     orderBy: { createdAt: "asc" },
     take: overflow,
     select: { id: true }
@@ -3090,8 +3103,9 @@ server.post("/ai/chat", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
-    const body = request.body as { message?: string };
+    const body = request.body as { message?: string; mode?: string };
     const message = body?.message?.trim() ?? "";
+    const chatMode = normalizeChatMode(body?.mode);
     if (!message) {
       reply.code(400).send({ error: "请输入问题" });
       return;
@@ -3100,40 +3114,62 @@ server.post("/ai/chat", async (request, reply) => {
       reply.code(400).send({ error: "内容过长" });
       return;
     }
-    await trimChatHistory(session.user.id);
+    await trimChatHistory(session.user.id, chatMode);
+    const historyWhere: {
+      userId: string;
+      mode: ChatMode;
+      createdAt?: { gte: Date };
+    } = { userId: session.user.id, mode: chatMode };
+    if (chatMode === "tutor") {
+      historyWhere.createdAt = { gte: getTutorContextCutoff() };
+    }
     const [studyPlanProfile, latestPlanHistory, mockReports, historyRecords] =
       await Promise.all([
-        prisma.studyPlanProfile.findUnique({
-          where: { userId: session.user.id }
-        }),
-        prisma.studyPlanHistory.findFirst({
-          where: { userId: session.user.id },
-          orderBy: { createdAt: "desc" }
-        }),
-        prisma.mockExamReport.findMany({
-          where: { userId: session.user.id },
-          orderBy: { createdAt: "desc" },
-          take: 3
-        }),
+        chatMode === "planner"
+          ? prisma.studyPlanProfile.findUnique({
+              where: { userId: session.user.id }
+            })
+          : Promise.resolve(null),
+        chatMode === "planner"
+          ? prisma.studyPlanHistory.findFirst({
+              where: { userId: session.user.id },
+              orderBy: { createdAt: "desc" }
+            })
+          : Promise.resolve(null),
+        chatMode === "planner"
+          ? prisma.mockExamReport.findMany({
+              where: { userId: session.user.id },
+              orderBy: { createdAt: "desc" },
+              take: 3
+            })
+          : Promise.resolve([]),
         aiChatMessageDelegate.findMany({
-          where: { userId: session.user.id },
+          where: historyWhere,
           orderBy: { createdAt: "asc" },
           take: CHAT_HISTORY_LIMIT
         })
       ]);
 
     const latestSummary =
-      typeof latestPlanHistory?.summary === "string" && latestPlanHistory.summary.trim()
+      chatMode === "planner" &&
+      typeof latestPlanHistory?.summary === "string" &&
+      latestPlanHistory.summary.trim()
         ? latestPlanHistory.summary
         : null;
-    const planData = latestPlanHistory?.planData as { summary?: string } | null;
+    const planData =
+      chatMode === "planner"
+        ? (latestPlanHistory?.planData as { summary?: string } | null)
+        : null;
     const planSummary =
-      latestSummary ?? (typeof planData?.summary === "string" ? planData.summary : null);
+      chatMode === "planner"
+        ? latestSummary ?? (typeof planData?.summary === "string" ? planData.summary : null)
+        : null;
     const systemPrompt = buildChatSystemPrompt({
-      user: session.user,
-      studyPlanProfile,
-      planSummary,
-      mockReports
+      mode: chatMode,
+      user: chatMode === "planner" ? session.user : undefined,
+      studyPlanProfile: chatMode === "planner" ? studyPlanProfile : null,
+      planSummary: chatMode === "planner" ? planSummary : null,
+      mockReports: chatMode === "planner" ? mockReports : []
     });
 
     const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
@@ -3164,6 +3200,7 @@ server.post("/ai/chat", async (request, reply) => {
       aiChatMessageDelegate.create({
         data: {
           userId: session.user.id,
+          mode: chatMode,
           role: "user",
           content: message,
           createdAt: now
@@ -3172,6 +3209,7 @@ server.post("/ai/chat", async (request, reply) => {
       aiChatMessageDelegate.create({
         data: {
           userId: session.user.id,
+          mode: chatMode,
           role: "assistant",
           content: result.answer,
           createdAt: assistantTime
@@ -3179,7 +3217,7 @@ server.post("/ai/chat", async (request, reply) => {
       })
     ])) as ChatMessageRecord[];
 
-    await trimChatHistory(session.user.id);
+    await trimChatHistory(session.user.id, chatMode);
     reply.send({
       answer: result.answer,
       model: result.model,
@@ -4769,9 +4807,19 @@ server.get("/ai/chat/history", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
-    await trimChatHistory(session.user.id);
+    const { mode } = request.query as { mode?: string };
+    const chatMode = normalizeChatMode(mode);
+    await trimChatHistory(session.user.id, chatMode);
+    const historyWhere: {
+      userId: string;
+      mode: ChatMode;
+      createdAt?: { gte: Date };
+    } = { userId: session.user.id, mode: chatMode };
+    if (chatMode === "tutor") {
+      historyWhere.createdAt = { gte: getTutorContextCutoff() };
+    }
     const records = (await aiChatMessageDelegate.findMany({
-      where: { userId: session.user.id },
+      where: historyWhere,
       orderBy: { createdAt: "asc" },
       take: CHAT_HISTORY_LIMIT
     })) as ChatMessageRecord[];

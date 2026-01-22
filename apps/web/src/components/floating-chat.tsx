@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,8 +22,11 @@ const apiBase = (() => {
 const sessionKey = "gogov_session_token";
 const positionKey = "gogov_ai_chat_position";
 const openKey = "gogov_ai_chat_open";
+const modeKey = "gogov_ai_chat_mode";
 const buttonSize = 56;
 const boundaryPadding = 16;
+
+type ChatMode = "planner" | "tutor";
 
 type ChatMessage = {
   id: string;
@@ -82,8 +85,13 @@ export default function FloatingChat() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [chatMode, setChatMode] = useState<ChatMode>("planner");
+  const [historyCount, setHistoryCount] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const chatModeRef = useRef<ChatMode>("planner");
+  const historyRequestIdRef = useRef(0);
+  const modeChangeTokenRef = useRef(0);
   const dragState = useRef({
     active: false,
     startX: 0,
@@ -95,17 +103,20 @@ export default function FloatingChat() {
   const skipClickRef = useRef(false);
   const scrollLockRef = useRef<{ body: string; html: string } | null>(null);
 
-  const loadHistory = async () => {
+  const loadHistory = async (mode: ChatMode = chatMode) => {
+    const requestId = historyRequestIdRef.current + 1;
+    historyRequestIdRef.current = requestId;
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
       setHistoryState("error");
       setHistoryMessage("请先登录后使用 AI 对话。");
+      setHistoryCount(0);
       return;
     }
     setHistoryState("loading");
     setHistoryMessage(null);
     try {
-      const res = await fetch(`${apiBase}/ai/chat/history`, {
+      const res = await fetch(`${apiBase}/ai/chat/history?mode=${mode}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -119,11 +130,20 @@ export default function FloatingChat() {
       if (!res.ok) {
         throw new Error(data?.error ?? "加载对话失败");
       }
-      setMessages(Array.isArray(data.messages) ? data.messages : []);
+      if (historyRequestIdRef.current !== requestId || chatModeRef.current !== mode) {
+        return;
+      }
+      const history = Array.isArray(data.messages) ? data.messages : [];
+      setMessages(history);
+      setHistoryCount(history.length);
       setHistoryState("idle");
     } catch (err) {
+      if (historyRequestIdRef.current !== requestId || chatModeRef.current !== mode) {
+        return;
+      }
       setHistoryState("error");
       setHistoryMessage(err instanceof Error ? err.message : "加载对话失败");
+      setHistoryCount(0);
     }
   };
 
@@ -132,6 +152,7 @@ export default function FloatingChat() {
     if (!token) {
       setAuthState("anon");
       setMessages([]);
+      setHistoryCount(0);
       setIsOpen(false);
       return;
     }
@@ -144,11 +165,11 @@ export default function FloatingChat() {
         throw new Error("未登录");
       }
       setAuthState("authed");
-      void loadHistory();
     } catch (_err) {
       window.localStorage.removeItem(sessionKey);
       setAuthState("anon");
       setMessages([]);
+      setHistoryCount(0);
       setIsOpen(false);
     }
   };
@@ -175,6 +196,10 @@ export default function FloatingChat() {
     const storedOpen = window.localStorage.getItem(openKey);
     if (storedOpen === "1") {
       setIsOpen(true);
+    }
+    const storedMode = window.localStorage.getItem(modeKey);
+    if (storedMode === "planner" || storedMode === "tutor") {
+      setChatMode(storedMode);
     }
   }, []);
 
@@ -289,6 +314,29 @@ export default function FloatingChat() {
   }, [isOpen]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(modeKey, chatMode);
+    chatModeRef.current = chatMode;
+    modeChangeTokenRef.current += 1;
+  }, [chatMode]);
+
+  useEffect(() => {
+    if (authState !== "authed") {
+      return;
+    }
+    setMessages([]);
+    setHistoryCount(0);
+    setHistoryState("loading");
+    setHistoryMessage(null);
+    setRequestState("idle");
+    setRequestMessage(null);
+    setInput("");
+    void loadHistory(chatMode);
+  }, [chatMode, authState]);
+
+  useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
@@ -401,6 +449,8 @@ export default function FloatingChat() {
       return;
     }
     const pendingId = `pending-${Date.now()}`;
+    const activeMode = chatMode;
+    const modeToken = modeChangeTokenRef.current;
     const pendingMessage: ChatMessage = {
       id: pendingId,
       role: "user",
@@ -420,8 +470,11 @@ export default function FloatingChat() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ message: content })
+        body: JSON.stringify({ message: content, mode: activeMode })
       });
+      if (modeChangeTokenRef.current !== modeToken || chatModeRef.current !== activeMode) {
+        return;
+      }
       if (res.status === 401) {
         window.localStorage.removeItem(sessionKey);
         setAuthState("anon");
@@ -441,12 +494,18 @@ export default function FloatingChat() {
       }
       const data = await res.json();
       const newMessages = Array.isArray(data.messages) ? data.messages : [];
+      if (modeChangeTokenRef.current !== modeToken || chatModeRef.current !== activeMode) {
+        return;
+      }
       setMessages((prev) => {
         const withoutPending = prev.filter((item) => item.id !== pendingId);
         return [...withoutPending, ...newMessages];
       });
       setRequestState("idle");
     } catch (err) {
+      if (modeChangeTokenRef.current !== modeToken || chatModeRef.current !== activeMode) {
+        return;
+      }
       setRequestState("error");
       setRequestMessage(err instanceof Error ? err.message : "答疑失败");
       setInput(content);
@@ -461,6 +520,24 @@ export default function FloatingChat() {
   if (authState !== "authed" || !position) {
     return null;
   }
+
+  const modeOptions: Array<{ value: ChatMode; label: string }> = [
+    { value: "planner", label: "规划指导" },
+    { value: "tutor", label: "行测申论答疑" }
+  ];
+  const headerTitle = chatMode === "planner" ? "AI 伴学" : "AI 行测申论";
+  const headerSubtitle =
+    chatMode === "planner"
+      ? "记忆保留 30 天 / 100 条"
+      : "不加载记忆 · 上下文 3 小时 / 100 条";
+  const emptyTip =
+    chatMode === "planner"
+      ? "随时提问，我会结合你的备考数据。"
+      : "直接发题目或解法，我给简短答疑。";
+  const inputPlaceholder =
+    chatMode === "planner" ? "输入问题，回车发送" : "输入题目/解法，回车发送";
+  const showNewQuestionDivider =
+    chatMode === "tutor" && historyCount > 0 && historyState === "idle";
 
   const panelClass = `floating-chat-panel${
     isFullscreen ? " is-fullscreen" : alignRight ? "" : " left"
@@ -482,12 +559,12 @@ export default function FloatingChat() {
         <div
           className={panelClass}
           role="dialog"
-          aria-label="AI 伴学对话"
+          aria-label={chatMode === "planner" ? "AI 伴学对话" : "AI 答疑对话"}
         >
           <div className="floating-chat-header">
             <div>
-              <strong>AI 伴学</strong>
-              <span>记忆保留 30 天 / 100 条</span>
+              <strong>{headerTitle}</strong>
+              <span>{headerSubtitle}</span>
             </div>
             <div className="floating-chat-header-actions">
               {!isMobile ? (
@@ -522,61 +599,94 @@ export default function FloatingChat() {
               </div>
             ) : null}
             {!messages.length && historyState === "idle" ? (
-              <div className="floating-chat-tip">随时提问，我会结合你的备考数据。</div>
+              <div className="floating-chat-tip">{emptyTip}</div>
             ) : null}
-            {messages.map((item) => (
-              <div
-                key={item.id}
-                className={`floating-chat-message ${item.role}${
-                  item.failed ? " failed" : ""
-                }`}
-              >
-                {item.role === "assistant" ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {item.content}
-                  </ReactMarkdown>
-                ) : (
-                  <p>{item.content}</p>
-                )}
-                {item.pending ? (
-                  <span className="floating-chat-meta">发送中...</span>
+            {messages.map((item, index) => (
+              <Fragment key={item.id}>
+                {showNewQuestionDivider && index === historyCount ? (
+                  <div className="floating-chat-divider">新的提问</div>
                 ) : null}
-              </div>
+                <div
+                  className={`floating-chat-message ${item.role}${
+                    item.failed ? " failed" : ""
+                  }`}
+                >
+                  {item.role === "assistant" ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {item.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <p>{item.content}</p>
+                  )}
+                  {item.pending ? (
+                    <span className="floating-chat-meta">发送中...</span>
+                  ) : null}
+                </div>
+              </Fragment>
             ))}
+            {showNewQuestionDivider && historyCount === messages.length ? (
+              <div className="floating-chat-divider">新的提问</div>
+            ) : null}
             {requestState === "loading" ? (
               <div className="floating-chat-message assistant pending">
                 AI 正在思考...
               </div>
             ) : null}
           </div>
-          <div className="floating-chat-input">
-            <textarea
-              ref={inputRef}
-              rows={2}
-              placeholder="输入问题，回车发送"
-              value={input}
-              onChange={(event) => {
-                setInput(event.target.value);
-                if (requestMessage) {
-                  setRequestMessage(null);
-                  setRequestState("idle");
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="primary floating-chat-send"
-              onClick={() => void handleSend()}
-              disabled={requestState === "loading"}
-            >
-              发送
-            </button>
+          <div className="floating-chat-footer">
+            <div className="floating-chat-mode">
+              <span className="floating-chat-mode-label">模式</span>
+              <div
+                className="floating-chat-mode-toggle"
+                role="tablist"
+                aria-label="切换 AI 模式"
+              >
+                {modeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={chatMode === option.value}
+                    className={`floating-chat-mode-button${
+                      chatMode === option.value ? " is-active" : ""
+                    }`}
+                    onClick={() => setChatMode(option.value)}
+                    disabled={requestState === "loading"}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="floating-chat-input">
+              <textarea
+                ref={inputRef}
+                rows={2}
+                placeholder={inputPlaceholder}
+                value={input}
+                onChange={(event) => {
+                  setInput(event.target.value);
+                  if (requestMessage) {
+                    setRequestMessage(null);
+                    setRequestState("idle");
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void handleSend();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="primary floating-chat-send"
+                onClick={() => void handleSend()}
+                disabled={requestState === "loading"}
+              >
+                发送
+              </button>
+            </div>
           </div>
           {requestMessage ? (
             <div className="floating-chat-error">{requestMessage}</div>
@@ -586,7 +696,7 @@ export default function FloatingChat() {
       <button
         type="button"
         className={`floating-chat-button${isOpen ? " is-open" : ""}`}
-        aria-label="打开 AI 伴学"
+        aria-label={chatMode === "planner" ? "打开 AI 伴学" : "打开 AI 答疑"}
         onClick={handleButtonClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
