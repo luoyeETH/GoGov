@@ -228,6 +228,10 @@ export default function FloatingChat() {
         "--floating-chat-viewport-height",
         `${viewport.height}px`
       );
+      document.documentElement.style.setProperty(
+        "--floating-chat-viewport-offset",
+        `${viewport.offsetTop}px`
+      );
     };
     updateViewport();
     window.visualViewport.addEventListener("resize", updateViewport);
@@ -236,6 +240,7 @@ export default function FloatingChat() {
       window.visualViewport?.removeEventListener("resize", updateViewport);
       window.visualViewport?.removeEventListener("scroll", updateViewport);
       document.documentElement.style.removeProperty("--floating-chat-viewport-height");
+      document.documentElement.style.removeProperty("--floating-chat-viewport-offset");
     };
   }, []);
 
@@ -350,6 +355,17 @@ export default function FloatingChat() {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages, isOpen, requestState]);
+
+  useEffect(() => {
+    if (isFullscreen && keyboardOffset > 0 && listRef.current) {
+      setTimeout(() => {
+        listRef.current?.scrollTo({
+          top: listRef.current.scrollHeight,
+          behavior: "smooth"
+        });
+      }, 100);
+    }
+  }, [keyboardOffset, isFullscreen]);
 
   const toggleOpen = () => {
     setIsOpen((prev) => {
@@ -681,6 +697,16 @@ export default function FloatingChat() {
                   if (requestMessage) {
                     setRequestMessage(null);
                     setRequestState("idle");
+                  }
+                }}
+                onFocus={() => {
+                  if (isFullscreen && listRef.current) {
+                    setTimeout(() => {
+                      listRef.current?.scrollTo({
+                        top: listRef.current.scrollHeight,
+                        behavior: "smooth"
+                      });
+                    }, 300);
                   }
                 }}
                 onKeyDown={(event) => {

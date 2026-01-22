@@ -1,6 +1,7 @@
 :root {
   font-synthesis-weight: none;
   --floating-chat-viewport-height: 100vh;
+  --floating-chat-viewport-offset: 0px;
 
   /* Font Size & Weight Variables */
   --text-xs: 12px;
@@ -5544,7 +5545,7 @@ body.pomodoro-immersive .page {
 
 .floating-chat-panel.is-fullscreen {
   position: fixed;
-  top: 0;
+  top: var(--floating-chat-viewport-offset);
   left: 0;
   right: 0;
   bottom: auto;
@@ -5575,6 +5576,7 @@ body.pomodoro-immersive .page {
   background: var(--glass-bg-strong);
   border-bottom: 1px solid var(--border);
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .floating-chat-header strong {
@@ -5683,10 +5685,11 @@ body.pomodoro-immersive .page {
 .floating-chat-footer {
   border-top: 1px solid var(--border);
   background: var(--glass-bg-strong);
-  padding: 8px 12px 12px;
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .floating-chat-mode {
