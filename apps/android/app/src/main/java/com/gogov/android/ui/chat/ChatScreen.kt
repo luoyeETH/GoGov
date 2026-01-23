@@ -1,0 +1,287 @@
+package com.gogov.android.ui.chat
+
+import android.widget.TextView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import com.gogov.android.domain.model.ChatMessage
+import com.gogov.android.domain.model.ChatMode
+import io.noties.markwon.Markwon
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
+import io.noties.markwon.ext.tables.TablePlugin
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatScreen(viewModel: ChatViewModel) {
+    val state by viewModel.state.collectAsState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty()) {
+            listState.animateScrollToItem(state.messages.size - 1)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Header with mode toggle
+        Surface(
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = if (state.mode == ChatMode.PLANNER) "AI Planner" else "AI Tutor",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (state.mode == ChatMode.PLANNER)
+                        "Study planning assistance - 30 day memory"
+                    else
+                        "Quick Q&A - No memory loaded",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.mode == ChatMode.PLANNER,
+                        onClick = { viewModel.setMode(ChatMode.PLANNER) },
+                        label = { Text("Planner") },
+                        enabled = !state.isSending
+                    )
+                    FilterChip(
+                        selected = state.mode == ChatMode.TUTOR,
+                        onClick = { viewModel.setMode(ChatMode.TUTOR) },
+                        label = { Text("Tutor") },
+                        enabled = !state.isSending
+                    )
+                }
+            }
+        }
+
+        // Messages list
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            if (state.isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
+                }
+            }
+
+            if (state.messages.isEmpty() && !state.isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (state.mode == ChatMode.PLANNER)
+                                "Ask me anything about your study plan!"
+                            else
+                                "Send a question for quick tutoring.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            items(state.messages) { message ->
+                ChatBubble(message = message)
+            }
+
+            if (state.isSending) {
+                item {
+                    ChatBubble(
+                        message = ChatMessage(
+                            id = "thinking",
+                            role = "assistant",
+                            content = "Thinking...",
+                            createdAt = ""
+                        ),
+                        isPending = true
+                    )
+                }
+            }
+        }
+
+        // Error message
+        state.error?.let { error ->
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = error,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = { viewModel.clearError() }) {
+                        Text("Dismiss")
+                    }
+                }
+            }
+        }
+
+        // Input area
+        Surface(
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                OutlinedTextField(
+                    value = state.inputText,
+                    onValueChange = { viewModel.setInputText(it) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Type a message...") },
+                    maxLines = 4,
+                    enabled = !state.isSending
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = { viewModel.sendMessage() },
+                    enabled = !state.isSending && state.inputText.isNotBlank()
+                ) {
+                    if (state.isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send",
+                            tint = if (state.inputText.isNotBlank())
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatBubble(
+    message: ChatMessage,
+    isPending: Boolean = false
+) {
+    val isUser = message.role == "user"
+    val isFailed = message.id.startsWith("failed-")
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    )
+                )
+                .background(
+                    when {
+                        isFailed -> MaterialTheme.colorScheme.errorContainer
+                        isUser -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                )
+                .padding(12.dp)
+        ) {
+            if (isUser || isPending) {
+                Text(
+                    text = message.content,
+                    color = when {
+                        isFailed -> MaterialTheme.colorScheme.onErrorContainer
+                        isUser -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    style = if (isPending)
+                        MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    else
+                        MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                MarkdownText(
+                    markdown = message.content,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownText(
+    markdown: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    val context = LocalContext.current
+    val markwon = remember {
+        Markwon.builder(context)
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(TablePlugin.create(context))
+            .build()
+    }
+
+    AndroidView(
+        factory = { ctx ->
+            TextView(ctx).apply {
+                setTextColor(android.graphics.Color.parseColor("#4a5568"))
+                textSize = 14f
+            }
+        },
+        update = { textView ->
+            markwon.setMarkdown(textView, markdown)
+        }
+    )
+}
