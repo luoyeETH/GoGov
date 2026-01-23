@@ -1,0 +1,17 @@
+# Built files
+/build/
+/app/build/
+*.apk
+*.aab
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Keystore - NEVER commit
+*.jks
+*.keystore
+gogov-release.jks

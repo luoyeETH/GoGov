@@ -8,6 +8,18 @@ android {
     namespace = "com.gogov.android"
     compileSdk = 34
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("../gogov-release.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS") ?: "gogov"
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.gogov.android"
         minSdk = 26
@@ -29,6 +41,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

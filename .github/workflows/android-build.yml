@@ -32,6 +32,10 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x apps/android/gradlew
 
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/android/gogov-release.jks
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+
       - name: Build Debug APK
         working-directory: apps/android
         run: ./gradlew assembleDebug --no-daemon
@@ -46,6 +50,10 @@ jobs:
       - name: Build Release APK (unsigned)
         working-directory: apps/android
         run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         continue-on-error: true
 
       - name: Upload Release APK
@@ -53,5 +61,5 @@ jobs:
         if: success()
         with:
           name: gogov-release-apk
-          path: apps/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: apps/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
