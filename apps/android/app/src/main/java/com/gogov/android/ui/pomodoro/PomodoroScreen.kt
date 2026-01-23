@@ -367,7 +367,7 @@ private fun ImmersiveTimerDialog(
                 if (state.mode == PomodoroMode.COUNTDOWN) {
                     Spacer(modifier = Modifier.height(16.dp))
                     LinearProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
+                        progress = progress.coerceIn(0f, 1f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
