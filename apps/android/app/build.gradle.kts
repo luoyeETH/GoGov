@@ -32,7 +32,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "API_BASE_URL", "\"https://api.gogov.cn\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://api.xn--6iqsfm90b.com\"")
     }
 
     buildTypes {
