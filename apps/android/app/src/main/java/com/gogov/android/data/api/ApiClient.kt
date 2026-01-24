@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
 
     private val gson = GsonBuilder()
+        .setLenient()
         .serializeNulls()
         .create()
 
@@ -27,13 +28,12 @@ object ApiClient {
             tokenManager.getTokenSync()
         } else null
 
-        val request = if (token != null) {
-            chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
-                .build()
-        } else {
-            chain.request()
+        val builder = chain.request().newBuilder()
+            .header("Accept", "application/json")
+        if (token != null) {
+            builder.addHeader("Authorization", "Bearer $token")
         }
+        val request = builder.build()
         chain.proceed(request)
     }
 
