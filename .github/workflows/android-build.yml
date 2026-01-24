@@ -41,9 +41,11 @@ jobs:
       - name: Build Debug APK
         working-directory: apps/android
         run: ./gradlew assembleDebug --no-daemon
+        if: github.event_name == 'workflow_dispatch'
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: gogov-debug-apk
           path: apps/android/app/build/outputs/apk/debug/app-debug.apk
