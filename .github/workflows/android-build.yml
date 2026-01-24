@@ -34,7 +34,9 @@ jobs:
 
       - name: Decode Keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > apps/android/gogov-release.jks
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
+        if: env.HAS_KEYSTORE != ''
 
       - name: Build Debug APK
         working-directory: apps/android
