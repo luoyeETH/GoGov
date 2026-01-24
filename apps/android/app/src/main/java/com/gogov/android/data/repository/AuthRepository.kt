@@ -182,6 +182,54 @@ class AuthRepository(private val tokenManager: TokenManager) {
         }
     }
 
+    suspend fun updatePassword(oldPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.updatePassword(PasswordUpdateRequest(oldPassword, newPassword)).execute()
+            }
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val error = response.errorBody()?.string() ?: "修改失败"
+                Result.failure(Exception(parseError(error)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getStudyPlanProfile(): Result<StudyPlanProfile?> {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getStudyPlanProfile().execute()
+            }
+            if (response.isSuccessful) {
+                Result.success(response.body()?.profile)
+            } else {
+                val error = response.errorBody()?.string() ?: "获取失败"
+                Result.failure(Exception(parseError(error)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateStudyPlanProfile(request: StudyPlanProfileUpdateRequest): Result<StudyPlanProfile?> {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.updateStudyPlanProfile(request).execute()
+            }
+            if (response.isSuccessful) {
+                Result.success(response.body()?.profile)
+            } else {
+                val error = response.errorBody()?.string() ?: "保存失败"
+                Result.failure(Exception(parseError(error)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun logout(): Result<Unit> {
         return try {
             withContext(Dispatchers.IO) {

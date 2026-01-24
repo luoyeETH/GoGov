@@ -9,10 +9,13 @@ import android.widget.NumberPicker
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -33,7 +36,8 @@ import com.gogov.android.ui.components.PageTitle
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToStudyPlan: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -76,27 +80,408 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // User info
+        // User info card with edit button
         state.user?.let { user ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "账号",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = user.email ?: "未绑定邮箱",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    user.username?.let { username ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = username,
+                            text = "账号",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        IconButton(onClick = { viewModel.startEditingProfile() }) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "编辑资料",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (state.isEditingProfile) {
+                        // Edit mode
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = state.editUsername,
+                            onValueChange = { viewModel.setEditUsername(it) },
+                            label = { Text("用户名") },
+                            placeholder = { Text("2-10 位字符") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Gender dropdown
+                        var genderExpanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
+                            expanded = genderExpanded,
+                            onExpandedChange = { genderExpanded = !genderExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = when (state.editGender) {
+                                    "male" -> "男"
+                                    "female" -> "女"
+                                    else -> "隐藏"
+                                },
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("性别") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = genderExpanded,
+                                onDismissRequest = { genderExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("男") },
+                                    onClick = {
+                                        viewModel.setEditGender("male")
+                                        genderExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("女") },
+                                    onClick = {
+                                        viewModel.setEditGender("female")
+                                        genderExpanded = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("隐藏") },
+                                    onClick = {
+                                        viewModel.setEditGender("hidden")
+                                        genderExpanded = false
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = state.editAge,
+                            onValueChange = { viewModel.setEditAge(it) },
+                            label = { Text("年龄") },
+                            placeholder = { Text("可选") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { viewModel.cancelEditingProfile() }) {
+                                Text("取消")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { viewModel.saveProfile() },
+                                enabled = !state.isSaving
+                            ) {
+                                if (state.isSaving) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("保存")
+                            }
+                        }
+                    } else {
+                        // Display mode
+                        Text(
+                            text = user.email ?: "未绑定邮箱",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        user.username?.let { username ->
+                            Text(
+                                text = username,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Password change card
+        if (state.user?.hasPassword == true) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "密码",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (!state.isChangingPassword) {
+                            TextButton(onClick = { viewModel.startChangingPassword() }) {
+                                Text("修改密码")
+                            }
+                        }
+                    }
+
+                    if (state.isChangingPassword) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var showOld by remember { mutableStateOf(false) }
+                        OutlinedTextField(
+                            value = state.oldPassword,
+                            onValueChange = { viewModel.setOldPassword(it) },
+                            label = { Text("原密码") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (showOld) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showOld = !showOld }) {
+                                    Icon(
+                                        if (showOld) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "切换可见性"
+                                    )
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        var showNew by remember { mutableStateOf(false) }
+                        OutlinedTextField(
+                            value = state.newPassword,
+                            onValueChange = { viewModel.setNewPassword(it) },
+                            label = { Text("新密码") },
+                            placeholder = { Text("至少 8 位") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (showNew) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showNew = !showNew }) {
+                                    Icon(
+                                        if (showNew) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "切换可见性"
+                                    )
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = state.confirmPassword,
+                            onValueChange = { viewModel.setConfirmPassword(it) },
+                            label = { Text("确认新密码") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+
+                        state.passwordError?.let { error ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = error,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { viewModel.cancelChangingPassword() }) {
+                                Text("取消")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { viewModel.savePassword() },
+                                enabled = !state.isSaving
+                            ) {
+                                if (state.isSaving) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("更新密码")
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "已设置",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Study Plan entry card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToStudyPlan() }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "备考档案",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "设置目标考试、学习进度等信息",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "进入",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Daily Reminder
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "每日提醒",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "开启通知",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "每天提醒学习",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                notificationsEnabled = enabled
+                            }
+                        }
+                    )
+                }
+
+                if (notificationsEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val timeLabel = String.format("%02d:%02d", reminderHour, reminderMinute)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("提醒时间")
+                        Text(
+                            text = timeLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AndroidView(
+                        modifier = Modifier.fillMaxWidth(),
+                        factory = { ctx ->
+                            val layout = LinearLayout(ctx).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.CENTER
+                            }
+                            val hourPicker = NumberPicker(ctx).apply {
+                                minValue = 0
+                                maxValue = 23
+                                value = reminderHour
+                                setFormatter { value -> String.format("%02d", value) }
+                                setOnValueChangedListener { _, _, newVal ->
+                                    viewModel.setReminderTime(newVal, reminderMinute)
+                                    viewModel.saveReminderTime()
+                                }
+                            }
+                            val colon = TextView(ctx).apply {
+                                text = ":"
+                                textSize = 20f
+                                setPadding(8, 0, 8, 0)
+                            }
+                            val minutePicker = NumberPicker(ctx).apply {
+                                minValue = 0
+                                maxValue = 59
+                                value = reminderMinute
+                                setFormatter { value -> String.format("%02d", value) }
+                                setOnValueChangedListener { _, _, newVal ->
+                                    viewModel.setReminderTime(reminderHour, newVal)
+                                    viewModel.saveReminderTime()
+                                }
+                            }
+                            layout.addView(hourPicker)
+                            layout.addView(colon)
+                            layout.addView(minutePicker)
+                            layout
+                        },
+                        update = { view ->
+                            val hourPicker = view.getChildAt(0) as NumberPicker
+                            val minutePicker = view.getChildAt(2) as NumberPicker
+                            if (hourPicker.value != reminderHour) hourPicker.value = reminderHour
+                            if (minutePicker.value != reminderMinute) minutePicker.value = reminderMinute
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "每天 $timeLabel 提醒你学习",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -226,117 +611,6 @@ fun SettingsScreen(
                         text = it,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Daily Reminder
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "每日提醒",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "开启通知",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "每天提醒学习",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = notificationsEnabled,
-                        onCheckedChange = { enabled ->
-                            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                notificationsEnabled = enabled
-                            }
-                        }
-                    )
-                }
-
-                if (notificationsEnabled) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    val timeLabel = String.format("%02d:%02d", reminderHour, reminderMinute)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("提醒时间")
-                        Text(
-                            text = timeLabel,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    AndroidView(
-                        modifier = Modifier.fillMaxWidth(),
-                        factory = { ctx ->
-                            val layout = LinearLayout(ctx).apply {
-                                orientation = LinearLayout.HORIZONTAL
-                                gravity = Gravity.CENTER
-                            }
-                            val hourPicker = NumberPicker(ctx).apply {
-                                minValue = 0
-                                maxValue = 23
-                                value = reminderHour
-                                setFormatter { value -> String.format("%02d", value) }
-                                setOnValueChangedListener { _, _, newVal ->
-                                    viewModel.setReminderTime(newVal, reminderMinute)
-                                    viewModel.saveReminderTime()
-                                }
-                            }
-                            val colon = TextView(ctx).apply {
-                                text = ":"
-                                textSize = 20f
-                                setPadding(8, 0, 8, 0)
-                            }
-                            val minutePicker = NumberPicker(ctx).apply {
-                                minValue = 0
-                                maxValue = 59
-                                value = reminderMinute
-                                setFormatter { value -> String.format("%02d", value) }
-                                setOnValueChangedListener { _, _, newVal ->
-                                    viewModel.setReminderTime(reminderHour, newVal)
-                                    viewModel.saveReminderTime()
-                                }
-                            }
-                            layout.addView(hourPicker)
-                            layout.addView(colon)
-                            layout.addView(minutePicker)
-                            layout
-                        },
-                        update = { view ->
-                            val hourPicker = view.getChildAt(0) as NumberPicker
-                            val minutePicker = view.getChildAt(2) as NumberPicker
-                            if (hourPicker.value != reminderHour) hourPicker.value = reminderHour
-                            if (minutePicker.value != reminderMinute) minutePicker.value = reminderMinute
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "每天 $timeLabel 提醒你学习",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

@@ -32,6 +32,16 @@ interface GoGovApi {
     @POST("profile")
     fun updateProfile(@Body request: ProfileUpdateRequest): Call<ProfileUpdateResponse>
 
+    @POST("auth/password/update")
+    fun updatePassword(@Body request: PasswordUpdateRequest): Call<PasswordUpdateResponse>
+
+    // Study Plan Profile
+    @GET("study-plan/profile")
+    fun getStudyPlanProfile(): Call<StudyPlanProfileResponse>
+
+    @PUT("study-plan/profile")
+    fun updateStudyPlanProfile(@Body request: StudyPlanProfileUpdateRequest): Call<StudyPlanProfileResponse>
+
     // Pomodoro
     @GET("pomodoro/subjects")
     fun getSubjects(): Call<PomodoroSubjectsResponse>

@@ -46,6 +46,8 @@ import com.gogov.android.ui.quick.QuickPracticeScreen
 import com.gogov.android.ui.quick.QuickPracticeViewModel
 import com.gogov.android.ui.settings.SettingsScreen
 import com.gogov.android.ui.settings.SettingsViewModel
+import com.gogov.android.ui.studyplan.StudyPlanScreen
+import com.gogov.android.ui.studyplan.StudyPlanViewModel
 import com.gogov.android.ui.tasks.DailyTasksScreen
 import com.gogov.android.ui.tasks.DailyTasksViewModel
 import com.gogov.android.ui.theme.GoGovTheme
@@ -56,6 +58,7 @@ sealed class Screen(val route: String, val label: String) {
     object QuickPractice : Screen("quick", "速算")
     object Chat : Screen("chat", "AI 答疑")
     object Settings : Screen("settings", "设置")
+    object StudyPlan : Screen("studyplan", "备考档案")
     object Login : Screen("login", "登录")
     object Register : Screen("register", "注册")
 }
@@ -115,6 +118,7 @@ class MainActivity : ComponentActivity() {
         val chatViewModel = remember { ChatViewModel(chatRepository) }
         val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository) }
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
+        val studyPlanViewModel = remember { StudyPlanViewModel(authRepository) }
         val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
 
         LaunchedEffect(isLoggedIn) {
@@ -258,6 +262,18 @@ class MainActivity : ComponentActivity() {
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
+                        },
+                        onNavigateToStudyPlan = {
+                            navController.navigate(Screen.StudyPlan.route)
+                        }
+                    )
+                }
+
+                composable(Screen.StudyPlan.route) {
+                    StudyPlanScreen(
+                        viewModel = studyPlanViewModel,
+                        onBack = {
+                            navController.popBackStack()
                         }
                     )
                 }

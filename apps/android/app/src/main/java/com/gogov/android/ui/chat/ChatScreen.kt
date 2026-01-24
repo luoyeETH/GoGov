@@ -286,13 +286,13 @@ private fun MarkdownText(
     }
     val markwon = remember(latexTextSizePx) {
         Markwon.builder(context)
+            .usePlugin(MarkwonInlineParserPlugin.create())
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
             .usePlugin(JLatexMathPlugin.create(latexTextSizePx) { builder ->
                 builder.inlinesEnabled(true)
                 builder.blocksEnabled(true)
             })
-            .usePlugin(MarkwonInlineParserPlugin.create())
             .build()
     }
 
@@ -323,6 +323,16 @@ private fun normalizeLatex(markdown: String): String {
     val blockDelimiter = Regex.escape("\$\$")
 
     var output = markdown
+
+    val inlineParenRegex = Regex("""\\\(\s*([\s\S]+?)\s*\\\)""")
+    output = inlineParenRegex.replace(output) { match ->
+        "${'$'}${match.groupValues[1].trim()}${'$'}"
+    }
+
+    val blockBracketRegex = Regex("""\\\[\s*([\s\S]+?)\s*\\\]""")
+    output = blockBracketRegex.replace(output) { match ->
+        "${'$'}${'$'}${match.groupValues[1].trim()}${'$'}${'$'}"
+    }
 
     val escapedInlineRegex =
         Regex("$escapedInlineDelimiter\\s*([^\\$\\n]+?)\\s*$escapedInlineDelimiter")

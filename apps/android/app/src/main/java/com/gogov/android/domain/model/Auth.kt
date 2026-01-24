@@ -118,3 +118,48 @@ data class ProfileUpdateRequest(
 data class ProfileUpdateResponse(
     val user: User
 )
+
+@Serializable
+data class PasswordUpdateRequest(
+    val oldPassword: String,
+    val newPassword: String
+)
+
+@Serializable
+data class PasswordUpdateResponse(
+    val status: String
+)
+
+@Serializable
+data class StudyPlanProfile(
+    val id: String,
+    val prepStartDate: String? = null,
+    val totalStudyHours: Int? = null,
+    val totalStudyDurationText: String? = null,
+    val currentProgress: String? = null,
+    val targetExam: String? = null,
+    val targetExamDate: String? = null,
+    val plannedMaterials: String? = null,
+    val interviewExperience: Boolean? = null,
+    val learningGoals: String? = null,
+    val notes: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+)
+
+@Serializable
+data class StudyPlanProfileResponse(
+    val profile: StudyPlanProfile? = null
+)
+
+@Serializable
+data class StudyPlanProfileUpdateRequest(
+    val prepStartDate: String? = null,
+    val totalStudyDuration: String? = null,
+    val currentProgress: String? = null,
+    val targetExam: String? = null,
+    val targetExamDate: String? = null,
+    val studyResources: String? = null,
+    val interviewExperience: Boolean? = null,
+    val notes: String? = null
+)
