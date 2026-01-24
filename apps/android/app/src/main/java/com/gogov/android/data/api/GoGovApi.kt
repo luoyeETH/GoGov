@@ -1,6 +1,7 @@
 package com.gogov.android.data.api
 
 import com.gogov.android.domain.model.*
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.*
 
@@ -8,7 +9,7 @@ interface GoGovApi {
 
     // Auth
     @POST("auth/login")
-    fun login(@Body request: LoginRequest): Call<AuthSessionResponse>
+    fun login(@Body request: LoginRequest): Call<ResponseBody>
 
     @GET("auth/email/challenge")
     fun getEmailChallenge(): Call<EmailChallengeResponse>

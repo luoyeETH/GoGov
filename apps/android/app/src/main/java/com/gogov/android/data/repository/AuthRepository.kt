@@ -3,6 +3,7 @@ package com.gogov.android.data.repository
 import com.gogov.android.data.api.ApiClient
 import com.gogov.android.data.local.TokenManager
 import com.gogov.android.domain.model.*
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -15,17 +16,30 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     val currentToken: Flow<String?> = tokenManager.token
 
+    private val gson = GsonBuilder()
+        .setLenient()
+        .create()
+
     suspend fun login(email: String, password: String): Result<User> {
         return try {
             val response = withContext(Dispatchers.IO) {
                 ApiClient.api.login(LoginRequest(email, password)).execute()
             }
+            val bodyText = response.body()?.string()?.trim()
+            val errorText = response.errorBody()?.string()?.trim()
             if (response.isSuccessful) {
-                val body = response.body()!!
+                if (bodyText.isNullOrBlank()) {
+                    return Result.failure(Exception("服务器未返回登录信息"))
+                }
+                val body = parseAuthSession(bodyText)
+                    ?: return Result.failure(Exception(parseError(bodyText)))
+                if (body.sessionToken.isBlank()) {
+                    return Result.failure(Exception("登录失败"))
+                }
                 tokenManager.saveToken(body.sessionToken)
                 Result.success(body.toUser())
             } else {
-                val error = response.errorBody()?.string() ?: "登录失败"
+                val error = if (!errorText.isNullOrBlank()) errorText else bodyText ?: "登录失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -181,10 +195,22 @@ class AuthRepository(private val tokenManager: TokenManager) {
         )
     }
 
+    private fun parseAuthSession(raw: String): AuthSessionResponse? {
+        return try {
+            gson.fromJson(raw, AuthSessionResponse::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun parseError(errorBody: String): String {
         return try {
+            val trimmed = errorBody.trim()
+            if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length >= 2) {
+                return trimmed.substring(1, trimmed.length - 1)
+            }
             val regex = """"error"\s*:\s*"([^"]+)"""".toRegex()
-            regex.find(errorBody)?.groupValues?.get(1) ?: errorBody
+            regex.find(trimmed)?.groupValues?.get(1) ?: trimmed
         } catch (e: Exception) {
             errorBody
         }
