@@ -1,84 +1,84 @@
 package com.gogov.android.data.api
 
 import com.gogov.android.domain.model.*
-import retrofit2.Response
+import retrofit2.Call
 import retrofit2.http.*
 
 interface GoGovApi {
 
     // Auth
     @POST("auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<AuthSessionResponse>
+    fun login(@Body request: LoginRequest): Call<AuthSessionResponse>
 
     @GET("auth/email/challenge")
-    suspend fun getEmailChallenge(): Response<EmailChallengeResponse>
+    fun getEmailChallenge(): Call<EmailChallengeResponse>
 
     @POST("auth/email/register/request")
-    suspend fun requestEmailVerification(@Body request: EmailRegisterRequest): Response<EmailRegisterResponse>
+    fun requestEmailVerification(@Body request: EmailRegisterRequest): Call<EmailRegisterResponse>
 
     @POST("auth/email/register/verify")
-    suspend fun verifyEmail(@Body request: EmailVerifyRequest): Response<EmailVerifyResponse>
+    fun verifyEmail(@Body request: EmailVerifyRequest): Call<EmailVerifyResponse>
 
     @POST("auth/register/complete")
-    suspend fun completeRegistration(@Body request: RegisterCompleteRequest): Response<AuthSessionResponse>
+    fun completeRegistration(@Body request: RegisterCompleteRequest): Call<AuthSessionResponse>
 
     @GET("auth/me")
-    suspend fun getMe(): Response<AuthMeResponse>
+    fun getMe(): Call<AuthMeResponse>
 
     @POST("auth/logout")
-    suspend fun logout(): Response<LogoutResponse>
+    fun logout(): Call<LogoutResponse>
 
     @POST("profile")
-    suspend fun updateProfile(@Body request: ProfileUpdateRequest): Response<ProfileUpdateResponse>
+    fun updateProfile(@Body request: ProfileUpdateRequest): Call<ProfileUpdateResponse>
 
     // Pomodoro
     @GET("pomodoro/subjects")
-    suspend fun getSubjects(): Response<PomodoroSubjectsResponse>
+    fun getSubjects(): Call<PomodoroSubjectsResponse>
 
     @POST("pomodoro/subjects")
-    suspend fun createSubject(@Body request: PomodoroSubjectCreateRequest): Response<PomodoroSubject>
+    fun createSubject(@Body request: PomodoroSubjectCreateRequest): Call<PomodoroSubject>
 
     @DELETE("pomodoro/subjects/{id}")
-    suspend fun deleteSubject(@Path("id") id: String): Response<IdResponse>
+    fun deleteSubject(@Path("id") id: String): Call<IdResponse>
 
     @POST("pomodoro/start")
-    suspend fun startPomodoro(@Body request: PomodoroStartRequest): Response<PomodoroSession>
+    fun startPomodoro(@Body request: PomodoroStartRequest): Call<PomodoroSession>
 
     @POST("pomodoro/{id}/finish")
-    suspend fun finishPomodoro(
+    fun finishPomodoro(
         @Path("id") id: String,
         @Body request: PomodoroFinishRequest
-    ): Response<PomodoroFinishResponse>
+    ): Call<PomodoroFinishResponse>
 
     @GET("pomodoro/insights")
-    suspend fun getInsights(@Query("days") days: Int = 84): Response<PomodoroInsights>
+    fun getInsights(@Query("days") days: Int = 84): Call<PomodoroInsights>
 
     // AI Chat
     @GET("ai/chat/history")
-    suspend fun getChatHistory(@Query("mode") mode: String? = null): Response<ChatHistoryResponse>
+    fun getChatHistory(@Query("mode") mode: String? = null): Call<ChatHistoryResponse>
 
     @POST("ai/chat")
-    suspend fun sendChat(@Body request: ChatRequest): Response<ChatResponse>
+    fun sendChat(@Body request: ChatRequest): Call<ChatResponse>
 
     // Daily Tasks
     @GET("study-plan/daily")
-    suspend fun getDailyTask(@Query("date") date: String): Response<DailyTaskResponse>
+    fun getDailyTask(@Query("date") date: String): Call<DailyTaskResponse>
 
     @POST("ai/study-plan/daily")
-    suspend fun generateDailyTask(@Body request: DailyTaskGenerateRequest): Response<DailyTaskResponse>
+    fun generateDailyTask(@Body request: DailyTaskGenerateRequest): Call<DailyTaskResponse>
 
     @PATCH("study-plan/daily/{id}")
-    suspend fun updateDailyTask(
+    fun updateDailyTask(
         @Path("id") id: String,
         @Body request: DailyTaskUpdateRequest
-    ): Response<DailyTaskResponse>
+    ): Call<DailyTaskResponse>
 
     @POST("ai/study-plan/task-breakdown")
-    suspend fun breakdownTask(@Body request: TaskBreakdownRequest): Response<TaskBreakdownResponse>
+    fun breakdownTask(@Body request: TaskBreakdownRequest): Call<TaskBreakdownResponse>
 
     @GET("study-plan/daily/history")
-    suspend fun getDailyTaskHistory(
+    fun getDailyTaskHistory(
         @Query("days") days: Int,
         @Query("date") date: String
-    ): Response<DailyTaskHistoryResponse>
+    ): Call<DailyTaskHistoryResponse>
 }

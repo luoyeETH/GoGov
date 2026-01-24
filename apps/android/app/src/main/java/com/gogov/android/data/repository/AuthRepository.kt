@@ -3,9 +3,11 @@ package com.gogov.android.data.repository
 import com.gogov.android.data.api.ApiClient
 import com.gogov.android.data.local.TokenManager
 import com.gogov.android.domain.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 class AuthRepository(private val tokenManager: TokenManager) {
 
@@ -15,7 +17,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun login(email: String, password: String): Result<User> {
         return try {
-            val response = ApiClient.api.login(LoginRequest(email, password))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.login(LoginRequest(email, password)).execute()
+            }
             if (response.isSuccessful) {
                 val body = response.body()!!
                 tokenManager.saveToken(body.sessionToken)
@@ -31,7 +35,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun getEmailChallenge(): Result<EmailChallengeResponse> {
         return try {
-            val response = ApiClient.api.getEmailChallenge()
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getEmailChallenge().execute()
+            }
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
@@ -54,9 +60,11 @@ class AuthRepository(private val tokenManager: TokenManager) {
         answer: String
     ): Result<Unit> {
         return try {
-            val response = ApiClient.api.requestEmailVerification(
-                EmailRegisterRequest(email, challengeId, answer)
-            )
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.requestEmailVerification(
+                    EmailRegisterRequest(email, challengeId, answer)
+                ).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
@@ -70,7 +78,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun verifyEmail(token: String): Result<String> {
         return try {
-            val response = ApiClient.api.verifyEmail(EmailVerifyRequest(token))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.verifyEmail(EmailVerifyRequest(token)).execute()
+            }
             if (response.isSuccessful) {
                 val email = response.body()?.email ?: ""
                 Result.success(email)
@@ -89,13 +99,15 @@ class AuthRepository(private val tokenManager: TokenManager) {
         verificationToken: String
     ): Result<User> {
         return try {
-            val response = ApiClient.api.completeRegistration(
-                RegisterCompleteRequest(
-                    token = verificationToken,
-                    username = username,
-                    password = password
-                )
-            )
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.completeRegistration(
+                    RegisterCompleteRequest(
+                        token = verificationToken,
+                        username = username,
+                        password = password
+                    )
+                ).execute()
+            }
             if (response.isSuccessful) {
                 val body = response.body()!!
                 tokenManager.saveToken(body.sessionToken)
@@ -111,7 +123,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun getCurrentUser(): Result<User> {
         return try {
-            val response = ApiClient.api.getMe()
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getMe().execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!.user)
             } else {
@@ -128,7 +142,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun updateProfile(request: ProfileUpdateRequest): Result<User> {
         return try {
-            val response = ApiClient.api.updateProfile(request)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.updateProfile(request).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!.user)
             } else {
@@ -142,7 +158,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun logout(): Result<Unit> {
         return try {
-            ApiClient.api.logout()
+            withContext(Dispatchers.IO) {
+                ApiClient.api.logout().execute()
+            }
             tokenManager.clearToken()
             Result.success(Unit)
         } catch (e: Exception) {

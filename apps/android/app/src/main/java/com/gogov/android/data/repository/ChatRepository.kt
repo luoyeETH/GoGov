@@ -2,12 +2,16 @@ package com.gogov.android.data.repository
 
 import com.gogov.android.data.api.ApiClient
 import com.gogov.android.domain.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ChatRepository {
 
     suspend fun getHistory(mode: ChatMode? = null): Result<List<ChatMessage>> {
         return try {
-            val response = ApiClient.api.getChatHistory(mode?.value)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getChatHistory(mode?.value).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.messages ?: emptyList())
             } else {
@@ -20,7 +24,9 @@ class ChatRepository {
 
     suspend fun sendMessage(message: String, mode: ChatMode): Result<List<ChatMessage>> {
         return try {
-            val response = ApiClient.api.sendChat(ChatRequest(message, mode.value))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.sendChat(ChatRequest(message, mode.value)).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.messages ?: emptyList())
             } else {

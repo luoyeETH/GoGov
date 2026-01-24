@@ -2,12 +2,16 @@ package com.gogov.android.data.repository
 
 import com.gogov.android.data.api.ApiClient
 import com.gogov.android.domain.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class DailyTaskRepository {
 
     suspend fun getDailyTask(date: String): Result<DailyTaskRecord?> {
         return try {
-            val response = ApiClient.api.getDailyTask(date)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getDailyTask(date).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.task)
             } else {
@@ -25,9 +29,11 @@ class DailyTaskRepository {
         auto: Boolean = false
     ): Result<DailyTaskRecord?> {
         return try {
-            val response = ApiClient.api.generateDailyTask(
-                DailyTaskGenerateRequest(date, adjustNote, existingTasks, auto)
-            )
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.generateDailyTask(
+                    DailyTaskGenerateRequest(date, adjustNote, existingTasks, auto)
+                ).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.task)
             } else {
@@ -40,7 +46,9 @@ class DailyTaskRepository {
 
     suspend fun updateDailyTask(id: String, tasks: List<TaskItem>): Result<DailyTaskRecord?> {
         return try {
-            val response = ApiClient.api.updateDailyTask(id, DailyTaskUpdateRequest(tasks))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.updateDailyTask(id, DailyTaskUpdateRequest(tasks)).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.task)
             } else {
@@ -53,7 +61,9 @@ class DailyTaskRepository {
 
     suspend fun breakdownTask(task: String, context: String): Result<List<String>> {
         return try {
-            val response = ApiClient.api.breakdownTask(TaskBreakdownRequest(task, context))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.breakdownTask(TaskBreakdownRequest(task, context)).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.subtasks ?: emptyList())
             } else {
@@ -66,7 +76,9 @@ class DailyTaskRepository {
 
     suspend fun getHistory(days: Int, date: String): Result<List<DailyTaskRecord>> {
         return try {
-            val response = ApiClient.api.getDailyTaskHistory(days, date)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getDailyTaskHistory(days, date).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.tasks ?: emptyList())
             } else {

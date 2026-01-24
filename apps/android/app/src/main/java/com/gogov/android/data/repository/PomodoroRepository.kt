@@ -2,12 +2,16 @@ package com.gogov.android.data.repository
 
 import com.gogov.android.data.api.ApiClient
 import com.gogov.android.domain.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class PomodoroRepository {
 
     suspend fun getSubjects(): Result<List<PomodoroSubject>> {
         return try {
-            val response = ApiClient.api.getSubjects()
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getSubjects().execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()?.subjects ?: emptyList())
             } else {
@@ -20,7 +24,9 @@ class PomodoroRepository {
 
     suspend fun createSubject(name: String): Result<PomodoroSubject> {
         return try {
-            val response = ApiClient.api.createSubject(PomodoroSubjectCreateRequest(name))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.createSubject(PomodoroSubjectCreateRequest(name)).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!)
             } else {
@@ -33,7 +39,9 @@ class PomodoroRepository {
 
     suspend fun deleteSubject(id: String): Result<Unit> {
         return try {
-            val response = ApiClient.api.deleteSubject(id)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.deleteSubject(id).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
@@ -46,7 +54,9 @@ class PomodoroRepository {
 
     suspend fun startSession(subject: String, plannedMinutes: Int): Result<PomodoroSession> {
         return try {
-            val response = ApiClient.api.startPomodoro(PomodoroStartRequest(subject, plannedMinutes))
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.startPomodoro(PomodoroStartRequest(subject, plannedMinutes)).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!)
             } else {
@@ -66,10 +76,12 @@ class PomodoroRepository {
         failureReason: String? = null
     ): Result<PomodoroFinishResponse> {
         return try {
-            val response = ApiClient.api.finishPomodoro(
-                sessionId,
-                PomodoroFinishRequest(status, durationSeconds, pauseSeconds, pauseCount, failureReason)
-            )
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.finishPomodoro(
+                    sessionId,
+                    PomodoroFinishRequest(status, durationSeconds, pauseSeconds, pauseCount, failureReason)
+                ).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!)
             } else {
@@ -82,7 +94,9 @@ class PomodoroRepository {
 
     suspend fun getInsights(days: Int = 84): Result<PomodoroInsights> {
         return try {
-            val response = ApiClient.api.getInsights(days)
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.getInsights(days).execute()
+            }
             if (response.isSuccessful) {
                 Result.success(response.body()!!)
             } else {
