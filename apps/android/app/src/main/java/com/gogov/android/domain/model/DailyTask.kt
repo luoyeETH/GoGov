@@ -26,7 +26,8 @@ data class DailyTaskRecord(
     val summary: String? = null,
     val adjustNote: String? = null,
     val tasks: List<TaskItem>,
-    val updatedAt: String
+    val createdAt: String? = null,
+    val updatedAt: String? = null
 )
 
 @Serializable
