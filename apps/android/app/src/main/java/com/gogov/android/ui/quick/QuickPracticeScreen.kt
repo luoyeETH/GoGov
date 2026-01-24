@@ -163,6 +163,12 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
     }
     val currentGroup = if (state.selectedGroup.isNotBlank()) state.selectedGroup else groups.firstOrNull()
     val groupCategories = state.categories.filter { (it.group ?: "其他") == currentGroup }
+    val selectionChipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -177,7 +183,8 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
                         FilterChip(
                             selected = group == currentGroup,
                             onClick = { viewModel.selectGroup(group) },
-                            label = { Text(group) }
+                            label = { Text(group) },
+                            colors = selectionChipColors
                         )
                     }
                 }
@@ -192,7 +199,8 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
                         FilterChip(
                             selected = category.id == state.selectedCategoryId,
                             onClick = { viewModel.selectCategory(category.id) },
-                            label = { Text(category.name) }
+                            label = { Text(category.name) },
+                            colors = selectionChipColors
                         )
                     }
                 }
@@ -207,12 +215,14 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
                 FilterChip(
                     selected = state.mode == PracticeMode.DRILL,
                     onClick = { viewModel.setMode(PracticeMode.DRILL) },
-                    label = { Text("练习") }
+                    label = { Text("练习") },
+                    colors = selectionChipColors
                 )
                 FilterChip(
                     selected = state.mode == PracticeMode.QUIZ,
                     onClick = { viewModel.setMode(PracticeMode.QUIZ) },
-                    label = { Text("测验") }
+                    label = { Text("测验") },
+                    colors = selectionChipColors
                 )
             }
 
@@ -225,7 +235,8 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
                     FilterChip(
                         selected = state.setSize == size,
                         onClick = { viewModel.setSetSize(size) },
-                        label = { Text("$size 题") }
+                        label = { Text("$size 题") },
+                        colors = selectionChipColors
                     )
                 }
             }

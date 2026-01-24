@@ -56,11 +56,11 @@ class DailyReminderWorker(
         private const val NOTIFICATION_ID = 1001
         private const val WORK_NAME = "daily_reminder"
 
-        fun schedule(context: Context, hourOfDay: Int = 8) {
+        fun schedule(context: Context, hourOfDay: Int = 8, minute: Int = 0) {
             val currentTime = Calendar.getInstance()
             val targetTime = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, hourOfDay)
-                set(Calendar.MINUTE, 0)
+                set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
 

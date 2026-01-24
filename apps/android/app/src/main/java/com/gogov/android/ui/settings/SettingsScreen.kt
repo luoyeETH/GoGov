@@ -21,6 +21,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.gogov.android.util.DailyReminderWorker
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +35,7 @@ fun SettingsScreen(
 
     var notificationsEnabled by remember { mutableStateOf(false) }
     var reminderHour by remember { mutableStateOf(8) }
+    var reminderMinute by remember { mutableStateOf(0) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -48,6 +51,13 @@ fun SettingsScreen(
             ) == PackageManager.PERMISSION_GRANTED
         } else {
             notificationsEnabled = true
+        }
+    }
+    LaunchedEffect(notificationsEnabled, reminderHour, reminderMinute) {
+        if (notificationsEnabled) {
+            DailyReminderWorker.schedule(context, reminderHour, reminderMinute)
+        } else {
+            DailyReminderWorker.cancel(context)
         }
     }
 
@@ -263,28 +273,52 @@ fun SettingsScreen(
 
                 if (notificationsEnabled) {
                     Spacer(modifier = Modifier.height(12.dp))
+                    val timeLabel = String.format("%02d:%02d", reminderHour, reminderMinute)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("提醒时间")
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            listOf(7, 8, 9, 10).forEach { hour ->
-                                FilterChip(
-                                    selected = reminderHour == hour,
-                                    onClick = { reminderHour = hour },
-                                    label = { Text("${hour}:00") }
-                                )
-                            }
-                        }
+                        Text(
+                            text = timeLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("小时", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Slider(
+                        value = reminderHour.toFloat(),
+                        onValueChange = { reminderHour = it.roundToInt().coerceIn(0, 23) },
+                        valueRange = 0f..23f,
+                        steps = 22
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("0")
+                        Text("23")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("分钟", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Slider(
+                        value = reminderMinute.toFloat(),
+                        onValueChange = { reminderMinute = it.roundToInt().coerceIn(0, 59) },
+                        valueRange = 0f..59f,
+                        steps = 58
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("0")
+                        Text("59")
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "每天 ${reminderHour}:00 提醒你学习",
+                        text = "每天 $timeLabel 提醒你学习",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

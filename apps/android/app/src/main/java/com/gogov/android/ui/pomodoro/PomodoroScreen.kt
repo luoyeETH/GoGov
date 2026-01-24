@@ -52,6 +52,12 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
 
     val allSubjects = PomodoroViewModel.BUILT_IN_SUBJECTS + customSubjects.map { it.name }
     val isImmersive = state.status == PomodoroStatus.RUNNING || state.status == PomodoroStatus.PAUSED
+    val selectionChipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 
     // Immersive timer dialog
     if (isImmersive) {
@@ -230,12 +236,14 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                     FilterChip(
                         selected = state.mode == PomodoroMode.COUNTDOWN,
                         onClick = { viewModel.setMode(PomodoroMode.COUNTDOWN) },
-                        label = { Text("番茄钟") }
+                        label = { Text("番茄钟") },
+                        colors = selectionChipColors
                     )
                     FilterChip(
                         selected = state.mode == PomodoroMode.TIMER,
                         onClick = { viewModel.setMode(PomodoroMode.TIMER) },
-                        label = { Text("计时器") }
+                        label = { Text("计时器") },
+                        colors = selectionChipColors
                     )
                 }
 
@@ -251,7 +259,8 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                             FilterChip(
                                 selected = state.plannedMinutes == preset,
                                 onClick = { viewModel.setPlannedMinutes(preset) },
-                                label = { Text("${preset}m") }
+                                label = { Text("${preset}m") },
+                                colors = selectionChipColors
                             )
                         }
                     }

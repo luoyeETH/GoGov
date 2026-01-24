@@ -42,6 +42,12 @@ fun ChatScreen(viewModel: ChatViewModel) {
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
+            val selectionChipColors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
@@ -64,12 +70,14 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         selected = state.mode == ChatMode.PLANNER,
                         onClick = { viewModel.setMode(ChatMode.PLANNER) },
                         label = { Text("规划") },
+                        colors = selectionChipColors,
                         enabled = !state.isSending
                     )
                     FilterChip(
                         selected = state.mode == ChatMode.TUTOR,
                         onClick = { viewModel.setMode(ChatMode.TUTOR) },
                         label = { Text("导师") },
+                        colors = selectionChipColors,
                         enabled = !state.isSending
                     )
                 }
