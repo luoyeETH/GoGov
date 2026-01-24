@@ -3,6 +3,8 @@ package com.gogov.android.ui.settings
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.ContextThemeWrapper
+import android.widget.TimePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -20,9 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.gogov.android.util.DailyReminderWorker
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -287,35 +289,25 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("小时", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Slider(
-                        value = reminderHour.toFloat(),
-                        onValueChange = { reminderHour = it.roundToInt().coerceIn(0, 23) },
-                        valueRange = 0f..23f,
-                        steps = 22
-                    )
-                    Row(
+                    AndroidView(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("0")
-                        Text("23")
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("分钟", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Slider(
-                        value = reminderMinute.toFloat(),
-                        onValueChange = { reminderMinute = it.roundToInt().coerceIn(0, 59) },
-                        valueRange = 0f..59f,
-                        steps = 58
+                        factory = { ctx ->
+                            val themedContext = ContextThemeWrapper(ctx, com.gogov.android.R.style.Theme_GoGov_TimePicker)
+                            TimePicker(themedContext).apply {
+                                setIs24HourView(true)
+                                hour = reminderHour
+                                minute = reminderMinute
+                                setOnTimeChangedListener { _, newHour, newMinute ->
+                                    reminderHour = newHour
+                                    reminderMinute = newMinute
+                                }
+                            }
+                        },
+                        update = { view ->
+                            if (view.hour != reminderHour) view.hour = reminderHour
+                            if (view.minute != reminderMinute) view.minute = reminderMinute
+                        }
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("0")
-                        Text("59")
-                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "每天 $timeLabel 提醒你学习",
