@@ -25,12 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.graphics.toArgb
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
 import com.gogov.android.domain.model.PomodoroTimeBucket
 import com.gogov.android.domain.model.PomodoroRadarItem
 import com.gogov.android.domain.model.PomodoroHeatmapDay
 import com.gogov.android.util.DateUtils
+import android.graphics.Paint
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.PI
@@ -427,31 +429,36 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
             val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
 
             val columns = 7
-            val cellSize = 18.dp
             val cellSpacing = 6.dp
             val rows = cells.chunked(columns)
-            Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                rows.forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                        row.forEach { item ->
-                            if (item == null) {
-                                Box(modifier = Modifier.size(cellSize))
-                            } else {
-                                val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
-                                val color = MaterialTheme.colorScheme.primary.copy(
-                                    alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(cellSize)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(color)
-                                )
+            BoxWithConstraints {
+                val cellSize = (maxWidth - cellSpacing * (columns - 1)) / columns
+                Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                    rows.forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(cellSpacing)
+                        ) {
+                            row.forEach { item ->
+                                if (item == null) {
+                                    Box(modifier = Modifier.size(cellSize))
+                                } else {
+                                    val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
+                                    val color = MaterialTheme.colorScheme.primary.copy(
+                                        alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(cellSize)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(color)
+                                    )
+                                }
                             }
-                        }
-                        if (row.size < columns) {
-                            repeat(columns - row.size) {
-                                Box(modifier = Modifier.size(cellSize))
+                            if (row.size < columns) {
+                                repeat(columns - row.size) {
+                                    Box(modifier = Modifier.size(cellSize))
+                                }
                             }
                         }
                     }
@@ -472,7 +479,7 @@ private fun TimeBucketsCard(buckets: List<PomodoroTimeBucket>) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "今日学习时段",
+                text = "高效时段",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -552,6 +559,18 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
             val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
             val ringStrokeWidth = with(LocalDensity.current) { 1.dp.toPx() }
             val pathStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
+            val labelTextSize = with(LocalDensity.current) { 12.sp.toPx() }
+            val dotRadius = with(LocalDensity.current) { 3.dp.toPx() }
+            val labelOffset = with(LocalDensity.current) { 18.dp.toPx() }
+            val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val labelPaint = remember(labelTextSize, labelColor) {
+                Paint().apply {
+                    isAntiAlias = true
+                    textAlign = Paint.Align.CENTER
+                    textSize = labelTextSize
+                    color = labelColor.toArgb()
+                }
+            }
 
             Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
                 val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
@@ -565,6 +584,32 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
                         radius = r,
                         center = center,
                         style = Stroke(width = ringStrokeWidth)
+                    )
+                }
+                selected.forEachIndexed { index, item ->
+                    val angle = -PI / 2 + index * (2 * PI / steps)
+                    val axisX = center.x + cos(angle).toFloat() * radius
+                    val axisY = center.y + sin(angle).toFloat() * radius
+                    drawLine(
+                        color = gridColor,
+                        start = center,
+                        end = androidx.compose.ui.geometry.Offset(axisX, axisY),
+                        strokeWidth = ringStrokeWidth
+                    )
+                    val dotColor = subjectColor(item.subject)
+                    drawCircle(
+                        color = dotColor,
+                        radius = dotRadius,
+                        center = androidx.compose.ui.geometry.Offset(axisX, axisY)
+                    )
+                    val labelRadius = radius + labelOffset
+                    val labelX = center.x + cos(angle).toFloat() * labelRadius
+                    val labelY = center.y + sin(angle).toFloat() * labelRadius
+                    drawContext.canvas.nativeCanvas.drawText(
+                        item.subject,
+                        labelX,
+                        labelY + labelTextSize / 3,
+                        labelPaint
                     )
                 }
                 val points = selected.mapIndexed { index, item ->
