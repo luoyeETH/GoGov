@@ -4,7 +4,7 @@ import com.gogov.android.data.api.ApiClient
 import com.gogov.android.data.local.TokenManager
 import com.gogov.android.domain.model.*
 import com.google.gson.GsonBuilder
-import com.google.gson.JsonParser
+import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -226,8 +226,8 @@ class AuthRepository(private val tokenManager: TokenManager) {
         }
         if (trimmed.startsWith("{")) {
             try {
-                val json = JsonParser.parseString(trimmed).asJsonObject
-                val error = json.get("error")?.asString
+                val json = gson.fromJson(trimmed, JsonObject::class.java)
+                val error = json?.get("error")?.asString
                 if (!error.isNullOrBlank()) {
                     return error
                 }
