@@ -23,7 +23,10 @@ data class SettingsUiState(
     val aiModel: String = "",
     val aiBaseUrl: String = "",
     val aiApiKey: String = "",
-    val showApiKeyField: Boolean = false
+    val showApiKeyField: Boolean = false,
+    // Reminder settings
+    val reminderHour: Int = 8,
+    val reminderMinute: Int = 0
 )
 
 class SettingsViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -43,7 +46,9 @@ class SettingsViewModel(private val authRepository: AuthRepository) : ViewModel(
                             isLoading = false,
                             aiProvider = user.aiProvider ?: "",
                             aiModel = user.aiModel ?: "",
-                            aiBaseUrl = user.aiBaseUrl ?: ""
+                            aiBaseUrl = user.aiBaseUrl ?: "",
+                            reminderHour = user.reminderHour ?: 8,
+                            reminderMinute = user.reminderMinute ?: 0
                         )
                     }
                 },
@@ -72,6 +77,34 @@ class SettingsViewModel(private val authRepository: AuthRepository) : ViewModel(
 
     fun toggleApiKeyField() {
         _state.update { it.copy(showApiKeyField = !it.showApiKeyField) }
+    }
+
+    fun setReminderTime(hour: Int, minute: Int) {
+        _state.update { it.copy(reminderHour = hour, reminderMinute = minute) }
+    }
+
+    fun saveReminderTime() {
+        val current = _state.value
+
+        viewModelScope.launch {
+            val request = ProfileUpdateRequest(
+                reminderHour = current.reminderHour,
+                reminderMinute = current.reminderMinute
+            )
+
+            authRepository.updateProfile(request).fold(
+                onSuccess = { user ->
+                    _state.update {
+                        it.copy(
+                            user = user,
+                            reminderHour = user.reminderHour ?: current.reminderHour,
+                            reminderMinute = user.reminderMinute ?: current.reminderMinute
+                        )
+                    }
+                },
+                onFailure = { }
+            )
+        }
     }
 
     fun saveAiConfig() {

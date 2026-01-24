@@ -28,6 +28,8 @@ export async function updateProfile(userId: string, params: {
   aiModel?: string;
   aiBaseUrl?: string;
   aiApiKey?: string;
+  reminderHour?: number;
+  reminderMinute?: number;
 }) {
   let username: string | undefined;
   if (params.username !== undefined) {
@@ -70,6 +72,16 @@ export async function updateProfile(userId: string, params: {
     aiApiKey = trimmed.length > 0 ? trimmed : null;
   }
 
+  const reminderHour = params.reminderHour;
+  if (reminderHour !== undefined && (reminderHour < 0 || reminderHour > 23)) {
+    throw new Error("提醒小时不合法");
+  }
+
+  const reminderMinute = params.reminderMinute;
+  if (reminderMinute !== undefined && (reminderMinute < 0 || reminderMinute > 59)) {
+    throw new Error("提醒分钟不合法");
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -80,7 +92,9 @@ export async function updateProfile(userId: string, params: {
       aiProvider: provider ?? undefined,
       aiModel: aiModel ?? undefined,
       aiBaseUrl: aiBaseUrl ?? undefined,
-      aiApiKey: aiApiKey
+      aiApiKey: aiApiKey,
+      reminderHour: reminderHour ?? undefined,
+      reminderMinute: reminderMinute ?? undefined
     }
   });
 

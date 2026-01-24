@@ -54,7 +54,7 @@ sealed class Screen(val route: String, val label: String) {
     object Pomodoro : Screen("pomodoro", "番茄钟")
     object Tasks : Screen("tasks", "今日任务")
     object QuickPractice : Screen("quick", "速算")
-    object Chat : Screen("chat", "AI 对话")
+    object Chat : Screen("chat", "AI 答疑")
     object Settings : Screen("settings", "设置")
     object Login : Screen("login", "登录")
     object Register : Screen("register", "注册")

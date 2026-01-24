@@ -39,6 +39,8 @@ model User {
   aiModel         String?
   aiBaseUrl       String?
   aiApiKey        String?
+  reminderHour    Int?
+  reminderMinute  Int?
   walletAddress   String?  @unique
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

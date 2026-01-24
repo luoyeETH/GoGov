@@ -16,6 +16,8 @@ data class User(
     val aiApiKeyConfigured: Boolean = false,
     val walletAddress: String? = null,
     val hasPassword: Boolean? = null,
+    val reminderHour: Int? = null,
+    val reminderMinute: Int? = null,
     val freeAi: FreeAiStatus? = null
 )
 
@@ -107,7 +109,9 @@ data class ProfileUpdateRequest(
     val aiProvider: String? = null,
     val aiModel: String? = null,
     val aiBaseUrl: String? = null,
-    val aiApiKey: String? = null
+    val aiApiKey: String? = null,
+    val reminderHour: Int? = null,
+    val reminderMinute: Int? = null
 )
 
 @Serializable

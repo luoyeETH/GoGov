@@ -39,8 +39,8 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     var notificationsEnabled by remember { mutableStateOf(false) }
-    var reminderHour by remember { mutableStateOf(8) }
-    var reminderMinute by remember { mutableStateOf(0) }
+    val reminderHour = state.reminderHour
+    val reminderMinute = state.reminderMinute
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -301,7 +301,8 @@ fun SettingsScreen(
                                 value = reminderHour
                                 setFormatter { value -> String.format("%02d", value) }
                                 setOnValueChangedListener { _, _, newVal ->
-                                    reminderHour = newVal
+                                    viewModel.setReminderTime(newVal, reminderMinute)
+                                    viewModel.saveReminderTime()
                                 }
                             }
                             val colon = TextView(ctx).apply {
@@ -315,7 +316,8 @@ fun SettingsScreen(
                                 value = reminderMinute
                                 setFormatter { value -> String.format("%02d", value) }
                                 setOnValueChangedListener { _, _, newVal ->
-                                    reminderMinute = newVal
+                                    viewModel.setReminderTime(reminderHour, newVal)
+                                    viewModel.saveReminderTime()
                                 }
                             }
                             layout.addView(hourPicker)

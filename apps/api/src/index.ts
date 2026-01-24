@@ -1890,6 +1890,8 @@ server.get("/auth/me", async (request, reply) => {
         aiBaseUrl: session.user.aiBaseUrl,
         aiApiKeyConfigured: Boolean(session.user.aiApiKey),
         hasPassword: Boolean(session.user.passwordHash),
+        reminderHour: session.user.reminderHour,
+        reminderMinute: session.user.reminderMinute,
         freeAi
       },
       sessionExpiresAt: session.expiresAt.toISOString()
@@ -1916,6 +1918,8 @@ server.post("/profile", async (request, reply) => {
       aiModel?: string;
       aiBaseUrl?: string;
       aiApiKey?: string;
+      reminderHour?: number;
+      reminderMinute?: number;
     };
     const user = await updateProfile(session.user.id, body ?? {});
     const aiConfig = resolveAiConfig(user);
@@ -1934,6 +1938,8 @@ server.post("/profile", async (request, reply) => {
         aiBaseUrl: user.aiBaseUrl,
         aiApiKeyConfigured: Boolean(user.aiApiKey),
         hasPassword: Boolean(user.passwordHash),
+        reminderHour: user.reminderHour,
+        reminderMinute: user.reminderMinute,
         freeAi
       }
     });
