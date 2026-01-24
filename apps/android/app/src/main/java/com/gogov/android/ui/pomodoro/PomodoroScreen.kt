@@ -387,53 +387,52 @@ private fun TodayDistributionCard(days: List<PomodoroHeatmapDay>, today: String)
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                return@Column
-            }
+            } else {
+                val topItems = totals.entries
+                    .sortedByDescending { it.value }
+                    .take(6)
 
-            val topItems = totals.entries
-                .sortedByDescending { it.value }
-                .take(6)
-
-            topItems.forEach { entry ->
-                val ratio = entry.value.toFloat() / max(1, totalMinutes).toFloat()
-                val color = subjectColor(entry.key)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                topItems.forEach { entry ->
+                    val ratio = entry.value.toFloat() / max(1, totalMinutes).toFloat()
+                    val color = subjectColor(entry.key)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(color, RoundedCornerShape(4.dp))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = entry.key,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${entry.value} 分钟",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
-                            .background(color, RoundedCornerShape(4.dp))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = entry.key,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "${entry.value} 分钟",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                            .fillMaxWidth()
                             .height(6.dp)
-                            .background(color)
-                    )
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                                .height(6.dp)
+                                .background(color)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
-                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }
@@ -456,46 +455,45 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                return@Column
-            }
+            } else {
+                val formatter = DateTimeFormatter.ISO_DATE
+                val firstDate = runCatching { LocalDate.parse(days.first().date, formatter) }.getOrNull()
+                val leading = if (firstDate != null) (firstDate.dayOfWeek.value + 6) % 7 else 0
+                val cells: List<PomodoroHeatmapDay?> =
+                    List(leading) { null } + days
+                val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
 
-            val formatter = DateTimeFormatter.ISO_DATE
-            val firstDate = runCatching { LocalDate.parse(days.first().date, formatter) }.getOrNull()
-            val leading = if (firstDate != null) (firstDate.dayOfWeek.value + 6) % 7 else 0
-            val cells: List<PomodoroHeatmapDay?> =
-                List(leading) { null } + days
-            val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
-
-            val columns = 14
-            val cellSpacing = 4.dp
-            val rows = cells.chunked(columns)
-            BoxWithConstraints {
-                val cellSize = (maxWidth - cellSpacing * (columns - 1)) / columns
-                Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                    rows.forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(cellSpacing)
-                        ) {
-                            row.forEach { item ->
-                                if (item == null) {
-                                    Box(modifier = Modifier.size(cellSize))
-                                } else {
-                                    val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
-                                    val color = MaterialTheme.colorScheme.primary.copy(
-                                        alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(cellSize)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(color)
-                                    )
+                val columns = 14
+                val cellSpacing = 4.dp
+                val rows = cells.chunked(columns)
+                BoxWithConstraints {
+                    val cellSize = (maxWidth - cellSpacing * (columns - 1)) / columns
+                    Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                        rows.forEach { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(cellSpacing)
+                            ) {
+                                row.forEach { item ->
+                                    if (item == null) {
+                                        Box(modifier = Modifier.size(cellSize))
+                                    } else {
+                                        val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
+                                        val color = MaterialTheme.colorScheme.primary.copy(
+                                            alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(cellSize)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(color)
+                                        )
+                                    }
                                 }
-                            }
-                            if (row.size < columns) {
-                                repeat(columns - row.size) {
-                                    Box(modifier = Modifier.size(cellSize))
+                                if (row.size < columns) {
+                                    repeat(columns - row.size) {
+                                        Box(modifier = Modifier.size(cellSize))
+                                    }
                                 }
                             }
                         }
@@ -528,43 +526,43 @@ private fun TimeBucketsCard(buckets: List<PomodoroTimeBucket>) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                return@Column
-            }
-            val maxMinutes = buckets.maxOfOrNull { it.minutes } ?: 0
-            buckets.forEach { bucket ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = bucket.label,
-                        modifier = Modifier.width(56.dp),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+            } else {
+                val maxMinutes = buckets.maxOfOrNull { it.minutes } ?: 0
+                buckets.forEach { bucket ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val ratio =
-                            if (maxMinutes <= 0) 0f else bucket.minutes.toFloat() / maxMinutes
+                        Text(
+                            text = bucket.label,
+                            modifier = Modifier.width(56.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                                .weight(1f)
                                 .height(6.dp)
-                                .background(MaterialTheme.colorScheme.primary)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            val ratio =
+                                if (maxMinutes <= 0) 0f else bucket.minutes.toFloat() / maxMinutes
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                                    .height(6.dp)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${bucket.minutes} 分钟",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${bucket.minutes} 分钟",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
-                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }
@@ -588,82 +586,81 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                return@Column
-            }
+            } else {
+                val maxMinutes = max(1, selected.maxOf { it.minutes })
+                val lineColor = MaterialTheme.colorScheme.primary
+                val fillColor = lineColor.copy(alpha = 0.2f)
+                val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                val ringStrokeWidth = with(LocalDensity.current) { 1.dp.toPx() }
+                val pathStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
+                val labelTextSize = with(LocalDensity.current) { 12.sp.toPx() }
+                val dotRadius = with(LocalDensity.current) { 3.dp.toPx() }
+                val labelOffset = with(LocalDensity.current) { 18.dp.toPx() }
+                val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                val labelPaint = remember(labelTextSize, labelColor) {
+                    Paint().apply {
+                        isAntiAlias = true
+                        textAlign = Paint.Align.CENTER
+                        textSize = labelTextSize
+                        color = labelColor.toArgb()
+                    }
+                }
 
-            val maxMinutes = max(1, selected.maxOf { it.minutes })
-            val lineColor = MaterialTheme.colorScheme.primary
-            val fillColor = lineColor.copy(alpha = 0.2f)
-            val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-            val ringStrokeWidth = with(LocalDensity.current) { 1.dp.toPx() }
-            val pathStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
-            val labelTextSize = with(LocalDensity.current) { 12.sp.toPx() }
-            val dotRadius = with(LocalDensity.current) { 3.dp.toPx() }
-            val labelOffset = with(LocalDensity.current) { 18.dp.toPx() }
-            val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-            val labelPaint = remember(labelTextSize, labelColor) {
-                Paint().apply {
-                    isAntiAlias = true
-                    textAlign = Paint.Align.CENTER
-                    textSize = labelTextSize
-                    color = labelColor.toArgb()
+                Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
+                    val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+                    val radius = min(size.width, size.height) * 0.35f
+                    val steps = selected.size
+                    val rings = 3
+                    for (i in 1..rings) {
+                        val r = radius * (i / rings.toFloat())
+                        drawCircle(
+                            color = gridColor,
+                            radius = r,
+                            center = center,
+                            style = Stroke(width = ringStrokeWidth)
+                        )
+                    }
+                    selected.forEachIndexed { index, item ->
+                        val angle = -PI / 2 + index * (2 * PI / steps)
+                        val axisX = center.x + cos(angle).toFloat() * radius
+                        val axisY = center.y + sin(angle).toFloat() * radius
+                        drawLine(
+                            color = gridColor,
+                            start = center,
+                            end = androidx.compose.ui.geometry.Offset(axisX, axisY),
+                            strokeWidth = ringStrokeWidth
+                        )
+                        val dotColor = subjectColor(item.subject)
+                        drawCircle(
+                            color = dotColor,
+                            radius = dotRadius,
+                            center = androidx.compose.ui.geometry.Offset(axisX, axisY)
+                        )
+                        val labelRadius = radius + labelOffset
+                        val labelX = center.x + cos(angle).toFloat() * labelRadius
+                        val labelY = center.y + sin(angle).toFloat() * labelRadius
+                        drawContext.canvas.nativeCanvas.drawText(
+                            item.subject,
+                            labelX,
+                            labelY + labelTextSize / 3,
+                            labelPaint
+                        )
+                    }
+                    val points = selected.mapIndexed { index, item ->
+                        val ratio = item.minutes.toFloat() / maxMinutes.toFloat()
+                        val angle = -PI / 2 + index * (2 * PI / steps)
+                        val x = center.x + cos(angle).toFloat() * radius * ratio
+                        val y = center.y + sin(angle).toFloat() * radius * ratio
+                        androidx.compose.ui.geometry.Offset(x, y)
+                    }
+                    val path = Path().apply {
+                        moveTo(points.first().x, points.first().y)
+                        points.drop(1).forEach { point -> lineTo(point.x, point.y) }
+                        close()
+                    }
+                    drawPath(path, fillColor)
+                    drawPath(path, lineColor, style = Stroke(width = pathStrokeWidth))
                 }
-            }
-
-            Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
-                val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
-                val radius = min(size.width, size.height) * 0.35f
-                val steps = selected.size
-                val rings = 3
-                for (i in 1..rings) {
-                    val r = radius * (i / rings.toFloat())
-                    drawCircle(
-                        color = gridColor,
-                        radius = r,
-                        center = center,
-                        style = Stroke(width = ringStrokeWidth)
-                    )
-                }
-                selected.forEachIndexed { index, item ->
-                    val angle = -PI / 2 + index * (2 * PI / steps)
-                    val axisX = center.x + cos(angle).toFloat() * radius
-                    val axisY = center.y + sin(angle).toFloat() * radius
-                    drawLine(
-                        color = gridColor,
-                        start = center,
-                        end = androidx.compose.ui.geometry.Offset(axisX, axisY),
-                        strokeWidth = ringStrokeWidth
-                    )
-                    val dotColor = subjectColor(item.subject)
-                    drawCircle(
-                        color = dotColor,
-                        radius = dotRadius,
-                        center = androidx.compose.ui.geometry.Offset(axisX, axisY)
-                    )
-                    val labelRadius = radius + labelOffset
-                    val labelX = center.x + cos(angle).toFloat() * labelRadius
-                    val labelY = center.y + sin(angle).toFloat() * labelRadius
-                    drawContext.canvas.nativeCanvas.drawText(
-                        item.subject,
-                        labelX,
-                        labelY + labelTextSize / 3,
-                        labelPaint
-                    )
-                }
-                val points = selected.mapIndexed { index, item ->
-                    val ratio = item.minutes.toFloat() / maxMinutes.toFloat()
-                    val angle = -PI / 2 + index * (2 * PI / steps)
-                    val x = center.x + cos(angle).toFloat() * radius * ratio
-                    val y = center.y + sin(angle).toFloat() * radius * ratio
-                    androidx.compose.ui.geometry.Offset(x, y)
-                }
-                val path = Path().apply {
-                    moveTo(points.first().x, points.first().y)
-                    points.drop(1).forEach { point -> lineTo(point.x, point.y) }
-                    close()
-                }
-                drawPath(path, fillColor)
-                drawPath(path, lineColor, style = Stroke(width = pathStrokeWidth))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
