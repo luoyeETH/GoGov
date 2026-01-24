@@ -222,6 +222,23 @@ function buildPercentChoices(value: number, decimals = 1) {
   return shuffle(Array.from(options));
 }
 
+function formatDecimalSmart(value: number) {
+  const scaled = value * 100;
+  if (Math.abs(scaled - Math.round(scaled)) < 1e-8) {
+    return value.toFixed(2);
+  }
+  return value.toFixed(3);
+}
+
+const UNIT_DENOMINATORS = Array.from({ length: 20 }, (_, index) => index + 1);
+const FRACTION_POOL = UNIT_DENOMINATORS.map((denom) => `1/${denom}`);
+const DECIMAL_POOL = UNIT_DENOMINATORS.map((denom) =>
+  formatDecimalSmart(1 / denom)
+);
+const PERCENT_POOL = UNIT_DENOMINATORS.map((denom) =>
+  formatPercent(100 / denom, 1)
+);
+
 function formatNumber(value: number, decimals = 0) {
   if (decimals > 0) {
     return value.toFixed(decimals);
@@ -711,37 +728,57 @@ function generateTailDigit(): QuickPracticeQuestion {
 }
 
 function generatePercentDecimal(): QuickPracticeQuestion {
-  const n = randInt(1, 20);
-  const toPercent = Math.random() > 0.5;
-  if (toPercent) {
-    const decimal = (n / 100).toFixed(2);
-    const answer = `${n}%`;
+  const denom = randInt(1, 20);
+  const fraction = `1/${denom}`;
+  const decimalValue = 1 / denom;
+  const decimalText = formatDecimalSmart(decimalValue);
+  const percentText = formatPercent(decimalValue * 100, 1);
+  const mode = randInt(1, 4);
+
+  if (mode === 1) {
     return {
-      id: makeId("percent"),
+      id: makeId("fraction-percent"),
       categoryId: "percent-decimal",
-      prompt: `把 ${decimal} 转化为百分数。`,
-      answer,
-      choices: buildChoices(
-        answer,
-        Array.from({ length: 20 }, (_, index) => `${index + 1}%`)
-      ),
-      explanation: "小数乘以 100 加上 %。",
-      shortcut: "小数 × 100。"
+      prompt: `把 ${fraction} 转化为百分数。`,
+      answer: percentText,
+      choices: buildChoices(percentText, PERCENT_POOL),
+      explanation: "分数乘以 100 得到百分数。",
+      shortcut: "分数 × 100%。"
     };
   }
 
-  const answer = (n / 100).toFixed(2);
+  if (mode === 2) {
+    return {
+      id: makeId("fraction-decimal"),
+      categoryId: "percent-decimal",
+      prompt: `把 ${fraction} 转化为小数。`,
+      answer: decimalText,
+      choices: buildChoices(decimalText, DECIMAL_POOL),
+      explanation: "分子 ÷ 分母得到小数。",
+      shortcut: "分子 ÷ 分母。"
+    };
+  }
+
+  if (mode === 3) {
+    return {
+      id: makeId("percent-fraction"),
+      categoryId: "percent-decimal",
+      prompt: `把 ${percentText} 转化为分数。`,
+      answer: fraction,
+      choices: buildChoices(fraction, FRACTION_POOL),
+      explanation: "百分数 ÷ 100 再化为分数。",
+      shortcut: "百分数 ÷ 100。"
+    };
+  }
+
   return {
-    id: makeId("decimal"),
+    id: makeId("decimal-fraction"),
     categoryId: "percent-decimal",
-    prompt: `把 ${n}% 转化为小数。`,
-    answer,
-    choices: buildChoices(
-      answer,
-      Array.from({ length: 20 }, (_, index) => ((index + 1) / 100).toFixed(2))
-    ),
-    explanation: "百分数除以 100 得到小数。",
-    shortcut: "百分数 ÷ 100。"
+    prompt: `把 ${decimalText} 转化为分数。`,
+    answer: fraction,
+    choices: buildChoices(fraction, FRACTION_POOL),
+    explanation: "先化成分数再约分。",
+    shortcut: "小数 → 分数 → 约分。"
   };
 }
 
