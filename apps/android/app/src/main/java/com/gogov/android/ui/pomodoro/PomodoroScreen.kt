@@ -526,6 +526,7 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
             val maxMinutes = max(1, selected.maxOf { it.minutes })
             val lineColor = MaterialTheme.colorScheme.primary
             val fillColor = lineColor.copy(alpha = 0.2f)
+            val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
 
             Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
                 val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
@@ -535,7 +536,7 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
                 for (i in 1..rings) {
                     val r = radius * (i / rings.toFloat())
                     drawCircle(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        color = gridColor,
                         radius = r,
                         center = center,
                         style = Stroke(width = 1.dp.toPx())
