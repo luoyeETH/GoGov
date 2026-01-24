@@ -14,8 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.gogov.android.domain.model.ChatMessage
 import com.gogov.android.domain.model.ChatMode
@@ -269,22 +272,31 @@ private fun MarkdownText(
     color: androidx.compose.ui.graphics.Color
 ) {
     val context = LocalContext.current
-    val markwon = remember {
+    val density = LocalDensity.current
+    val baseFontSize = MaterialTheme.typography.bodyMedium.fontSize
+    val textSizeSp = if (baseFontSize.isUnspecified) 14f else baseFontSize.value
+    val latexTextSizePx = with(density) {
+        val size = if (baseFontSize.isUnspecified) 14.sp else baseFontSize
+        size.toPx()
+    }
+    val markwon = remember(latexTextSizePx) {
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
-            .usePlugin(JLatexMathPlugin.create(context))
+            .usePlugin(JLatexMathPlugin.create(latexTextSizePx))
             .build()
     }
 
     AndroidView(
         factory = { ctx ->
             TextView(ctx).apply {
-                setTextColor(android.graphics.Color.parseColor("#1c1b19"))
-                textSize = 14f
+                setTextColor(color.toArgb())
+                textSize = textSizeSp
             }
         },
         update = { textView ->
+            textView.setTextColor(color.toArgb())
+            textView.textSize = textSizeSp
             markwon.setMarkdown(textView, markdown)
         }
     )
