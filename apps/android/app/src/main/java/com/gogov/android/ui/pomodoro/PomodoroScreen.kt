@@ -1,6 +1,7 @@
 package com.gogov.android.ui.pomodoro
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,7 +29,18 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
+import com.gogov.android.domain.model.PomodoroTimeBucket
+import com.gogov.android.domain.model.PomodoroRadarItem
+import com.gogov.android.domain.model.PomodoroHeatmapDay
 import com.gogov.android.util.DateUtils
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.math.PI
+import kotlin.math.absoluteValue
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +106,20 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        insights?.let { data ->
+            TodayDistributionCard(
+                days = data.heatmap.days,
+                today = DateUtils.getBeijingDateString()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            HeatmapCard(days = data.heatmap.days)
+            Spacer(modifier = Modifier.height(16.dp))
+            TimeBucketsCard(buckets = data.timeBuckets)
+            Spacer(modifier = Modifier.height(16.dp))
+            RadarCard(items = data.radar)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         // Last result
         lastResult?.let { result ->
@@ -279,6 +307,288 @@ private fun StatCard(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+@Composable
+private fun TodayDistributionCard(days: List<PomodoroHeatmapDay>, today: String) {
+    val day = days.firstOrNull { it.date == today } ?: days.lastOrNull()
+    val totals = day?.totals?.filterValues { it > 0 } ?: emptyMap()
+    val totalMinutes = totals.values.sum().takeIf { it > 0 } ?: day?.totalMinutes ?: 0
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "今日学习分布",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (totals.isEmpty() || totalMinutes <= 0) {
+                Text(
+                    text = "今日暂无学习记录",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+
+            val topItems = totals.entries
+                .sortedByDescending { it.value }
+                .take(6)
+
+            topItems.forEach { entry ->
+                val ratio = entry.value.toFloat() / max(1, totalMinutes).toFloat()
+                val color = subjectColor(entry.key)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(color, RoundedCornerShape(4.dp))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = entry.key,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "${entry.value} 分钟",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                            .height(6.dp)
+                            .background(color)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "学习热力图",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (days.isEmpty()) {
+                Text(
+                    text = "暂无数据",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+
+            val formatter = DateTimeFormatter.ISO_DATE
+            val firstDate = runCatching { LocalDate.parse(days.first().date, formatter) }.getOrNull()
+            val leading = if (firstDate != null) (firstDate.dayOfWeek.value + 6) % 7 else 0
+            val cells: List<PomodoroHeatmapDay?> =
+                List(leading) { null } + days
+            val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
+
+            val columns = 7
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                modifier = Modifier.heightIn(min = 120.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(cells.size) { index ->
+                    val item = cells[index]
+                    if (item == null) {
+                        Box(modifier = Modifier.size(18.dp))
+                        return@items
+                    }
+                    val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
+                    val color = MaterialTheme.colorScheme.primary.copy(
+                        alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(color)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "颜色越深表示专注时长越高",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimeBucketsCard(buckets: List<PomodoroTimeBucket>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "今日学习时段",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            if (buckets.isEmpty()) {
+                Text(
+                    text = "暂无数据",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+            val maxMinutes = buckets.maxOfOrNull { it.minutes } ?: 0
+            buckets.forEach { bucket ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = bucket.label,
+                        modifier = Modifier.width(56.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        val ratio =
+                            if (maxMinutes <= 0) 0f else bucket.minutes.toFloat() / maxMinutes
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                                .height(6.dp)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${bucket.minutes} 分钟",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarCard(items: List<PomodoroRadarItem>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "科目雷达",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val selected = items.sortedByDescending { it.minutes }.take(6)
+            if (selected.isEmpty()) {
+                Text(
+                    text = "暂无数据",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+
+            val maxMinutes = max(1, selected.maxOf { it.minutes })
+            val lineColor = MaterialTheme.colorScheme.primary
+            val fillColor = lineColor.copy(alpha = 0.2f)
+
+            Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
+                val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+                val radius = min(size.width, size.height) * 0.35f
+                val steps = selected.size
+                val rings = 3
+                for (i in 1..rings) {
+                    val r = radius * (i / rings.toFloat())
+                    drawCircle(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        radius = r,
+                        center = center,
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+                val points = selected.mapIndexed { index, item ->
+                    val ratio = item.minutes.toFloat() / maxMinutes.toFloat()
+                    val angle = -PI / 2 + index * (2 * PI / steps)
+                    val x = center.x + cos(angle).toFloat() * radius * ratio
+                    val y = center.y + sin(angle).toFloat() * radius * ratio
+                    androidx.compose.ui.geometry.Offset(x, y)
+                }
+                val path = Path().apply {
+                    moveTo(points.first().x, points.first().y)
+                    points.drop(1).forEach { point -> lineTo(point.x, point.y) }
+                    close()
+                }
+                drawPath(path, fillColor)
+                drawPath(path, lineColor, style = Stroke(width = 2.dp.toPx()))
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            selected.forEach { item ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(subjectColor(item.subject), RoundedCornerShape(4.dp))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${item.subject} · ${item.minutes} 分钟",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+private fun subjectColor(subject: String): Color {
+    val palette = listOf(
+        Color(0xFFB5522B),
+        Color(0xFF6B8F4E),
+        Color(0xFF3B6C8E),
+        Color(0xFF9C6B2F),
+        Color(0xFF7A5C8E),
+        Color(0xFF2F8A7A)
+    )
+    val index = (subject.hashCode().absoluteValue % palette.size)
+    return palette[index]
 }
 
 @Composable

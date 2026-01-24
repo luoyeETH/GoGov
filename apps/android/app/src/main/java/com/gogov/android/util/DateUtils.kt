@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 object DateUtils {
     private val beijingZone = ZoneId.of("Asia/Shanghai")
@@ -26,6 +27,16 @@ object DateUtils {
             "$hours 小时 $rest 分钟"
         } else {
             "$minutes 分钟"
+        }
+    }
+
+    fun formatMinutes(minutes: Double): String {
+        if (!minutes.isFinite()) return "--"
+        return if (minutes >= 60) {
+            val hours = minutes / 60.0
+            String.format(Locale.CHINA, "%.1f 小时", hours)
+        } else {
+            String.format(Locale.CHINA, "%.1f 分钟", minutes)
         }
     }
 

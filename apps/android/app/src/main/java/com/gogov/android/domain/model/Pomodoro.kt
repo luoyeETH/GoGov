@@ -64,7 +64,7 @@ data class PomodoroTotals(
     val sessions: Int,
     val completed: Int,
     val failed: Int,
-    val focusMinutes: Int
+    val focusMinutes: Double
 )
 
 @Serializable
