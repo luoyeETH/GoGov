@@ -39,6 +39,7 @@ import com.gogov.android.util.DateUtils
 import android.graphics.Paint
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.cos
@@ -436,6 +437,8 @@ private fun TodayDistributionCard(days: List<PomodoroHeatmapDay>, today: String)
 
 @Composable
 private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
+    val formatter = remember { DateTimeFormatter.ISO_DATE }
+    var selectedDay by remember { mutableStateOf<PomodoroHeatmapDay?>(null) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -445,19 +448,35 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (days.isEmpty()) {
+            val startDate = LocalDate.of(2026, 1, 1)
+            val parsedDays = days.mapNotNull { day ->
+                runCatching { LocalDate.parse(day.date, formatter) }.getOrNull()?.let { parsed ->
+                    parsed to day
+                }
+            }
+            val filteredDays = parsedDays
+                .filter { (date, _) -> !date.isBefore(startDate) }
+
+            if (filteredDays.isEmpty()) {
                 Text(
                     text = "暂无数据",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                val formatter = DateTimeFormatter.ISO_DATE
-                val firstDate = runCatching { LocalDate.parse(days.first().date, formatter) }.getOrNull()
-                val leading = if (firstDate != null) (firstDate.dayOfWeek.value + 6) % 7 else 0
+                val firstDate = filteredDays.first().first
+                val gapDays = ChronoUnit.DAYS.between(startDate, firstDate).toInt().coerceAtLeast(0)
+                val fillerDays = if (gapDays > 0) {
+                    List(gapDays) { offset ->
+                        val date = startDate.plusDays(offset.toLong()).toString()
+                        PomodoroHeatmapDay(date = date, totalMinutes = 0)
+                    }
+                } else emptyList()
+                val displayDays = fillerDays + filteredDays.map { it.second }
+                val leading = (startDate.dayOfWeek.value + 6) % 7
                 val cells: List<PomodoroHeatmapDay?> =
-                    List(leading) { null } + days
-                val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
+                    List(leading) { null } + displayDays
+                val maxMinutes = filteredDays.maxOfOrNull { it.second.totalMinutes } ?: 0
                 val emptyColor = Color(0xFFFFFFFF)
                 val levelColors = listOf(
                     Color(0xFFE8F5E9),
@@ -502,6 +521,7 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                                                 .clip(RoundedCornerShape(3.dp))
                                                 .background(color)
                                                 .border(1.dp, borderColor, RoundedCornerShape(3.dp))
+                                                .clickable { selectedDay = item }
                                         )
                                     }
                                 }
@@ -522,6 +542,23 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+
+    selectedDay?.let { day ->
+        val dateLabel = runCatching {
+            LocalDate.parse(day.date, formatter)
+                .format(DateTimeFormatter.ofPattern("yyyy年M月d日"))
+        }.getOrElse { day.date }
+        AlertDialog(
+            onDismissRequest = { selectedDay = null },
+            title = { Text(text = dateLabel) },
+            text = { Text(text = "当天学习时间：${DateUtils.formatMinutes(day.totalMinutes.toDouble())}") },
+            confirmButton = {
+                TextButton(onClick = { selectedDay = null }) {
+                    Text("知道了")
+                }
+            }
+        )
     }
 }
 

@@ -3,6 +3,7 @@ package com.gogov.android.ui.chat
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -244,20 +245,22 @@ private fun ChatBubble(
                 .padding(12.dp)
         ) {
             if (isUser || isPending) {
-                Text(
-                    text = message.content,
-                    color = when {
-                        isFailed -> MaterialTheme.colorScheme.onErrorContainer
-                        isUser -> MaterialTheme.colorScheme.onPrimary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    style = if (isPending)
-                        MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    else
-                        MaterialTheme.typography.bodyMedium
-                )
+                SelectionContainer {
+                    Text(
+                        text = message.content,
+                        color = when {
+                            isFailed -> MaterialTheme.colorScheme.onErrorContainer
+                            isUser -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        style = if (isPending)
+                            MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        else
+                            MaterialTheme.typography.bodyMedium
+                    )
+                }
             } else {
                 MarkdownText(
                     markdown = message.content,
@@ -295,11 +298,13 @@ private fun MarkdownText(
             TextView(ctx).apply {
                 setTextColor(color.toArgb())
                 textSize = textSizeSp
+                setTextIsSelectable(true)
             }
         },
         update = { textView ->
             textView.setTextColor(color.toArgb())
             textView.textSize = textSizeSp
+            textView.setTextIsSelectable(true)
             markwon.setMarkdown(textView, markdown)
         }
     )
