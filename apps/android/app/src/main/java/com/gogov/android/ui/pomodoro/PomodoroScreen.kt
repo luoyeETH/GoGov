@@ -314,17 +314,37 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         Spacer(modifier = Modifier.height(24.dp))
 
         insights?.let { data ->
-            TodayDistributionCard(
-                days = data.heatmap.days,
-                today = DateUtils.getBeijingDateString()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            HeatmapCard(days = data.heatmap.days)
-            Spacer(modifier = Modifier.height(16.dp))
-            TimeBucketsCard(buckets = data.timeBuckets)
-            Spacer(modifier = Modifier.height(16.dp))
-            RadarCard(items = data.radar)
-            Spacer(modifier = Modifier.height(24.dp))
+            val hasActivity = data.totals.sessions > 0
+            if (!hasActivity) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "暂无学习数据",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "完成一次番茄钟后即可查看学习分布与热力图。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                TodayDistributionCard(
+                    days = data.heatmap.days,
+                    today = DateUtils.getBeijingDateString()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                HeatmapCard(days = data.heatmap.days)
+                Spacer(modifier = Modifier.height(16.dp))
+                TimeBucketsCard(buckets = data.timeBuckets)
+                Spacer(modifier = Modifier.height(16.dp))
+                RadarCard(items = data.radar)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
