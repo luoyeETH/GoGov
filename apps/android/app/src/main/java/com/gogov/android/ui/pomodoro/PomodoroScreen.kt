@@ -631,7 +631,30 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            val selected = items.sortedByDescending { it.minutes }.take(8)
+            // Fixed subject order for radar chart
+            val fixedOrder = listOf(
+                "常识", "政治理论", "言语理解", "数量关系",
+                "判断推理", "资料分析", "申论", "专业知识"
+            )
+            val itemMap = items.associateBy { it.subject }
+            val extraItems = items.filter { it.subject !in fixedOrder }
+                .sortedByDescending { it.minutes }
+
+            // Build ordered list: fixed subjects first, then extras to fill remaining slots
+            val orderedItems = mutableListOf<PomodoroRadarItem>()
+            var extraIndex = 0
+            for (subject in fixedOrder) {
+                val item = itemMap[subject]
+                if (item != null) {
+                    orderedItems.add(item)
+                } else if (extraIndex < extraItems.size) {
+                    orderedItems.add(extraItems[extraIndex])
+                    extraIndex++
+                } else {
+                    orderedItems.add(PomodoroRadarItem(subject = subject, minutes = 0))
+                }
+            }
+            val selected = orderedItems
             if (selected.isEmpty()) {
                 Text(
                     text = "暂无数据",

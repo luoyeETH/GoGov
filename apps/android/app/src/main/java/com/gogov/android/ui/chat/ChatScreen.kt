@@ -288,11 +288,16 @@ private fun MarkdownText(
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
-            .usePlugin(MarkwonInlineParserPlugin.create())
             .usePlugin(JLatexMathPlugin.create(latexTextSizePx) { builder ->
                 builder.inlinesEnabled(true)
+                builder.blocksEnabled(true)
             })
+            .usePlugin(MarkwonInlineParserPlugin.create())
             .build()
+    }
+
+    val normalizedMarkdown = remember(markdown) {
+        normalizeLatex(markdown)
     }
 
     AndroidView(
@@ -307,7 +312,34 @@ private fun MarkdownText(
             textView.setTextColor(color.toArgb())
             textView.textSize = textSizeSp
             textView.setTextIsSelectable(true)
-            markwon.setMarkdown(textView, markdown)
+            markwon.setMarkdown(textView, normalizedMarkdown)
         }
     )
+}
+
+private fun normalizeLatex(markdown: String): String {
+    val escapedInlineDelimiter = Regex.escape("\\$")
+    val inlineDelimiter = Regex.escape("\$")
+    val blockDelimiter = Regex.escape("\$\$")
+
+    var output = markdown
+
+    val escapedInlineRegex =
+        Regex("$escapedInlineDelimiter\\s*([^\\$\\n]+?)\\s*$escapedInlineDelimiter")
+    output = escapedInlineRegex.replace(output) { match ->
+        "${'$'}${match.groupValues[1].trim()}${'$'}"
+    }
+
+    val blockRegex = Regex("$blockDelimiter\\s*([\\s\\S]+?)\\s*$blockDelimiter")
+    output = blockRegex.replace(output) { match ->
+        "${'$'}${'$'}${match.groupValues[1].trim()}${'$'}${'$'}"
+    }
+
+    val inlineRegex =
+        Regex("(?<!\\$)$inlineDelimiter\\s*([^\\$\\n]+?)\\s*$inlineDelimiter(?!\\$)")
+    output = inlineRegex.replace(output) { match ->
+        "${'$'}${match.groupValues[1].trim()}${'$'}"
+    }
+
+    return output
 }
