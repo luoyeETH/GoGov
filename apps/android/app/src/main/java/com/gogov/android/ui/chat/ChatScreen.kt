@@ -68,16 +68,16 @@ fun ChatScreen(viewModel: ChatViewModel) {
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = state.mode == ChatMode.PLANNER,
-                        onClick = { viewModel.setMode(ChatMode.PLANNER) },
-                        label = { Text("规划") },
+                        selected = state.mode == ChatMode.TUTOR,
+                        onClick = { viewModel.setMode(ChatMode.TUTOR) },
+                        label = { Text("导师") },
                         colors = selectionChipColors,
                         enabled = !state.isSending
                     )
                     FilterChip(
-                        selected = state.mode == ChatMode.TUTOR,
-                        onClick = { viewModel.setMode(ChatMode.TUTOR) },
-                        label = { Text("导师") },
+                        selected = state.mode == ChatMode.PLANNER,
+                        onClick = { viewModel.setMode(ChatMode.PLANNER) },
+                        label = { Text("规划") },
                         colors = selectionChipColors,
                         enabled = !state.isSending
                     )
@@ -288,8 +288,10 @@ private fun MarkdownText(
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
-            .usePlugin(JLatexMathPlugin.create(latexTextSizePx))
             .usePlugin(MarkwonInlineParserPlugin.create())
+            .usePlugin(JLatexMathPlugin.create(latexTextSizePx) { builder ->
+                builder.inlinesEnabled(true)
+            })
             .build()
     }
 

@@ -109,8 +109,12 @@ class SettingsViewModel(private val authRepository: AuthRepository) : ViewModel(
     fun logout(onComplete: () -> Unit) {
         viewModelScope.launch {
             _state.update { it.copy(isLoggingOut = true) }
-            authRepository.logout()
-            onComplete()
+            try {
+                authRepository.logout()
+                onComplete()
+            } finally {
+                _state.update { it.copy(isLoggingOut = false) }
+            }
         }
     }
 

@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
-    val mode: ChatMode = ChatMode.PLANNER,
+    val mode: ChatMode = ChatMode.TUTOR,
     val isLoading: Boolean = false,
     val isSending: Boolean = false,
     val error: String? = null,

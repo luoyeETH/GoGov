@@ -631,7 +631,7 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            val selected = items.sortedByDescending { it.minutes }.take(6)
+            val selected = items.sortedByDescending { it.minutes }.take(8)
             if (selected.isEmpty()) {
                 Text(
                     text = "暂无数据",
