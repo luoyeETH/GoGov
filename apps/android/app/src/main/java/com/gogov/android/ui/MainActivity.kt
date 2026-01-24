@@ -40,12 +40,12 @@ import com.gogov.android.ui.tasks.DailyTasksViewModel
 import com.gogov.android.ui.theme.GoGovTheme
 
 sealed class Screen(val route: String, val label: String) {
-    object Pomodoro : Screen("pomodoro", "Pomodoro")
-    object Tasks : Screen("tasks", "Tasks")
-    object Chat : Screen("chat", "Chat")
-    object Settings : Screen("settings", "Settings")
-    object Login : Screen("login", "Login")
-    object Register : Screen("register", "Register")
+    object Pomodoro : Screen("pomodoro", "番茄钟")
+    object Tasks : Screen("tasks", "今日任务")
+    object Chat : Screen("chat", "AI 对话")
+    object Settings : Screen("settings", "设置")
+    object Login : Screen("login", "登录")
+    object Register : Screen("register", "注册")
 }
 
 val bottomNavItems = listOf(

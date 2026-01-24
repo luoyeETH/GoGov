@@ -93,7 +93,7 @@ class SettingsViewModel(private val authRepository: AuthRepository) : ViewModel(
                         it.copy(
                             user = user,
                             isSaving = false,
-                            successMessage = "AI configuration saved!",
+                            successMessage = "AI 配置已保存！",
                             aiApiKey = "",
                             showApiKeyField = false
                         )

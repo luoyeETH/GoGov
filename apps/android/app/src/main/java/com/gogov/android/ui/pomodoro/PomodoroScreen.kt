@@ -26,7 +26,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
-import com.gogov.android.ui.theme.Green600
 import com.gogov.android.util.DateUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,12 +67,12 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
     ) {
         // Header
         Text(
-            text = "Pomodoro Timer",
+            text = "番茄钟",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Focus on your studies",
+            text = "进入专注模式",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -86,9 +85,9 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatCard("Sessions", data.totals.sessions.toString())
-                StatCard("Completed", data.totals.completed.toString())
-                StatCard("Focus", DateUtils.formatMinutes(data.totals.focusMinutes))
+                StatCard("次数", data.totals.sessions.toString())
+                StatCard("完成", data.totals.completed.toString())
+                StatCard("专注", DateUtils.formatMinutes(data.totals.focusMinutes))
             }
         }
 
@@ -109,21 +108,21 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = when (result.status) {
-                            PomodoroStatus.COMPLETED -> "Session Completed!"
-                            PomodoroStatus.FAILED -> "Session Failed"
-                            else -> "Session Ended"
+                            PomodoroStatus.COMPLETED -> "专注完成"
+                            PomodoroStatus.FAILED -> "专注失败"
+                            else -> "专注结束"
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${result.subject} - ${result.elapsedSeconds / 60} minutes",
+                        text = "${result.subject} - ${result.elapsedSeconds / 60} 分钟",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.clearLastResult() }) {
-                        Text("Continue")
+                        Text("继续")
                     }
                 }
             }
@@ -146,7 +145,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     TextButton(onClick = { viewModel.clearMessage() }) {
-                        Text("Dismiss")
+                        Text("知道了")
                     }
                 }
             }
@@ -157,7 +156,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Select Subject",
+                    text = "选择科目",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -185,7 +184,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Timer Mode",
+                    text = "计时方式",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -195,19 +194,19 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                     FilterChip(
                         selected = state.mode == PomodoroMode.COUNTDOWN,
                         onClick = { viewModel.setMode(PomodoroMode.COUNTDOWN) },
-                        label = { Text("Countdown") }
+                        label = { Text("番茄钟") }
                     )
                     FilterChip(
                         selected = state.mode == PomodoroMode.TIMER,
                         onClick = { viewModel.setMode(PomodoroMode.TIMER) },
-                        label = { Text("Timer") }
+                        label = { Text("计时器") }
                     )
                 }
 
                 if (state.mode == PomodoroMode.COUNTDOWN) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Duration: ${state.plannedMinutes} minutes",
+                        text = "时长：${state.plannedMinutes} 分钟",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -223,7 +222,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                 } else {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Manual stop with segment tracking",
+                        text = "手动停止，支持分段记录",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -248,7 +247,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(
-                text = if (state.mode == PomodoroMode.TIMER) "Start Timer" else "Start Focus",
+                text = if (state.mode == PomodoroMode.TIMER) "开始计时" else "开始专注",
                 fontSize = 16.sp
             )
         }
@@ -256,7 +255,7 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Exiting the app will auto-pause. Pause limit: 5 minutes.",
+            text = "退出应用将自动暂停，暂停超过 5 分钟判定失败。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -338,7 +337,7 @@ private fun ImmersiveTimerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF1a202c)),
+                .background(Color(0xFF1C1B19)),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -372,7 +371,7 @@ private fun ImmersiveTimerDialog(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = Green600,
+                        color = MaterialTheme.colorScheme.primary,
                         trackColor = Color.White.copy(alpha = 0.2f)
                     )
                 }
@@ -383,11 +382,11 @@ private fun ImmersiveTimerDialog(
                 Text(
                     text = when {
                         state.status == PomodoroStatus.PAUSED ->
-                            "Paused ${DateUtils.formatSeconds(state.pauseElapsedSeconds)} - ${DateUtils.formatSeconds(PomodoroViewModel.PAUSE_LIMIT_SECONDS - state.pauseElapsedSeconds)} remaining"
+                            "已暂停 ${DateUtils.formatSeconds(state.pauseElapsedSeconds)} · 剩余 ${DateUtils.formatSeconds(PomodoroViewModel.PAUSE_LIMIT_SECONDS - state.pauseElapsedSeconds)}"
                         state.mode == PomodoroMode.COUNTDOWN ->
-                            "Focused ${DateUtils.formatSeconds(state.elapsedSeconds)}"
+                            "已专注 ${DateUtils.formatSeconds(state.elapsedSeconds)}"
                         else ->
-                            "Elapsed ${DateUtils.formatSeconds(state.elapsedSeconds)}"
+                            "已计时 ${DateUtils.formatSeconds(state.elapsedSeconds)}"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.7f)
@@ -397,7 +396,7 @@ private fun ImmersiveTimerDialog(
                 if (state.mode == PomodoroMode.TIMER && state.segments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Segments: ${state.segments.size}",
+                        text = "分段：${state.segments.size}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.5f)
                     )
@@ -411,19 +410,19 @@ private fun ImmersiveTimerDialog(
                         Button(
                             onClick = onPause,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Green600
+                                containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            Text("Pause")
+                            Text("暂停")
                         }
                     } else {
                         Button(
                             onClick = onResume,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Green600
+                                containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            Text("Resume")
+                            Text("继续")
                         }
                     }
 
@@ -434,7 +433,7 @@ private fun ImmersiveTimerDialog(
                                 contentColor = Color.White
                             )
                         ) {
-                            Text("Segment")
+                            Text("分段")
                         }
                     }
 
@@ -444,14 +443,14 @@ private fun ImmersiveTimerDialog(
                             contentColor = Color.White
                         )
                     ) {
-                        Text(if (state.mode == PomodoroMode.TIMER) "Stop & Save" else "End Session")
+                        Text(if (state.mode == PomodoroMode.TIMER) "停止并保存" else "结束本次")
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Exit will auto-pause. Over 5 min pause = fail.",
+                    text = "退出将自动暂停，暂停超过 5 分钟将判定失败。",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center

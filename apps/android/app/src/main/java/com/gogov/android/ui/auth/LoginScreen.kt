@@ -33,7 +33,7 @@ fun LoginScreen(
 
     fun performLogin() {
         if (email.isBlank() || password.isBlank()) {
-            errorMessage = "Please enter email and password."
+            errorMessage = "请输入邮箱和密码。"
             return
         }
 
@@ -46,7 +46,7 @@ fun LoginScreen(
 
             result.fold(
                 onSuccess = { onLoginSuccess() },
-                onFailure = { errorMessage = it.message ?: "Login failed" }
+                onFailure = { errorMessage = it.message ?: "登录失败" }
             )
         }
     }
@@ -59,7 +59,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "GoGov",
+            text = "学了么",
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary
         )
@@ -67,7 +67,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Login to your account",
+            text = "登录学了么账号",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -77,7 +77,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = { Text("邮箱") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(
@@ -95,7 +95,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("密码") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation(),
@@ -136,13 +136,13 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text(if (isLoading) "Logging in..." else "Login")
+            Text(if (isLoading) "正在登录..." else "登录")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         TextButton(onClick = onNavigateToRegister) {
-            Text("Don't have an account? Register")
+            Text("还没有账号？去注册")
         }
     }
 }

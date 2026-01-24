@@ -32,7 +32,7 @@ class ChatRepository {
     }
 
     private fun parseError(errorBody: String?): String {
-        if (errorBody == null) return "Unknown error"
+        if (errorBody == null) return "未知错误"
         return try {
             val regex = """"error"\s*:\s*"([^"]+)"""".toRegex()
             regex.find(errorBody)?.groupValues?.get(1) ?: errorBody

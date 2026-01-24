@@ -25,7 +25,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Daily Tasks",
+                    text = "今日任务",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -41,7 +41,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                     )
                     if (state.isSaving) {
                         Text(
-                            text = "Saving...",
+                            text = "正在保存...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -67,7 +67,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                         style = MaterialTheme.typography.bodySmall
                     )
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss")
+                        Text("知道了")
                     }
                 }
             }
@@ -123,7 +123,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No tasks yet. Generate your daily tasks!",
+                                text = "今日暂无任务，点击生成即可。",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -153,7 +153,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No tasks for today. Generate your daily plan!",
+                            text = "今日暂无任务，先生成一份计划吧。",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -167,8 +167,8 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                     value = state.adjustNote,
                     onValueChange = { viewModel.setAdjustNote(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Adjustment notes") },
-                    placeholder = { Text("e.g., Only have 1 hour today") },
+                    label = { Text("调整说明") },
+                    placeholder = { Text("例如：今天只有 1 小时") },
                     minLines = 2,
                     maxLines = 4
                 )
@@ -189,10 +189,10 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Generating...")
+                        Text("正在生成...")
                     } else {
                         Text(
-                            if (state.taskRecord != null) "Adjust Tasks" else "Generate Tasks"
+                            if (state.taskRecord != null) "调整任务" else "生成任务"
                         )
                     }
                 }
@@ -232,7 +232,7 @@ private fun TaskCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         task.durationMinutes?.let { minutes ->
                             Text(
-                                text = "$minutes min",
+                                text = "${minutes}分钟",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -250,7 +250,7 @@ private fun TaskCard(
                     onClick = onBreakdown,
                     enabled = !isBreakingDown && task.subtasks.isEmpty()
                 ) {
-                    Text(if (isBreakingDown) "..." else "Break down")
+                    Text(if (isBreakingDown) "..." else "拆解")
                 }
             }
 

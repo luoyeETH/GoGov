@@ -38,8 +38,8 @@ class DailyReminderWorker(
             GoGovApplication.CHANNEL_REMINDER
         )
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Time to Study!")
-            .setContentText("Start your daily study session now.")
+            .setContentTitle("学习时间到")
+            .setContentText("开始今天的学习任务吧。")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

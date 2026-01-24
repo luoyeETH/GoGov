@@ -54,12 +54,12 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
     fun sendMessage() {
         val content = _state.value.inputText.trim()
         if (content.isBlank()) {
-            _state.update { it.copy(error = "Please enter a message.") }
+            _state.update { it.copy(error = "请输入内容。") }
             return
         }
 
         if (content.length > 2000) {
-            _state.update { it.copy(error = "Message too long (max 2000 characters).") }
+            _state.update { it.copy(error = "内容过长（最多 2000 字）。") }
             return
         }
 

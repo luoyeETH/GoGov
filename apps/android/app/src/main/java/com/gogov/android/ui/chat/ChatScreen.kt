@@ -44,15 +44,15 @@ fun ChatScreen(viewModel: ChatViewModel) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (state.mode == ChatMode.PLANNER) "AI Planner" else "AI Tutor",
+                    text = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = if (state.mode == ChatMode.PLANNER)
-                        "Study planning assistance - 30 day memory"
+                        "备考规划辅助 · 最近 30 天记忆"
                     else
-                        "Quick Q&A - No memory loaded",
+                        "快速答疑 · 不加载历史",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -63,13 +63,13 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     FilterChip(
                         selected = state.mode == ChatMode.PLANNER,
                         onClick = { viewModel.setMode(ChatMode.PLANNER) },
-                        label = { Text("Planner") },
+                        label = { Text("规划") },
                         enabled = !state.isSending
                     )
                     FilterChip(
                         selected = state.mode == ChatMode.TUTOR,
                         onClick = { viewModel.setMode(ChatMode.TUTOR) },
-                        label = { Text("Tutor") },
+                        label = { Text("导师") },
                         enabled = !state.isSending
                     )
                 }
@@ -105,9 +105,9 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     ) {
                         Text(
                             text = if (state.mode == ChatMode.PLANNER)
-                                "Ask me anything about your study plan!"
+                                "随时向我咨询你的备考规划！"
                             else
-                                "Send a question for quick tutoring.",
+                                "发送问题，快速答疑。",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -124,7 +124,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         message = ChatMessage(
                             id = "thinking",
                             role = "assistant",
-                            content = "Thinking...",
+                            content = "思考中...",
                             createdAt = ""
                         ),
                         isPending = true
@@ -150,7 +150,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                         style = MaterialTheme.typography.bodySmall
                     )
                     TextButton(onClick = { viewModel.clearError() }) {
-                        Text("Dismiss")
+                        Text("知道了")
                     }
                 }
             }
@@ -171,7 +171,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     value = state.inputText,
                     onValueChange = { viewModel.setInputText(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
+                    placeholder = { Text("输入问题...") },
                     maxLines = 4,
                     enabled = !state.isSending
                 )
@@ -190,7 +190,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     } else {
                         Icon(
                             Icons.Default.Send,
-                            contentDescription = "Send",
+                            contentDescription = "发送",
                             tint = if (state.inputText.isNotBlank())
                                 MaterialTheme.colorScheme.primary
                             else
@@ -276,7 +276,7 @@ private fun MarkdownText(
     AndroidView(
         factory = { ctx ->
             TextView(ctx).apply {
-                setTextColor(android.graphics.Color.parseColor("#4a5568"))
+                setTextColor(android.graphics.Color.parseColor("#1c1b19"))
                 textSize = 14f
             }
         },

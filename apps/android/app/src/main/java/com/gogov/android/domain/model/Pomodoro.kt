@@ -41,6 +41,11 @@ data class PomodoroSubject(
 )
 
 @Serializable
+data class PomodoroSubjectCreateRequest(
+    val name: String
+)
+
+@Serializable
 data class PomodoroSubjectsResponse(
     val subjects: List<PomodoroSubject>
 )

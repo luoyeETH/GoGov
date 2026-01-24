@@ -18,10 +18,10 @@ class AuthRepository(private val tokenManager: TokenManager) {
             val response = ApiClient.api.login(LoginRequest(email, password))
             if (response.isSuccessful) {
                 val body = response.body()!!
-                tokenManager.saveToken(body.token)
-                Result.success(body.user)
+                tokenManager.saveToken(body.sessionToken)
+                Result.success(body.toUser())
             } else {
-                val error = response.errorBody()?.string() ?: "Login failed"
+                val error = response.errorBody()?.string() ?: "登录失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -29,13 +29,38 @@ class AuthRepository(private val tokenManager: TokenManager) {
         }
     }
 
-    suspend fun requestEmailVerification(email: String): Result<Unit> {
+    suspend fun getEmailChallenge(): Result<EmailChallengeResponse> {
         return try {
-            val response = ApiClient.api.requestEmailVerification(EmailVerificationRequest(email))
+            val response = ApiClient.api.getEmailChallenge()
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("获取验证码失败"))
+                }
+            } else {
+                val error = response.errorBody()?.string() ?: "请求失败"
+                Result.failure(Exception(parseError(error)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun requestEmailVerification(
+        email: String,
+        challengeId: String,
+        answer: String
+    ): Result<Unit> {
+        return try {
+            val response = ApiClient.api.requestEmailVerification(
+                EmailRegisterRequest(email, challengeId, answer)
+            )
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                val error = response.errorBody()?.string() ?: "Request failed"
+                val error = response.errorBody()?.string() ?: "验证失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -43,14 +68,14 @@ class AuthRepository(private val tokenManager: TokenManager) {
         }
     }
 
-    suspend fun verifyEmail(email: String, code: String): Result<String> {
+    suspend fun verifyEmail(token: String): Result<String> {
         return try {
-            val response = ApiClient.api.verifyEmail(mapOf("email" to email, "code" to code))
+            val response = ApiClient.api.verifyEmail(EmailVerifyRequest(token))
             if (response.isSuccessful) {
-                val token = response.body()?.get("verificationToken") ?: ""
-                Result.success(token)
+                val email = response.body()?.email ?: ""
+                Result.success(email)
             } else {
-                val error = response.errorBody()?.string() ?: "Verification failed"
+                val error = response.errorBody()?.string() ?: "验证失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -58,17 +83,25 @@ class AuthRepository(private val tokenManager: TokenManager) {
         }
     }
 
-    suspend fun completeRegistration(email: String, password: String, verificationToken: String): Result<User> {
+    suspend fun completeRegistration(
+        username: String,
+        password: String,
+        verificationToken: String
+    ): Result<User> {
         return try {
             val response = ApiClient.api.completeRegistration(
-                RegisterRequest(email, password, verificationToken)
+                RegisterCompleteRequest(
+                    token = verificationToken,
+                    username = username,
+                    password = password
+                )
             )
             if (response.isSuccessful) {
                 val body = response.body()!!
-                tokenManager.saveToken(body.token)
-                Result.success(body.user)
+                tokenManager.saveToken(body.sessionToken)
+                Result.success(body.toUser())
             } else {
-                val error = response.errorBody()?.string() ?: "Registration failed"
+                val error = response.errorBody()?.string() ?: "注册失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -85,7 +118,7 @@ class AuthRepository(private val tokenManager: TokenManager) {
                 if (response.code() == 401) {
                     tokenManager.clearToken()
                 }
-                val error = response.errorBody()?.string() ?: "Failed to get user"
+                val error = response.errorBody()?.string() ?: "获取用户信息失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -99,7 +132,7 @@ class AuthRepository(private val tokenManager: TokenManager) {
             if (response.isSuccessful) {
                 Result.success(response.body()!!.user)
             } else {
-                val error = response.errorBody()?.string() ?: "Update failed"
+                val error = response.errorBody()?.string() ?: "更新失败"
                 Result.failure(Exception(parseError(error)))
             }
         } catch (e: Exception) {
@@ -116,6 +149,18 @@ class AuthRepository(private val tokenManager: TokenManager) {
             tokenManager.clearToken()
             Result.success(Unit)
         }
+    }
+
+    private fun AuthSessionResponse.toUser(): User {
+        return User(
+            id = userId,
+            email = email,
+            username = username,
+            gender = gender,
+            age = age,
+            examStartDate = examStartDate,
+            walletAddress = walletAddress
+        )
     }
 
     private fun parseError(errorBody: String): String {

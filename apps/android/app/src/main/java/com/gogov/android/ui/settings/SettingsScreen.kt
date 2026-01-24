@@ -58,7 +58,7 @@ fun SettingsScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "Settings",
+            text = "设置",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -70,13 +70,13 @@ fun SettingsScreen(
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Account",
+                        text = "账号",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = user.email,
+                        text = user.email ?: "未绑定邮箱",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     user.username?.let { username ->
@@ -96,12 +96,12 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "AI Configuration",
+                    text = "AI 配置",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Configure your own AI provider for chat",
+                    text = "配置你的 AI 服务商与模型",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -111,8 +111,8 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = state.aiProvider,
                     onValueChange = { viewModel.setAiProvider(it) },
-                    label = { Text("Provider") },
-                    placeholder = { Text("e.g., openai, anthropic, deepseek") },
+                    label = { Text("服务商") },
+                    placeholder = { Text("如 openai、anthropic、deepseek") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -122,8 +122,8 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = state.aiModel,
                     onValueChange = { viewModel.setAiModel(it) },
-                    label = { Text("Model") },
-                    placeholder = { Text("e.g., gpt-4, claude-3-opus") },
+                    label = { Text("模型") },
+                    placeholder = { Text("如 gpt-4、claude-3-opus") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -133,8 +133,8 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = state.aiBaseUrl,
                     onValueChange = { viewModel.setAiBaseUrl(it) },
-                    label = { Text("Base URL (optional)") },
-                    placeholder = { Text("e.g., https://api.openai.com/v1") },
+                    label = { Text("接口地址（可选）") },
+                    placeholder = { Text("如 https://api.openai.com/v1") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -148,14 +148,14 @@ fun SettingsScreen(
                 ) {
                     Text(
                         text = if (state.user?.aiApiKeyConfigured == true)
-                            "API Key: Configured"
+                            "API 密钥：已配置"
                         else
-                            "API Key: Not set",
+                            "API 密钥：未配置",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
                     TextButton(onClick = { viewModel.toggleApiKeyField() }) {
-                        Text(if (state.showApiKeyField) "Cancel" else "Update")
+                        Text(if (state.showApiKeyField) "取消" else "更新")
                     }
                 }
 
@@ -165,7 +165,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = state.aiApiKey,
                         onValueChange = { viewModel.setAiApiKey(it) },
-                        label = { Text("New API Key") },
+                        label = { Text("新的 API 密钥") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         visualTransformation = if (showKey) VisualTransformation.None
@@ -175,7 +175,7 @@ fun SettingsScreen(
                                 Icon(
                                     if (showKey) Icons.Default.VisibilityOff
                                     else Icons.Default.Visibility,
-                                    contentDescription = "Toggle visibility"
+                                    contentDescription = "切换可见性"
                                 )
                             }
                         }
@@ -197,7 +197,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text("Save AI Config")
+                    Text("保存 AI 配置")
                 }
 
                 // Success/Error messages
@@ -226,7 +226,7 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Daily Reminder",
+                    text = "每日提醒",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -240,11 +240,11 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Enable notifications",
+                            text = "开启通知",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
-                            text = "Daily reminder to study",
+                            text = "每天提醒学习",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -268,7 +268,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Reminder time")
+                        Text("提醒时间")
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -284,7 +284,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You'll receive a reminder at ${reminderHour}:00 daily",
+                        text = "每天 ${reminderHour}:00 提醒你学习",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -310,7 +310,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Logout")
+            Text("退出登录")
         }
 
         Spacer(modifier = Modifier.height(32.dp))

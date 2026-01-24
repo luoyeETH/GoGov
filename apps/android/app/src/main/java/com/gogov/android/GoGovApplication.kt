@@ -29,20 +29,20 @@ class GoGovApplication : Application() {
             // Pomodoro channel
             val pomodoroChannel = NotificationChannel(
                 CHANNEL_POMODORO,
-                "Pomodoro Timer",
+                "番茄钟",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Pomodoro timer notifications"
+                description = "番茄钟计时提醒"
             }
             notificationManager.createNotificationChannel(pomodoroChannel)
 
             // Daily reminder channel
             val reminderChannel = NotificationChannel(
                 CHANNEL_REMINDER,
-                "Daily Reminders",
+                "每日提醒",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Daily study reminders"
+                description = "每日学习提醒"
             }
             notificationManager.createNotificationChannel(reminderChannel)
         }

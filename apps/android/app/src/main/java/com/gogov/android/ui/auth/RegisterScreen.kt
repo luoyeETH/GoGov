@@ -33,17 +33,40 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var verificationCode by remember { mutableStateOf("") }
     var verificationToken by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var challengeId by remember { mutableStateOf("") }
+    var challengeQuestion by remember { mutableStateOf("") }
+    var challengeAnswer by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
+    LaunchedEffect(Unit) {
+        val result = authRepository.getEmailChallenge()
+        result.fold(
+            onSuccess = {
+                challengeId = it.id
+                challengeQuestion = it.question
+            },
+            onFailure = { errorMessage = it.message ?: "获取验证码失败" }
+        )
+    }
+
     fun requestVerification() {
         if (email.isBlank()) {
-            errorMessage = "Please enter your email."
+            errorMessage = "请输入邮箱。"
+            return
+        }
+        if (challengeId.isBlank() || challengeQuestion.isBlank()) {
+            errorMessage = "验证码加载失败，请稍后重试。"
+            return
+        }
+        if (challengeAnswer.isBlank()) {
+            errorMessage = "请输入验证码答案。"
             return
         }
 
@@ -51,19 +74,23 @@ fun RegisterScreen(
         errorMessage = null
 
         scope.launch {
-            val result = authRepository.requestEmailVerification(email.trim())
+            val result = authRepository.requestEmailVerification(
+                email.trim(),
+                challengeId,
+                challengeAnswer.trim()
+            )
             isLoading = false
 
             result.fold(
                 onSuccess = { step = RegisterStep.VERIFICATION },
-                onFailure = { errorMessage = it.message ?: "Failed to send verification email" }
+                onFailure = { errorMessage = it.message ?: "发送验证邮件失败" }
             )
         }
     }
 
     fun verifyEmail() {
         if (verificationCode.isBlank()) {
-            errorMessage = "Please enter verification code."
+            errorMessage = "请输入邮箱中的验证令牌。"
             return
         }
 
@@ -71,30 +98,42 @@ fun RegisterScreen(
         errorMessage = null
 
         scope.launch {
-            val result = authRepository.verifyEmail(email.trim(), verificationCode.trim())
+            val result = authRepository.verifyEmail(verificationCode.trim())
             isLoading = false
 
             result.fold(
-                onSuccess = { token ->
-                    verificationToken = token
+                onSuccess = { verifiedEmail ->
+                    verificationToken = verificationCode.trim()
+                    if (verifiedEmail.isNotBlank()) {
+                        email = verifiedEmail
+                    }
                     step = RegisterStep.PASSWORD
                 },
-                onFailure = { errorMessage = it.message ?: "Verification failed" }
+                onFailure = { errorMessage = it.message ?: "验证失败" }
             )
         }
     }
 
     fun completeRegistration() {
+        val trimmedUsername = username.trim()
+        if (trimmedUsername.isBlank()) {
+            errorMessage = "请输入用户名（2-10 位）。"
+            return
+        }
+        if (trimmedUsername.length !in 2..10 || trimmedUsername.contains(" ")) {
+            errorMessage = "用户名需为 2-10 位，且不能包含空格。"
+            return
+        }
         if (password.isBlank()) {
-            errorMessage = "Please enter a password."
+            errorMessage = "请输入密码。"
             return
         }
         if (password != confirmPassword) {
-            errorMessage = "Passwords do not match."
+            errorMessage = "两次密码不一致。"
             return
         }
         if (password.length < 8) {
-            errorMessage = "Password must be at least 8 characters."
+            errorMessage = "密码至少 8 位。"
             return
         }
 
@@ -102,12 +141,16 @@ fun RegisterScreen(
         errorMessage = null
 
         scope.launch {
-            val result = authRepository.completeRegistration(email.trim(), password, verificationToken)
+            val result = authRepository.completeRegistration(
+                trimmedUsername,
+                password,
+                verificationToken
+            )
             isLoading = false
 
             result.fold(
                 onSuccess = { onRegisterSuccess() },
-                onFailure = { errorMessage = it.message ?: "Registration failed" }
+                onFailure = { errorMessage = it.message ?: "注册失败" }
             )
         }
     }
@@ -120,7 +163,7 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "GoGov",
+            text = "学了么",
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary
         )
@@ -129,9 +172,9 @@ fun RegisterScreen(
 
         Text(
             text = when (step) {
-                RegisterStep.EMAIL -> "Create your account"
-                RegisterStep.VERIFICATION -> "Verify your email"
-                RegisterStep.PASSWORD -> "Set your password"
+                RegisterStep.EMAIL -> "邮箱注册"
+                RegisterStep.VERIFICATION -> "验证邮箱"
+                RegisterStep.PASSWORD -> "设置用户名与密码"
             },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -141,10 +184,19 @@ fun RegisterScreen(
 
         when (step) {
             RegisterStep.EMAIL -> {
+                if (challengeQuestion.isNotBlank()) {
+                    Text(
+                        text = "验证题：$challengeQuestion",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text("邮箱") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
@@ -159,11 +211,32 @@ fun RegisterScreen(
                     ),
                     enabled = !isLoading
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = challengeAnswer,
+                    onValueChange = { challengeAnswer = it },
+                    label = { Text("验证码答案") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            requestVerification()
+                        }
+                    ),
+                    enabled = !isLoading
+                )
             }
 
             RegisterStep.VERIFICATION -> {
                 Text(
-                    text = "We sent a verification code to $email",
+                    text = "验证邮件已发送至 $email，请复制邮箱中的令牌。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -173,11 +246,11 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = verificationCode,
                     onValueChange = { verificationCode = it },
-                    label = { Text("Verification Code") },
+                    label = { Text("邮箱验证令牌") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
+                        keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
@@ -192,9 +265,27 @@ fun RegisterScreen(
 
             RegisterStep.PASSWORD -> {
                 OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("用户名") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    enabled = !isLoading
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text("密码") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
@@ -213,7 +304,7 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    label = { Text("Confirm Password") },
+                    label = { Text("确认密码") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
@@ -264,12 +355,12 @@ fun RegisterScreen(
             }
             Text(
                 when {
-                    isLoading && step == RegisterStep.EMAIL -> "Sending..."
-                    isLoading && step == RegisterStep.VERIFICATION -> "Verifying..."
-                    isLoading -> "Creating account..."
-                    step == RegisterStep.EMAIL -> "Send Verification Code"
-                    step == RegisterStep.VERIFICATION -> "Verify"
-                    else -> "Create Account"
+                    isLoading && step == RegisterStep.EMAIL -> "正在发送..."
+                    isLoading && step == RegisterStep.VERIFICATION -> "正在验证..."
+                    isLoading -> "正在创建..."
+                    step == RegisterStep.EMAIL -> "发送验证邮件"
+                    step == RegisterStep.VERIFICATION -> "验证令牌"
+                    else -> "创建账号"
                 }
             )
         }
@@ -277,7 +368,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         TextButton(onClick = onNavigateToLogin) {
-            Text("Already have an account? Login")
+            Text("已有账号？去登录")
         }
     }
 }

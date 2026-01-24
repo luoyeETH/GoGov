@@ -21,7 +21,7 @@ class PomodoroViewModel(
     companion object {
         const val PAUSE_LIMIT_SECONDS = 5 * 60
         val BUILT_IN_SUBJECTS = listOf(
-            "Basics", "Politics", "Verbal", "Math", "Logic", "Data", "Professional", "Essay"
+            "常识", "政治理论", "言语理解", "数量关系", "判断推理", "资料分析", "专业知识", "申论"
         )
         val DURATION_PRESETS = listOf(5, 15, 25, 35, 45, 60)
     }
@@ -179,7 +179,7 @@ class PomodoroViewModel(
     fun startSession() {
         val current = _state.value
         if (current.subject.isBlank()) {
-            _message.value = "Please select a subject."
+            _message.value = "请选择学习科目。"
             return
         }
 

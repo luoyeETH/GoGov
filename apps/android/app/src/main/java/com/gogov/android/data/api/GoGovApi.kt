@@ -8,22 +8,25 @@ interface GoGovApi {
 
     // Auth
     @POST("auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
+    suspend fun login(@Body request: LoginRequest): Response<AuthSessionResponse>
+
+    @GET("auth/email/challenge")
+    suspend fun getEmailChallenge(): Response<EmailChallengeResponse>
 
     @POST("auth/email/register/request")
-    suspend fun requestEmailVerification(@Body request: EmailVerificationRequest): Response<EmailVerificationResponse>
+    suspend fun requestEmailVerification(@Body request: EmailRegisterRequest): Response<EmailRegisterResponse>
 
     @POST("auth/email/register/verify")
-    suspend fun verifyEmail(@Body request: Map<String, String>): Response<Map<String, String>>
+    suspend fun verifyEmail(@Body request: EmailVerifyRequest): Response<EmailVerifyResponse>
 
     @POST("auth/register/complete")
-    suspend fun completeRegistration(@Body request: RegisterRequest): Response<AuthResponse>
+    suspend fun completeRegistration(@Body request: RegisterCompleteRequest): Response<AuthSessionResponse>
 
     @GET("auth/me")
     suspend fun getMe(): Response<AuthMeResponse>
 
     @POST("auth/logout")
-    suspend fun logout(): Response<Map<String, String>>
+    suspend fun logout(): Response<LogoutResponse>
 
     @POST("profile")
     suspend fun updateProfile(@Body request: ProfileUpdateRequest): Response<ProfileUpdateResponse>
@@ -33,10 +36,10 @@ interface GoGovApi {
     suspend fun getSubjects(): Response<PomodoroSubjectsResponse>
 
     @POST("pomodoro/subjects")
-    suspend fun createSubject(@Body request: Map<String, String>): Response<PomodoroSubject>
+    suspend fun createSubject(@Body request: PomodoroSubjectCreateRequest): Response<PomodoroSubject>
 
     @DELETE("pomodoro/subjects/{id}")
-    suspend fun deleteSubject(@Path("id") id: String): Response<Map<String, String>>
+    suspend fun deleteSubject(@Path("id") id: String): Response<IdResponse>
 
     @POST("pomodoro/start")
     suspend fun startPomodoro(@Body request: PomodoroStartRequest): Response<PomodoroSession>
