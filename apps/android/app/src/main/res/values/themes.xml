@@ -9,7 +9,4 @@
         <item name="android:navigationBarColor">@color/surface</item>
     </style>
 
-    <style name="Theme.GoGov.TimePicker" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:timePickerMode">spinner</item>
-    </style>
 </resources>

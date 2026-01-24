@@ -437,12 +437,11 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                 List(leading) { null } + days
             val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
 
-            val columns = 7
-            val cellSpacing = 6.dp
+            val columns = 14
+            val cellSpacing = 4.dp
             val rows = cells.chunked(columns)
             BoxWithConstraints {
                 val cellSize = (maxWidth - cellSpacing * (columns - 1)) / columns
-                val dotSize = cellSize * 0.5f
                 Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
                     rows.forEach { row ->
                         Row(
@@ -450,20 +449,19 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                             horizontalArrangement = Arrangement.spacedBy(cellSpacing)
                         ) {
                             row.forEach { item ->
-                                Box(modifier = Modifier.size(cellSize)) {
-                                    if (item != null) {
-                                        val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
-                                        val color = MaterialTheme.colorScheme.primary.copy(
-                                            alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .size(dotSize)
-                                                .align(Alignment.Center)
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(color)
-                                        )
-                                    }
+                                if (item == null) {
+                                    Box(modifier = Modifier.size(cellSize))
+                                } else {
+                                    val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
+                                    val color = MaterialTheme.colorScheme.primary.copy(
+                                        alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(cellSize)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(color)
+                                    )
                                 }
                             }
                             if (row.size < columns) {

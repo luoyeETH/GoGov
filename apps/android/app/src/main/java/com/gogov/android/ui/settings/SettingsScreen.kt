@@ -3,8 +3,10 @@ package com.gogov.android.ui.settings
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
-import android.view.ContextThemeWrapper
-import android.widget.TimePicker
+import android.view.Gravity
+import android.widget.LinearLayout
+import android.widget.NumberPicker
+import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -292,20 +294,43 @@ fun SettingsScreen(
                     AndroidView(
                         modifier = Modifier.fillMaxWidth(),
                         factory = { ctx ->
-                            val themedContext = ContextThemeWrapper(ctx, com.gogov.android.R.style.Theme_GoGov_TimePicker)
-                            TimePicker(themedContext).apply {
-                                setIs24HourView(true)
-                                hour = reminderHour
-                                minute = reminderMinute
-                                setOnTimeChangedListener { _, newHour, newMinute ->
-                                    reminderHour = newHour
-                                    reminderMinute = newMinute
+                            val layout = LinearLayout(ctx).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.CENTER
+                            }
+                            val hourPicker = NumberPicker(ctx).apply {
+                                minValue = 0
+                                maxValue = 23
+                                value = reminderHour
+                                setFormatter { value -> String.format("%02d", value) }
+                                setOnValueChangedListener { _, _, newVal ->
+                                    reminderHour = newVal
                                 }
                             }
+                            val colon = TextView(ctx).apply {
+                                text = ":"
+                                textSize = 20f
+                                setPadding(8, 0, 8, 0)
+                            }
+                            val minutePicker = NumberPicker(ctx).apply {
+                                minValue = 0
+                                maxValue = 59
+                                value = reminderMinute
+                                setFormatter { value -> String.format("%02d", value) }
+                                setOnValueChangedListener { _, _, newVal ->
+                                    reminderMinute = newVal
+                                }
+                            }
+                            layout.addView(hourPicker)
+                            layout.addView(colon)
+                            layout.addView(minutePicker)
+                            layout
                         },
                         update = { view ->
-                            if (view.hour != reminderHour) view.hour = reminderHour
-                            if (view.minute != reminderMinute) view.minute = reminderMinute
+                            val hourPicker = view.getChildAt(0) as NumberPicker
+                            val minutePicker = view.getChildAt(2) as NumberPicker
+                            if (hourPicker.value != reminderHour) hourPicker.value = reminderHour
+                            if (minutePicker.value != reminderMinute) minutePicker.value = reminderMinute
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
