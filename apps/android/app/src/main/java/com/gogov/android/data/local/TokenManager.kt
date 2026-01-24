@@ -17,10 +17,15 @@ class TokenManager(private val context: Context) {
 
     companion object {
         private val TOKEN_KEY = stringPreferencesKey("session_token")
+        private val LAST_EMAIL_KEY = stringPreferencesKey("last_email")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[TOKEN_KEY]
+    }
+
+    val lastEmail: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[LAST_EMAIL_KEY]
     }
 
     fun getTokenSync(): String? {
@@ -32,6 +37,22 @@ class TokenManager(private val context: Context) {
     suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[TOKEN_KEY] = token
+        }
+    }
+
+    suspend fun saveLastEmail(email: String) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_EMAIL_KEY] = email
+        }
+    }
+
+    suspend fun getLastEmail(): String? {
+        return context.dataStore.data.first()[LAST_EMAIL_KEY]
+    }
+
+    suspend fun clearLastEmail() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(LAST_EMAIL_KEY)
         }
     }
 

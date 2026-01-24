@@ -14,7 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.gogov.android.data.repository.AuthRepository
-import com.gogov.android.ui.components.BrandTitle
+import com.gogov.android.ui.components.AuthBrand
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,6 +32,13 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
+    LaunchedEffect(Unit) {
+        val savedEmail = authRepository.getLastEmail()
+        if (!savedEmail.isNullOrBlank() && email.isBlank()) {
+            email = savedEmail
+        }
+    }
+
     fun performLogin() {
         if (email.isBlank() || password.isBlank()) {
             errorMessage = "请输入邮箱和密码。"
@@ -42,6 +49,7 @@ fun LoginScreen(
         errorMessage = null
 
         scope.launch {
+            authRepository.saveLastEmail(email.trim())
             val result = authRepository.login(email.trim(), password)
             isLoading = false
 
@@ -59,12 +67,12 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        BrandTitle(title = "学了么")
+        AuthBrand()
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "登录学了么账号",
+            text = "AI 驱动的公考学习与训练平台",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,7 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.gogov.android.R
 
 @Composable
 fun PageTitle(
@@ -70,9 +74,33 @@ fun BrandTitle(
         )
         Text(
             text = title,
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.displaySmall.copy(letterSpacing = 0.6.sp),
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
+    }
+}
+
+@Composable
+fun AuthBrand(
+    modifier: Modifier = Modifier,
+    showLogo: Boolean = true
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (showLogo) {
+            Image(
+                painter = painterResource(id = R.mipmap.ic_launcher),
+                contentDescription = "学了么",
+                modifier = Modifier
+                    .width(64.dp)
+                    .height(64.dp)
+                    .clip(RoundedCornerShape(16.dp))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+        BrandTitle(title = "学了么")
     }
 }

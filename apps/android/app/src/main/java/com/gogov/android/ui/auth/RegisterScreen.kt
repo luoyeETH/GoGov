@@ -14,7 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.gogov.android.data.repository.AuthRepository
-import com.gogov.android.ui.components.BrandTitle
+import com.gogov.android.ui.components.AuthBrand
 import kotlinx.coroutines.launch
 
 enum class RegisterStep {
@@ -163,7 +163,7 @@ fun RegisterScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        BrandTitle(title = "学了么")
+        AuthBrand()
 
         Spacer(modifier = Modifier.height(8.dp))
 

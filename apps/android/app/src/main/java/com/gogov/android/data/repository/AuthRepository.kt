@@ -16,6 +16,7 @@ class AuthRepository(private val tokenManager: TokenManager) {
     val isLoggedIn: Flow<Boolean> = tokenManager.token.map { it != null }
 
     val currentToken: Flow<String?> = tokenManager.token
+    val lastEmail: Flow<String?> = tokenManager.lastEmail
 
     private val gson = GsonBuilder()
         .setLenient()
@@ -48,6 +49,14 @@ class AuthRepository(private val tokenManager: TokenManager) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun saveLastEmail(email: String) {
+        tokenManager.saveLastEmail(email)
+    }
+
+    suspend fun getLastEmail(): String? {
+        return tokenManager.getLastEmail()
     }
 
     suspend fun getEmailChallenge(): Result<EmailChallengeResponse> {
