@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,13 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
+    val view = LocalView.current
+
+    DisposableEffect(state.status) {
+        val keepScreenOn = state.status == PomodoroStatus.RUNNING || state.status == PomodoroStatus.PAUSED
+        view.keepScreenOn = keepScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
 
     // Immersive timer dialog
     if (isImmersive) {
