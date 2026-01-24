@@ -82,4 +82,17 @@ interface GoGovApi {
         @Query("days") days: Int,
         @Query("date") date: String
     ): Call<DailyTaskHistoryResponse>
+
+    // Quick Practice
+    @GET("practice/quick/categories")
+    fun getQuickCategories(): Call<QuickPracticeCategoriesResponse>
+
+    @GET("practice/quick/batch")
+    fun getQuickBatch(
+        @Query("category") categoryId: String,
+        @Query("count") count: Int
+    ): Call<QuickPracticeBatchResponse>
+
+    @POST("practice/quick/session")
+    fun submitQuickSession(@Body request: QuickPracticeSessionRequest): Call<ResponseBody>
 }

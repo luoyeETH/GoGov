@@ -6,9 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -76,8 +74,8 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         // Header
         Text(
@@ -189,18 +187,28 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(120.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(allSubjects) { subject ->
-                        SubjectChip(
-                            subject = subject,
-                            isSelected = state.subject == subject,
-                            onClick = { viewModel.setSubject(subject) }
-                        )
+                val columns = 3
+                val subjectRows = allSubjects.chunked(columns)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    subjectRows.forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { subject ->
+                                SubjectChip(
+                                    subject = subject,
+                                    isSelected = state.subject == subject,
+                                    onClick = { viewModel.setSubject(subject) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (row.size < columns) {
+                                repeat(columns - row.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -410,28 +418,34 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
             val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
 
             val columns = 7
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columns),
-                modifier = Modifier.heightIn(min = 120.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(cells.size) { index ->
-                    val item = cells[index]
-                    if (item == null) {
-                        Box(modifier = Modifier.size(18.dp))
-                        return@items
+            val cellSize = 18.dp
+            val cellSpacing = 6.dp
+            val rows = cells.chunked(columns)
+            Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                rows.forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                        row.forEach { item ->
+                            if (item == null) {
+                                Box(modifier = Modifier.size(cellSize))
+                            } else {
+                                val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
+                                val color = MaterialTheme.colorScheme.primary.copy(
+                                    alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(cellSize)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(color)
+                                )
+                            }
+                        }
+                        if (row.size < columns) {
+                            repeat(columns - row.size) {
+                                Box(modifier = Modifier.size(cellSize))
+                            }
+                        }
                     }
-                    val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
-                    val color = MaterialTheme.colorScheme.primary.copy(
-                        alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(color)
-                    )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -527,6 +541,8 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
             val lineColor = MaterialTheme.colorScheme.primary
             val fillColor = lineColor.copy(alpha = 0.2f)
             val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+            val ringStrokeWidth = with(LocalDensity.current) { 1.dp.toPx() }
+            val pathStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
 
             Canvas(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)) {
                 val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
@@ -539,7 +555,7 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
                         color = gridColor,
                         radius = r,
                         center = center,
-                        style = Stroke(width = 1.dp.toPx())
+                        style = Stroke(width = ringStrokeWidth)
                     )
                 }
                 val points = selected.mapIndexed { index, item ->
@@ -555,7 +571,7 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
                     close()
                 }
                 drawPath(path, fillColor)
-                drawPath(path, lineColor, style = Stroke(width = 2.dp.toPx()))
+                drawPath(path, lineColor, style = Stroke(width = pathStrokeWidth))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -596,10 +612,11 @@ private fun subjectColor(subject: String): Color {
 private fun SubjectChip(
     subject: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(
                 if (isSelected) MaterialTheme.colorScheme.primary

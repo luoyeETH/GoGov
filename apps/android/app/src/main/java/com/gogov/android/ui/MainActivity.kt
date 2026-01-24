@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -27,12 +28,15 @@ import com.gogov.android.data.repository.AuthRepository
 import com.gogov.android.data.repository.ChatRepository
 import com.gogov.android.data.repository.DailyTaskRepository
 import com.gogov.android.data.repository.PomodoroRepository
+import com.gogov.android.data.repository.QuickPracticeRepository
 import com.gogov.android.ui.auth.LoginScreen
 import com.gogov.android.ui.auth.RegisterScreen
 import com.gogov.android.ui.chat.ChatScreen
 import com.gogov.android.ui.chat.ChatViewModel
 import com.gogov.android.ui.pomodoro.PomodoroScreen
 import com.gogov.android.ui.pomodoro.PomodoroViewModel
+import com.gogov.android.ui.quick.QuickPracticeScreen
+import com.gogov.android.ui.quick.QuickPracticeViewModel
 import com.gogov.android.ui.settings.SettingsScreen
 import com.gogov.android.ui.settings.SettingsViewModel
 import com.gogov.android.ui.tasks.DailyTasksScreen
@@ -42,6 +46,7 @@ import com.gogov.android.ui.theme.GoGovTheme
 sealed class Screen(val route: String, val label: String) {
     object Pomodoro : Screen("pomodoro", "番茄钟")
     object Tasks : Screen("tasks", "今日任务")
+    object QuickPractice : Screen("quick", "速算")
     object Chat : Screen("chat", "AI 对话")
     object Settings : Screen("settings", "设置")
     object Login : Screen("login", "登录")
@@ -51,6 +56,7 @@ sealed class Screen(val route: String, val label: String) {
 val bottomNavItems = listOf(
     Screen.Pomodoro to Icons.Default.Timer,
     Screen.Tasks to Icons.Default.CheckCircle,
+    Screen.QuickPractice to Icons.Default.Calculate,
     Screen.Chat to Icons.Default.Chat,
     Screen.Settings to Icons.Default.Person
 )
@@ -63,6 +69,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var pomodoroRepository: PomodoroRepository
     private lateinit var chatRepository: ChatRepository
     private lateinit var dailyTaskRepository: DailyTaskRepository
+    private lateinit var quickPracticeRepository: QuickPracticeRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +82,7 @@ class MainActivity : ComponentActivity() {
         pomodoroRepository = PomodoroRepository()
         chatRepository = ChatRepository()
         dailyTaskRepository = DailyTaskRepository()
+        quickPracticeRepository = QuickPracticeRepository()
 
         setContent {
             GoGovTheme {
@@ -99,6 +107,7 @@ class MainActivity : ComponentActivity() {
         val chatViewModel = remember { ChatViewModel(chatRepository) }
         val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository) }
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
+        val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
 
         LaunchedEffect(isLoggedIn) {
             if (isLoggedIn) {
@@ -181,6 +190,10 @@ class MainActivity : ComponentActivity() {
 
                 composable(Screen.Chat.route) {
                     ChatScreen(viewModel = chatViewModel)
+                }
+
+                composable(Screen.QuickPractice.route) {
+                    QuickPracticeScreen(viewModel = quickPracticeViewModel)
                 }
 
                 composable(Screen.Settings.route) {
