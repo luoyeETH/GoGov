@@ -114,26 +114,19 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatCard("次数", data.totals.sessions.toString())
-                StatCard("完成", data.totals.completed.toString())
-                StatCard("专注", DateUtils.formatMinutes(data.totals.focusMinutes))
+                StatCard("累计次数", data.totals.sessions.toString())
+                StatCard("累计完成", data.totals.completed.toString())
+                StatCard("累计学习", DateUtils.formatMinutes(data.totals.focusMinutes))
             }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        insights?.let { data ->
-            TodayDistributionCard(
-                days = data.heatmap.days,
-                today = DateUtils.getBeijingDateString()
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "统计周期：近12周",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
-            HeatmapCard(days = data.heatmap.days)
-            Spacer(modifier = Modifier.height(16.dp))
-            TimeBucketsCard(buckets = data.timeBuckets)
-            Spacer(modifier = Modifier.height(16.dp))
-            RadarCard(items = data.radar)
-            Spacer(modifier = Modifier.height(24.dp))
         }
 
         // Last result
@@ -317,6 +310,22 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        insights?.let { data ->
+            TodayDistributionCard(
+                days = data.heatmap.days,
+                today = DateUtils.getBeijingDateString()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            HeatmapCard(days = data.heatmap.days)
+            Spacer(modifier = Modifier.height(16.dp))
+            TimeBucketsCard(buckets = data.timeBuckets)
+            Spacer(modifier = Modifier.height(16.dp))
+            RadarCard(items = data.radar)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 

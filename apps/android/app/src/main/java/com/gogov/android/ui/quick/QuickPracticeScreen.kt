@@ -3,6 +3,8 @@ package com.gogov.android.ui.quick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -157,6 +159,7 @@ fun QuickPracticeScreen(viewModel: QuickPracticeViewModel) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeViewModel) {
     val groups = remember(state.categories) {
         state.categories.map { it.group ?: "其他" }.distinct()
@@ -194,8 +197,12 @@ private fun SetupSection(state: QuickPracticeUiState, viewModel: QuickPracticeVi
             Text("题型", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
             if (groupCategories.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(groupCategories) { category ->
+                FlowRow(
+                    maxItemsInEachRow = 3,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    groupCategories.forEach { category ->
                         FilterChip(
                             selected = category.id == state.selectedCategoryId,
                             onClick = { viewModel.selectCategory(category.id) },
@@ -369,7 +376,7 @@ private fun ResultSection(
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = onRestart, modifier = Modifier.fillMaxWidth()) {
-                Text("返回设置")
+                Text("返回重选题型")
             }
         }
     }
