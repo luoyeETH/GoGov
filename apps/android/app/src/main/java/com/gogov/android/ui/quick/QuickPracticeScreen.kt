@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gogov.android.domain.model.QuickPracticeCategory
 import com.gogov.android.domain.model.QuickPracticeQuestion
+import com.gogov.android.ui.components.PageTitle
 import kotlin.math.abs
 
 @Composable
@@ -78,15 +79,9 @@ fun QuickPracticeScreen(viewModel: QuickPracticeViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text(
-            text = "速算练习",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "资料分析速算 · 即刻开练",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        PageTitle(
+            title = "速算练习",
+            subtitle = "资料分析速算 · 即刻开练"
         )
 
         Spacer(modifier = Modifier.height(16.dp))

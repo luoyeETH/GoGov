@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.gogov.android.domain.model.TaskItem
+import com.gogov.android.ui.components.PageTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,11 +25,7 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "今日任务",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                PageTitle(title = "今日任务")
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

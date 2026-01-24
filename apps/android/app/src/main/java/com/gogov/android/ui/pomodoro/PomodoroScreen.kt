@@ -3,6 +3,7 @@ package com.gogov.android.ui.pomodoro
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.toArgb
+import com.gogov.android.ui.components.PageTitle
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
 import com.gogov.android.domain.model.PomodoroTimeBucket
@@ -95,15 +97,9 @@ fun PomodoroScreen(viewModel: PomodoroViewModel) {
             .verticalScroll(rememberScrollState())
     ) {
         // Header
-        Text(
-            text = "番茄钟",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "进入专注模式",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        PageTitle(
+            title = "番茄钟",
+            subtitle = "进入专注模式"
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -462,6 +458,15 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                 val cells: List<PomodoroHeatmapDay?> =
                     List(leading) { null } + days
                 val maxMinutes = days.maxOfOrNull { it.totalMinutes } ?: 0
+                val emptyColor = Color(0xFFFFFFFF)
+                val levelColors = listOf(
+                    Color(0xFFE8F5E9),
+                    Color(0xFFC8E6C9),
+                    Color(0xFF81C784),
+                    Color(0xFF43A047),
+                    Color(0xFF1B5E20)
+                )
+                val borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
 
                 val columns = 14
                 val cellSpacing = 4.dp
@@ -478,15 +483,25 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                                     if (item == null) {
                                         Box(modifier = Modifier.size(cellSize))
                                     } else {
-                                        val ratio = if (maxMinutes <= 0) 0f else item.totalMinutes.toFloat() / maxMinutes
-                                        val color = MaterialTheme.colorScheme.primary.copy(
-                                            alpha = 0.2f + 0.8f * ratio.coerceIn(0f, 1f)
-                                        )
+                                        val color = if (item.totalMinutes <= 0 || maxMinutes <= 0) {
+                                            emptyColor
+                                        } else {
+                                            val ratio = item.totalMinutes.toFloat() / maxMinutes.toFloat()
+                                            val index = when {
+                                                ratio <= 0.2f -> 0
+                                                ratio <= 0.4f -> 1
+                                                ratio <= 0.6f -> 2
+                                                ratio <= 0.8f -> 3
+                                                else -> 4
+                                            }
+                                            levelColors[index]
+                                        }
                                         Box(
                                             modifier = Modifier
                                                 .size(cellSize)
                                                 .clip(RoundedCornerShape(3.dp))
                                                 .background(color)
+                                                .border(1.dp, borderColor, RoundedCornerShape(3.dp))
                                         )
                                     }
                                 }
@@ -502,7 +517,7 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "颜色越深表示专注时长越高",
+                text = "白色表示未学习，绿色越深专注时长越高",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

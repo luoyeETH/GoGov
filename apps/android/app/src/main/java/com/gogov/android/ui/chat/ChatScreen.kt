@@ -15,14 +15,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.gogov.android.domain.model.ChatMessage
 import com.gogov.android.domain.model.ChatMode
+import com.gogov.android.ui.components.PageTitle
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.latex.LatexPlugin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,18 +50,12 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (state.mode == ChatMode.PLANNER)
+                PageTitle(
+                    title = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
+                    subtitle = if (state.mode == ChatMode.PLANNER)
                         "备考规划辅助 · 最近 30 天记忆"
                     else
-                        "快速答疑 · 不加载历史",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        "快速答疑 · 不加载历史"
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -278,6 +273,7 @@ private fun MarkdownText(
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
+            .usePlugin(LatexPlugin.create())
             .build()
     }
 
