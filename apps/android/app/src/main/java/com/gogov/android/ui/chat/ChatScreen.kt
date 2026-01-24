@@ -28,6 +28,7 @@ import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.latex.JLatexMathPlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -285,6 +286,7 @@ private fun MarkdownText(
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
             .usePlugin(JLatexMathPlugin.create(latexTextSizePx))
+            .usePlugin(MarkwonInlineParserPlugin.create())
             .build()
     }
 

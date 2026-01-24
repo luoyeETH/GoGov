@@ -130,6 +130,7 @@ dependencies {
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:ext-tables:4.6.2")
     implementation("io.noties.markwon:ext-latex:4.6.2")
+    implementation("io.noties.markwon:inline-parser:4.6.2")
     implementation("ru.noties:jlatexmath-android:0.2.0")
 
     // Testing
