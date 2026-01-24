@@ -23,7 +23,7 @@ import com.gogov.android.ui.components.PageTitle
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.ext.latex.LatexPlugin
+import io.noties.markwon.ext.latex.JLatexMathPlugin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -273,7 +273,7 @@ private fun MarkdownText(
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
-            .usePlugin(LatexPlugin.create())
+            .usePlugin(JLatexMathPlugin.create(context))
             .build()
     }
 
