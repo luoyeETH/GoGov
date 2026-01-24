@@ -4,6 +4,7 @@ import com.gogov.android.data.api.ApiClient
 import com.gogov.android.data.local.TokenManager
 import com.gogov.android.domain.model.*
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -32,15 +33,17 @@ class AuthRepository(private val tokenManager: TokenManager) {
                     return Result.failure(Exception("服务器未返回登录信息"))
                 }
                 val body = parseAuthSession(bodyText)
-                    ?: return Result.failure(Exception(parseError(bodyText)))
+                    ?: return Result.failure(
+                        Exception(extractErrorMessage(bodyText, response.code(), response.headers()["Content-Type"]))
+                    )
                 if (body.sessionToken.isBlank()) {
                     return Result.failure(Exception("登录失败"))
                 }
                 tokenManager.saveToken(body.sessionToken)
                 Result.success(body.toUser())
             } else {
-                val error = if (!errorText.isNullOrBlank()) errorText else bodyText ?: "登录失败"
-                Result.failure(Exception(parseError(error)))
+                val error = if (!errorText.isNullOrBlank()) errorText else bodyText
+                Result.failure(Exception(extractErrorMessage(error, response.code(), response.headers()["Content-Type"])))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -197,10 +200,43 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     private fun parseAuthSession(raw: String): AuthSessionResponse? {
         return try {
-            gson.fromJson(raw, AuthSessionResponse::class.java)
+            val trimmed = raw.trim()
+            val normalized = if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length >= 2) {
+                trimmed.substring(1, trimmed.length - 1)
+            } else {
+                trimmed
+            }
+            if (!normalized.trim().startsWith("{")) return null
+            gson.fromJson(normalized, AuthSessionResponse::class.java)
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun extractErrorMessage(raw: String?, statusCode: Int, contentType: String?): String {
+        val trimmed = raw?.trim().orEmpty()
+        if (trimmed.isBlank()) {
+            return "登录失败（HTTP $statusCode）"
+        }
+        if (trimmed.startsWith("<")) {
+            return "服务器返回非 JSON 响应（HTTP $statusCode）"
+        }
+        if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length >= 2) {
+            return trimmed.substring(1, trimmed.length - 1)
+        }
+        if (trimmed.startsWith("{")) {
+            try {
+                val json = JsonParser.parseString(trimmed).asJsonObject
+                val error = json.get("error")?.asString
+                if (!error.isNullOrBlank()) {
+                    return error
+                }
+            } catch (e: Exception) {
+                // fall through
+            }
+        }
+        val suffix = if (!contentType.isNullOrBlank()) "（$contentType）" else ""
+        return trimmed.take(200) + suffix
     }
 
     private fun parseError(errorBody: String): String {
