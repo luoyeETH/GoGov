@@ -931,12 +931,12 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
 
 private fun subjectColor(subject: String): Color {
     val palette = listOf(
-        Color(0xFFB5522B),
-        Color(0xFF6B8F4E),
-        Color(0xFF3B6C8E),
-        Color(0xFF9C6B2F),
-        Color(0xFF7A5C8E),
-        Color(0xFF2F8A7A)
+        Color(0xFF4C7EF3),
+        Color(0xFF44BBA4),
+        Color(0xFFF2C94C),
+        Color(0xFFEF6C57),
+        Color(0xFF9B51E0),
+        Color(0xFF2D9CDB)
     )
     val index = (subject.hashCode().absoluteValue % palette.size)
     return palette[index]
