@@ -43,6 +43,9 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     var notificationsEnabled by remember { mutableStateOf(false) }
+    var isEditingReminder by remember { mutableStateOf(false) }
+    var draftHour by remember { mutableStateOf(state.reminderHour) }
+    var draftMinute by remember { mutableStateOf(state.reminderMinute) }
     val reminderHour = state.reminderHour
     val reminderMinute = state.reminderMinute
 
@@ -67,6 +70,13 @@ fun SettingsScreen(
             DailyReminderWorker.schedule(context, reminderHour, reminderMinute)
         } else {
             DailyReminderWorker.cancel(context)
+            isEditingReminder = false
+        }
+    }
+    LaunchedEffect(reminderHour, reminderMinute, isEditingReminder) {
+        if (!isEditingReminder) {
+            draftHour = reminderHour
+            draftMinute = reminderMinute
         }
     }
 
@@ -419,64 +429,91 @@ fun SettingsScreen(
                 if (notificationsEnabled) {
                     Spacer(modifier = Modifier.height(12.dp))
                     val timeLabel = String.format("%02d:%02d", reminderHour, reminderMinute)
+                    val draftTimeLabel = String.format("%02d:%02d", draftHour, draftMinute)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("提醒时间")
-                        Text(
-                            text = timeLabel,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    AndroidView(
-                        modifier = Modifier.fillMaxWidth(),
-                        factory = { ctx ->
-                            val layout = LinearLayout(ctx).apply {
-                                orientation = LinearLayout.HORIZONTAL
-                                gravity = Gravity.CENTER
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = timeLabel,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = { isEditingReminder = !isEditingReminder }) {
+                                Text(if (isEditingReminder) "取消" else "编辑")
                             }
-                            val hourPicker = NumberPicker(ctx).apply {
-                                minValue = 0
-                                maxValue = 23
-                                value = reminderHour
-                                setFormatter { value -> String.format("%02d", value) }
-                                setOnValueChangedListener { _, _, newVal ->
-                                    viewModel.setReminderTime(newVal, reminderMinute)
-                                    viewModel.saveReminderTime()
-                                }
-                            }
-                            val colon = TextView(ctx).apply {
-                                text = ":"
-                                textSize = 20f
-                                setPadding(8, 0, 8, 0)
-                            }
-                            val minutePicker = NumberPicker(ctx).apply {
-                                minValue = 0
-                                maxValue = 59
-                                value = reminderMinute
-                                setFormatter { value -> String.format("%02d", value) }
-                                setOnValueChangedListener { _, _, newVal ->
-                                    viewModel.setReminderTime(reminderHour, newVal)
-                                    viewModel.saveReminderTime()
-                                }
-                            }
-                            layout.addView(hourPicker)
-                            layout.addView(colon)
-                            layout.addView(minutePicker)
-                            layout
-                        },
-                        update = { view ->
-                            val hourPicker = view.getChildAt(0) as NumberPicker
-                            val minutePicker = view.getChildAt(2) as NumberPicker
-                            if (hourPicker.value != reminderHour) hourPicker.value = reminderHour
-                            if (minutePicker.value != reminderMinute) minutePicker.value = reminderMinute
                         }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    if (isEditingReminder) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        AndroidView(
+                            modifier = Modifier.fillMaxWidth(),
+                            factory = { ctx ->
+                                val layout = LinearLayout(ctx).apply {
+                                    orientation = LinearLayout.HORIZONTAL
+                                    gravity = Gravity.CENTER
+                                }
+                                val hourPicker = NumberPicker(ctx).apply {
+                                    minValue = 0
+                                    maxValue = 23
+                                    value = draftHour
+                                    setFormatter { value -> String.format("%02d", value) }
+                                    setOnValueChangedListener { _, _, newVal ->
+                                        draftHour = newVal
+                                    }
+                                }
+                                val colon = TextView(ctx).apply {
+                                    text = ":"
+                                    textSize = 20f
+                                    setPadding(8, 0, 8, 0)
+                                }
+                                val minutePicker = NumberPicker(ctx).apply {
+                                    minValue = 0
+                                    maxValue = 59
+                                    value = draftMinute
+                                    setFormatter { value -> String.format("%02d", value) }
+                                    setOnValueChangedListener { _, _, newVal ->
+                                        draftMinute = newVal
+                                    }
+                                }
+                                layout.addView(hourPicker)
+                                layout.addView(colon)
+                                layout.addView(minutePicker)
+                                layout
+                            },
+                            update = { view ->
+                                val hourPicker = view.getChildAt(0) as NumberPicker
+                                val minutePicker = view.getChildAt(2) as NumberPicker
+                                if (hourPicker.value != draftHour) hourPicker.value = draftHour
+                                if (minutePicker.value != draftMinute) minutePicker.value = draftMinute
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text(
+                                text = "设置为 $draftTimeLabel",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = {
+                                    viewModel.setReminderTime(draftHour, draftMinute)
+                                    viewModel.saveReminderTime()
+                                    isEditingReminder = false
+                                }
+                            ) {
+                                Text("保存")
+                            }
+                        }
+                    }
                     Text(
                         text = "每天 $timeLabel 提醒你学习",
                         style = MaterialTheme.typography.bodySmall,
