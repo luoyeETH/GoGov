@@ -39,6 +39,21 @@ class MockRepository {
         }
     }
 
+    suspend fun deleteHistory(id: String): Result<Unit> {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                ApiClient.api.deleteMockReport(id).execute()
+            }
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(parseError(response.errorBody()?.string())))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun parseError(errorBody: String?): String {
         if (errorBody == null) return "未知错误"
         return try {

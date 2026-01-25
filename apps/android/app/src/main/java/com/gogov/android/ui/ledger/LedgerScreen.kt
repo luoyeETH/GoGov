@@ -1,5 +1,6 @@
 package com.gogov.android.ui.ledger
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gogov.android.domain.model.ExpenseParsedEntry
@@ -176,10 +178,7 @@ fun LedgerScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            overview.breakdown.take(5).forEach { item ->
-                                BreakdownRow(item)
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
+                            BreakdownSection(overview.breakdown)
                         }
                         if (overview.series.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
@@ -211,6 +210,88 @@ fun LedgerScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BreakdownSection(items: List<ExpenseBreakdownItem>) {
+    val colors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer
+    )
+    val sliceItems = items.take(6)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LedgerPieChart(sliceItems, colors)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            sliceItems.forEachIndexed { index, item ->
+                LegendRow(item, colors[index % colors.size])
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    sliceItems.take(5).forEach { item ->
+        BreakdownRow(item)
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun LedgerPieChart(items: List<ExpenseBreakdownItem>, colors: List<androidx.compose.ui.graphics.Color>) {
+    val total = items.sumOf { it.percent }
+    Canvas(modifier = Modifier.size(140.dp)) {
+        if (items.isEmpty() || total <= 0.0) {
+            drawArc(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = true
+            )
+            return@Canvas
+        }
+        var startAngle = -90f
+        items.forEachIndexed { index, item ->
+            val sweep = (item.percent / 100.0 * 360.0).toFloat().coerceAtLeast(0f)
+            if (sweep > 0f) {
+                drawArc(
+                    color = colors[index % colors.size],
+                    startAngle = startAngle,
+                    sweepAngle = sweep,
+                    useCenter = true,
+                    size = Size(size.width, size.height)
+                )
+            }
+            startAngle += sweep
+        }
+    }
+}
+
+@Composable
+private fun LegendRow(item: ExpenseBreakdownItem, color: androidx.compose.ui.graphics.Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Canvas(modifier = Modifier.size(10.dp)) {
+            drawCircle(color = color)
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = item.item, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "¥${item.amount} · ${item.percent}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

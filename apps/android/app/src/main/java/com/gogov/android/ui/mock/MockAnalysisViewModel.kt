@@ -38,7 +38,8 @@ data class MockAnalysisUiState(
     val error: String? = null,
     val result: MockAnalysisResponse? = null,
     val history: List<MockHistoryRecord> = emptyList(),
-    val isLoadingHistory: Boolean = false
+    val isLoadingHistory: Boolean = false,
+    val isDeletingHistory: Boolean = false
 )
 
 enum class MockInputMode {
@@ -67,6 +68,25 @@ class MockAnalysisViewModel(
                 },
                 onFailure = { error ->
                     _state.update { it.copy(error = error.message, isLoadingHistory = false) }
+                }
+            )
+        }
+    }
+
+    fun deleteHistory(id: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isDeletingHistory = true, error = null) }
+            repository.deleteHistory(id).fold(
+                onSuccess = {
+                    _state.update { state ->
+                        state.copy(
+                            history = state.history.filter { it.id != id },
+                            isDeletingHistory = false
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.update { it.copy(isDeletingHistory = false, error = error.message) }
                 }
             )
         }

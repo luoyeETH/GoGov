@@ -79,6 +79,9 @@ interface GoGovApi {
     @GET("mock/reports")
     fun getMockReports(@Query("limit") limit: Int = 20): Call<MockHistoryResponse>
 
+    @DELETE("mock/reports/{id}")
+    fun deleteMockReport(@Path("id") id: String): Call<ResponseBody>
+
     // Daily Tasks
     @GET("study-plan/daily")
     fun getDailyTask(@Query("date") date: String): Call<DailyTaskResponse>

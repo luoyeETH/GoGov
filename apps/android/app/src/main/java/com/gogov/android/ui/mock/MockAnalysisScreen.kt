@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -66,6 +68,7 @@ fun MockAnalysisScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(MockInputMode.IMAGE) }
+    var selectedHistory by remember { mutableStateOf<MockHistoryRecord?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadHistory()
@@ -89,6 +92,31 @@ fun MockAnalysisScreen(
                     viewModel.clearError()
                 }) {
                     Text("知道了")
+                }
+            }
+        )
+    }
+
+    selectedHistory?.let { item ->
+        AlertDialog(
+            onDismissRequest = { selectedHistory = null },
+            title = { Text(item.title) },
+            text = {
+                HistoryDetailContent(item)
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedHistory = null }) {
+                    Text("关闭")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteHistory(item.id)
+                        selectedHistory = null
+                    }
+                ) {
+                    Text("删除")
                 }
             }
         )
@@ -280,7 +308,10 @@ fun MockAnalysisScreen(
                     )
                 } else {
                     state.history.forEach { item ->
-                        HistoryCard(item)
+                        HistoryCard(
+                            item = item,
+                            onClick = { selectedHistory = item }
+                        )
                     }
                 }
             }
@@ -323,14 +354,18 @@ private fun ResultSection(result: MockAnalysisResponse) {
 }
 
 @Composable
-private fun HistoryCard(item: MockHistoryRecord) {
+private fun HistoryCard(item: MockHistoryRecord, onClick: () -> Unit) {
     val accuracyText = item.overallAccuracy?.let { String.format("%.1f%%", it * 100) } ?: "--"
     val timeText = item.timeTotalMinutes?.let { "${it.toInt()} 分钟" } ?: "--"
     val dateText = item.createdAt.takeIf { it.isNotBlank() }?.let {
         runCatching { OffsetDateTime.parse(it).toLocalDate().toString() }.getOrNull()
     } ?: item.createdAt
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = item.title,
@@ -357,6 +392,84 @@ private fun HistoryCard(item: MockHistoryRecord) {
                     text = summary,
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryDetailContent(item: MockHistoryRecord) {
+    val accuracyText = item.overallAccuracy?.let { String.format("%.1f%%", it * 100) } ?: "--"
+    val timeText = item.timeTotalMinutes?.let { "${it.toInt()} 分钟" } ?: "--"
+    val dateText = item.createdAt.takeIf { it.isNotBlank() }?.let {
+        runCatching { OffsetDateTime.parse(it).toLocalDate().toString() }.getOrNull()
+    } ?: item.createdAt
+    val summary = item.analysis?.summary?.takeIf { it.isNotBlank() }
+        ?: item.analysisRaw?.takeIf { it.isNotBlank() }?.take(180)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 420.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = "正确率：$accuracyText · 总耗时：$timeText",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (!dateText.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (!summary.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (item.metrics.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = "科目数据", style = MaterialTheme.typography.titleSmall)
+            Spacer(modifier = Modifier.height(6.dp))
+            item.metrics.forEach { metric ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = metric.subject ?: "-", style = MaterialTheme.typography.bodySmall)
+                    val correctText = metric.correct?.toString() ?: "-"
+                    val totalText = metric.total?.toString() ?: "-"
+                    val timeTextMetric = metric.timeMinutes?.let { "${it}m" } ?: "-"
+                    Text(
+                        text = "$correctText/$totalText · $timeTextMetric",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+        item.analysis?.details?.takeIf { it.isNotEmpty() }?.let { list ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = "关键发现", style = MaterialTheme.typography.titleSmall)
+            list.forEach { line ->
+                Text(text = "• $line", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        item.analysis?.practiceFocus?.takeIf { it.isNotEmpty() }?.let { list ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = "练习建议", style = MaterialTheme.typography.titleSmall)
+            list.forEach { line ->
+                Text(text = "• $line", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        item.analysis?.nextWeekPlan?.takeIf { it.isNotEmpty() }?.let { list ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = "下周安排", style = MaterialTheme.typography.titleSmall)
+            list.forEach { line ->
+                Text(text = "• $line", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
