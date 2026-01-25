@@ -31,7 +31,8 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
 
             repository.getHistory(_state.value.mode).fold(
                 onSuccess = { messages ->
-                    _state.update { it.copy(messages = messages, isLoading = false) }
+                    val ordered = normalizeMessages(messages)
+                    _state.update { it.copy(messages = ordered, isLoading = false) }
                 },
                 onFailure = { error ->
                     _state.update { it.copy(error = error.message, isLoading = false) }
@@ -84,8 +85,9 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
                 onSuccess = { newMessages ->
                     _state.update { state ->
                         val withoutPending = state.messages.filter { it.id != pendingMessage.id }
+                        val ordered = normalizeMessages(withoutPending + newMessages)
                         state.copy(
-                            messages = withoutPending + newMessages,
+                            messages = ordered,
                             isSending = false
                         )
                     }
@@ -109,5 +111,33 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
 
     fun clearError() {
         _state.update { it.copy(error = null) }
+    }
+
+    private data class SortableMessage(
+        val message: ChatMessage,
+        val timeMillis: Long?,
+        val index: Int
+    )
+
+    private fun normalizeMessages(messages: List<ChatMessage>): List<ChatMessage> {
+        if (messages.size <= 1) return messages
+        val sortable = messages.mapIndexed { index, message ->
+            SortableMessage(message, parseEpochMillis(message.createdAt), index)
+        }
+        val hasTime = sortable.any { it.timeMillis != null }
+        if (!hasTime) return messages
+        return sortable
+            .sortedWith(compareBy<SortableMessage> { it.timeMillis ?: Long.MAX_VALUE }
+                .thenBy { it.index })
+            .map { it.message }
+    }
+
+    private fun parseEpochMillis(value: String?): Long? {
+        if (value.isNullOrBlank()) return null
+        return try {
+            java.time.Instant.parse(value).toEpochMilli()
+        } catch (e: Exception) {
+            null
+        }
     }
 }
