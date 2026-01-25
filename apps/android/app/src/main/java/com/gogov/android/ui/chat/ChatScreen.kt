@@ -1,5 +1,8 @@
 package com.gogov.android.ui.chat
 
+import android.graphics.Color
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -30,6 +33,11 @@ import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+import org.json.JSONObject
+import kotlin.math.roundToInt
+
+private const val USE_WEB_KATEX = true
+private const val KATEX_VERSION = "0.16.9"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -262,10 +270,17 @@ private fun ChatBubble(
                     )
                 }
             } else {
-                MarkdownText(
-                    markdown = message.content,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (USE_WEB_KATEX) {
+                    KaTeXMarkdownText(
+                        markdown = message.content,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    MarkdownText(
+                        markdown = message.content,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -315,6 +330,122 @@ private fun MarkdownText(
             markwon.setMarkdown(textView, normalizedMarkdown)
         }
     )
+}
+
+@Composable
+private fun KaTeXMarkdownText(
+    markdown: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    val density = LocalDensity.current
+    val baseFontSize = MaterialTheme.typography.bodyMedium.fontSize
+    val textSizeSp = if (baseFontSize == TextUnit.Unspecified) 14f else baseFontSize.value
+    val textColor = String.format("#%06X", 0xFFFFFF and color.toArgb())
+    var contentHeightPx by remember { mutableStateOf(0) }
+
+    val html = remember(markdown, textColor, textSizeSp) {
+        buildKaTeXHtml(
+            markdown = markdown,
+            textColor = textColor,
+            textSizeSp = textSizeSp
+        )
+    }
+
+    val heightDp = with(density) {
+        if (contentHeightPx > 0) contentHeightPx.toDp() else 1.dp
+    }
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 1.dp)
+            .height(heightDp),
+        factory = { ctx ->
+            WebView(ctx).apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                isVerticalScrollBarEnabled = false
+                isHorizontalScrollBarEnabled = false
+                overScrollMode = WebView.OVER_SCROLL_NEVER
+                isNestedScrollingEnabled = false
+
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = false
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
+
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        view.evaluateJavascript("document.documentElement.scrollHeight") { value ->
+                            val height = value?.trim('"')?.toFloatOrNull()?.roundToInt() ?: 0
+                            if (height > 0) {
+                                contentHeightPx = height
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        update = { webView ->
+            webView.loadDataWithBaseURL(
+                "https://cdn.jsdelivr.net/",
+                html,
+                "text/html",
+                "UTF-8",
+                null
+            )
+        }
+    )
+}
+
+private fun buildKaTeXHtml(
+    markdown: String,
+    textColor: String,
+    textSizeSp: Float
+): String {
+    val escaped = JSONObject.quote(markdown)
+    return """
+        <!doctype html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.css">
+          <style>
+            :root { color-scheme: light only; }
+            html, body { margin: 0; padding: 0; background: transparent; }
+            body { font-size: ${textSizeSp}px; line-height: 1.5; color: $textColor; }
+            #content { word-wrap: break-word; }
+            p { margin: 0 0 0.6em 0; }
+            ul, ol { margin: 0 0 0.6em 1.2em; padding: 0; }
+            code { font-family: monospace; background: rgba(0,0,0,0.06); padding: 0 4px; border-radius: 4px; }
+            pre { background: rgba(0,0,0,0.06); padding: 8px; border-radius: 6px; overflow-x: auto; }
+            table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+            th, td { border: 1px solid rgba(0,0,0,0.12); padding: 6px; }
+            blockquote { margin: 0.6em 0; padding-left: 8px; border-left: 3px solid rgba(0,0,0,0.2); }
+          </style>
+        </head>
+        <body>
+          <div id="content"></div>
+          <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/contrib/auto-render.min.js"></script>
+          <script>
+            const raw = $escaped;
+            const html = marked.parse(raw, { breaks: true });
+            const container = document.getElementById('content');
+            container.innerHTML = html;
+            renderMathInElement(container, {
+              delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false},
+                {left: "\\\\(", right: "\\\\)", display: false},
+                {left: "\\\\[", right: "\\\\]", display: true}
+              ],
+              throwOnError: false
+            });
+          </script>
+        </body>
+        </html>
+    """.trimIndent()
 }
 
 private fun normalizeLatex(markdown: String): String {
