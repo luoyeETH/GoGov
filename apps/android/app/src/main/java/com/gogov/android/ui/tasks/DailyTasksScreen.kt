@@ -15,8 +15,12 @@ import com.gogov.android.ui.components.PageTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
+fun DailyTasksScreen(
+    viewModel: DailyTasksViewModel,
+    onNavigateToStudyPlan: () -> Unit
+) {
     val state by viewModel.state.collectAsState()
+    val showSetupPrompt = state.profileLoaded && !state.hasTargetExam
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Header
@@ -42,6 +46,30 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    }
+                }
+                if (state.greetingText != null && state.countdownText != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = state.greetingText,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = state.countdownText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -90,58 +118,92 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
                 }
             }
 
-            // Summary
-            state.taskRecord?.summary?.let { summary ->
+            if (showSetupPrompt) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
                         )
                     ) {
-                        Text(
-                            text = summary,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "请先完善备考档案",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "填写目标考试和时间后，我们将为你生成每日任务。",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(onClick = onNavigateToStudyPlan) {
+                                Text("前往设置")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Summary
+            if (!showSetupPrompt) {
+                state.taskRecord?.summary?.let { summary ->
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = summary,
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }
 
             // Tasks
-            state.taskRecord?.let { record ->
-                if (record.tasks.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "今日暂无任务，点击生成即可。",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (!showSetupPrompt) {
+                state.taskRecord?.let { record ->
+                    if (record.tasks.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "今日暂无任务，点击生成即可。",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(record.tasks, key = { it.id }) { task ->
+                            TaskCard(
+                                task = task,
+                                isBreakingDown = state.breakdownTaskId == task.id,
+                                onToggle = { viewModel.toggleTask(task.id) },
+                                onToggleSubtask = { subtaskId ->
+                                    viewModel.toggleSubtask(task.id, subtaskId)
+                                },
+                                onBreakdown = { viewModel.breakdownTask(task) }
                             )
                         }
-                    }
-                } else {
-                    items(record.tasks, key = { it.id }) { task ->
-                        TaskCard(
-                            task = task,
-                            isBreakingDown = state.breakdownTaskId == task.id,
-                            onToggle = { viewModel.toggleTask(task.id) },
-                            onToggleSubtask = { subtaskId ->
-                                viewModel.toggleSubtask(task.id, subtaskId)
-                            },
-                            onBreakdown = { viewModel.breakdownTask(task) }
-                        )
                     }
                 }
             }
 
             // Empty state
-            if (state.taskRecord == null && !state.isLoading) {
+            if (!showSetupPrompt && state.taskRecord == null && !state.isLoading) {
                 item {
                     Box(
                         modifier = Modifier
@@ -158,39 +220,43 @@ fun DailyTasksScreen(viewModel: DailyTasksViewModel) {
             }
 
             // Adjust note input
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = state.adjustNote,
-                    onValueChange = { viewModel.setAdjustNote(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("调整说明") },
-                    placeholder = { Text("例如：今天只有 1 小时") },
-                    minLines = 2,
-                    maxLines = 4
-                )
+            if (!showSetupPrompt) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.adjustNote,
+                        onValueChange = { viewModel.setAdjustNote(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("调整说明") },
+                        placeholder = { Text("例如：今天只有 1 小时") },
+                        minLines = 2,
+                        maxLines = 4
+                    )
+                }
             }
 
             // Generate button
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = { viewModel.generateTasks(auto = false) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isGenerating && !state.isLoading
-                ) {
-                    if (state.isGenerating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("正在生成...")
-                    } else {
-                        Text(
-                            if (state.taskRecord != null) "调整任务" else "生成任务"
-                        )
+            if (!showSetupPrompt) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.generateTasks(auto = false) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isGenerating && !state.isLoading
+                    ) {
+                        if (state.isGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("正在生成...")
+                        } else {
+                            Text(
+                                if (state.taskRecord != null) "调整任务" else "生成任务"
+                            )
+                        }
                     }
                 }
             }

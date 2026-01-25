@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
             )
         }
         val chatViewModel = remember { ChatViewModel(chatRepository) }
-        val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository) }
+        val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository, authRepository) }
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
         val studyPlanViewModel = remember { StudyPlanViewModel(authRepository) }
         val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
@@ -244,7 +244,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable(Screen.Tasks.route) {
-                    DailyTasksScreen(viewModel = dailyTasksViewModel)
+                    DailyTasksScreen(
+                        viewModel = dailyTasksViewModel,
+                        onNavigateToStudyPlan = {
+                            navController.navigate(Screen.StudyPlan.route)
+                        }
+                    )
                 }
 
                 composable(Screen.Chat.route) {
