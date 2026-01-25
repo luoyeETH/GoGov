@@ -248,10 +248,11 @@ private fun BreakdownSection(items: List<ExpenseBreakdownItem>) {
 @Composable
 private fun LedgerPieChart(items: List<ExpenseBreakdownItem>, colors: List<androidx.compose.ui.graphics.Color>) {
     val total = items.sumOf { it.percent }
+    val emptyColor = MaterialTheme.colorScheme.surfaceVariant
     Canvas(modifier = Modifier.size(140.dp)) {
         if (items.isEmpty() || total <= 0.0) {
             drawArc(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = emptyColor,
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = true
