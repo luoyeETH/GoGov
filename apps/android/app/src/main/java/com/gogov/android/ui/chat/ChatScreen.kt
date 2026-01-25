@@ -1,7 +1,6 @@
 package com.gogov.android.ui.chat
 
 import android.graphics.Color
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
@@ -338,19 +337,18 @@ private fun KaTeXMarkdownText(
     markdown: String,
     color: androidx.compose.ui.graphics.Color
 ) {
-    val density = LocalDensity.current
     val baseFontSize = MaterialTheme.typography.bodyMedium.fontSize
     val textSizeSp = if (baseFontSize == TextUnit.Unspecified) 14f else baseFontSize.value
     val textColor = String.format("#%06X", 0xFFFFFF and color.toArgb())
-    var contentHeightPx by remember(markdown) { mutableStateOf(0) }
+    var contentHeightDp by remember(markdown) { mutableStateOf(0) }
 
     val normalizedMarkdown = remember(markdown) {
         normalizeLatex(markdown)
     }
 
-    val onHeightChange by rememberUpdatedState { heightPx: Int ->
-        if (heightPx > 0 && heightPx != contentHeightPx) {
-            contentHeightPx = heightPx
+    val onHeightChange by rememberUpdatedState { heightDp: Int ->
+        if (heightDp > 0 && heightDp != contentHeightDp) {
+            contentHeightDp = heightDp
         }
     }
 
@@ -362,9 +360,7 @@ private fun KaTeXMarkdownText(
         )
     }
 
-    val heightDp = with(density) {
-        if (contentHeightPx > 0) contentHeightPx.toDp() else 1.dp
-    }
+    val heightDp = if (contentHeightDp > 0) contentHeightDp.dp else 1.dp
 
     AndroidView(
         modifier = Modifier
@@ -412,11 +408,9 @@ private fun KaTeXMarkdownText(
 private class KaTeXHeightBridge(
     private val onHeightChange: (Int) -> Unit
 ) {
-    @JavascriptInterface
-    fun reportHeight(height: Float, devicePixelRatio: Float) {
-        val dpr = if (devicePixelRatio > 0f) devicePixelRatio else 1f
-        val px = (height * dpr).roundToInt()
-        onHeightChange(px)
+    @android.webkit.JavascriptInterface
+    fun reportHeight(height: Float) {
+        onHeightChange(height.roundToInt())
     }
 }
 
@@ -477,13 +471,12 @@ private fun buildKaTeXHtml(
             }
 
             function reportHeight() {
-              const height = Math.max(
-                document.documentElement.scrollHeight || 0,
-                document.body ? document.body.scrollHeight : 0
-              );
-              const dpr = window.devicePixelRatio || 1;
+              const content = document.getElementById('content');
+              const rectHeight = content ? content.getBoundingClientRect().height : 0;
+              const scrollHeight = content ? content.scrollHeight : 0;
+              const height = Math.max(rectHeight, scrollHeight, 1);
               if (window.AndroidHeight && window.AndroidHeight.reportHeight) {
-                window.AndroidHeight.reportHeight(height, dpr);
+                window.AndroidHeight.reportHeight(height);
               }
             }
 
