@@ -44,11 +44,19 @@ private const val KATEX_ASSET_BASE_URL = "file:///android_asset/katex/"
 fun ChatScreen(viewModel: ChatViewModel) {
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
-
-    val totalItems = state.messages.size + if (state.isSending) 1 else 0
-    LaunchedEffect(totalItems) {
-        if (totalItems > 0) {
-            listState.scrollToItem(totalItems - 1)
+    val displayMessages = remember(state.messages, state.isSending) {
+        buildList {
+            if (state.isSending) {
+                add(
+                    ChatMessage(
+                        id = "thinking",
+                        role = "assistant",
+                        content = "思考中...",
+                        createdAt = ""
+                    )
+                )
+            }
+            addAll(state.messages.asReversed())
         }
     }
 
@@ -101,6 +109,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
+            reverseLayout = true,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
@@ -132,22 +141,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 }
             }
 
-            items(state.messages) { message ->
-                ChatBubble(message = message)
-            }
-
-            if (state.isSending) {
-                item {
-                    ChatBubble(
-                        message = ChatMessage(
-                            id = "thinking",
-                            role = "assistant",
-                            content = "思考中...",
-                            createdAt = ""
-                        ),
-                        isPending = true
-                    )
-                }
+            items(displayMessages, key = { it.id }) { message ->
+                ChatBubble(
+                    message = message,
+                    isPending = message.id == "thinking"
+                )
             }
         }
 
