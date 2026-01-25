@@ -901,7 +901,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted);
+  color: #3ddc84;
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
@@ -923,7 +923,7 @@ button {
 }
 
 .footer-android:hover {
-  color: var(--brand-dark);
+  color: #2bbf6f;
   transform: translateY(-1px);
 }
 

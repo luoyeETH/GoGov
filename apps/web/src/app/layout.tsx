@@ -137,7 +137,7 @@ export default function RootLayout({
                     </a>
                     <a
                       className="footer-android"
-                      href="https://github.com/luoyeETH/GoGov/releases/download/v1.0.1/gogov.apk"
+                      href="https://github.com/luoyeETH/GoGov/releases/latest/download/gogov.apk"
                       target="_blank"
                       rel="noreferrer"
                       aria-label="下载安卓客户端"
@@ -149,7 +149,7 @@ export default function RootLayout({
                         focusable="false"
                       >
                         <path
-                          d="M16.42 9.48l1.45-2.5a.5.5 0 0 0-.87-.5l-1.46 2.5a6.3 6.3 0 0 0-2.54-.52c-.9 0-1.74.18-2.54.52l-1.46-2.5a.5.5 0 1 0-.87.5l1.45 2.5A5.97 5.97 0 0 0 6 14v5a1 1 0 0 0 1 1h1v2a1 1 0 0 0 2 0v-2h4v2a1 1 0 0 0 2 0v-2h1a1 1 0 0 0 1-1v-5c0-1.77-.77-3.36-1.58-4.52ZM9 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"
+                          d="M17.6 9.48l1.44-2.49c.04-.07.06-.14.06-.22a.48.48 0 0 0-.48-.48c-.17 0-.34.09-.42.25l-1.44 2.49A6.69 6.69 0 0 0 13 8.5c-.99 0-1.93.2-2.74.57L8.82 6.58A.48.48 0 0 0 8.4 6.33c-.27 0-.48.21-.48.48 0 .08.02.15.06.22l1.44 2.49A6.003 6.003 0 0 0 6 14v5c0 .83.67 1.5 1.5 1.5H9V23h2v-2.5h4V23h2v-2.5h1.5c.83 0 1.5-.67 1.5-1.5v-5c0-1.93-.86-3.66-2.2-4.52zM9 12.5c-.83 0-1.5-.67-1.5-1.5S8.17 9.5 9 9.5s1.5.67 1.5 1.5S9.83 12.5 9 12.5zm6 0c-.83 0-1.5-.67-1.5-1.5S14.17 9.5 15 9.5s1.5.67 1.5 1.5-0.67 1.5-1.5 1.5z"
                         />
                       </svg>
                     </a>
