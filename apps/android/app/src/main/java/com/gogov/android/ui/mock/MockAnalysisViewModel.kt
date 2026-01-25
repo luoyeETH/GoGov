@@ -50,7 +50,12 @@ class MockAnalysisViewModel(
     private val repository: MockRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(MockAnalysisUiState())
+    private val _state = MutableStateFlow(
+        MockAnalysisUiState(
+            title = getDefaultMockTitles().provincial,
+            metrics = defaultSubjects.map { MockMetricDraft(subject = it) }
+        )
+    )
     val state: StateFlow<MockAnalysisUiState> = _state.asStateFlow()
 
     fun loadHistory() {
@@ -129,7 +134,7 @@ class MockAnalysisViewModel(
             val subject = draft.subject.trim().takeIf { it.isNotBlank() }
             val correct = draft.correct.toIntOrNull()
             val total = draft.total.toIntOrNull()
-            val timeMinutes = draft.timeMinutes.toIntOrNull()
+            val timeMinutes = draft.timeMinutes.toDoubleOrNull()
             if (subject == null && correct == null && total == null && timeMinutes == null) {
                 null
             } else {
@@ -210,5 +215,53 @@ class MockAnalysisViewModel(
 
         val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         return "data:image/jpeg;base64,$base64"
+    }
+
+    private data class DefaultMockTitles(
+        val provincial: String,
+        val national: String
+    )
+
+    private fun getDefaultMockTitles(): DefaultMockTitles {
+        val now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Shanghai"))
+        val weekStart = now.toLocalDate().with(java.time.DayOfWeek.MONDAY)
+        val base = java.time.LocalDate.parse("2025-12-21")
+        val daysDiff = java.time.temporal.ChronoUnit.DAYS.between(base, weekStart)
+        val diffWeeks = Math.floorDiv(daysDiff, 7)
+        val examYear = if (now.monthValue == 12) now.year + 1 else now.year
+        val nationalRawSeason = baseNationalSeasonIndex - 1 + diffWeeks
+        val nationalSeasonIndex = ((nationalRawSeason % 4 + 4) % 4).toInt()
+        val provincialSeasonNumber = kotlin.math.max(1, baseProvincialSeasonNumber + diffWeeks.toInt())
+        return DefaultMockTitles(
+            national = "${examYear}粉笔模考（国考）第${seasons[nationalSeasonIndex]}季",
+            provincial = "${examYear}粉笔模考（省考）第${formatChineseNumber(provincialSeasonNumber)}季"
+        )
+    }
+
+    private fun formatChineseNumber(value: Int): String {
+        val digits = listOf("零", "一", "二", "三", "四", "五", "六", "七", "八", "九")
+        if (value <= 10) {
+            return if (value == 10) "十" else digits.getOrElse(value) { "一" }
+        }
+        if (value < 20) {
+            return "十${digits.getOrElse(value % 10) { "" }}"
+        }
+        val tens = value / 10
+        val ones = value % 10
+        return "${digits.getOrElse(tens) { "" }}十${if (ones == 0) "" else digits.getOrElse(ones) { "" }}"
+    }
+
+    companion object {
+        private val defaultSubjects = listOf(
+            "政治理论",
+            "常识",
+            "言语理解",
+            "数量关系",
+            "判断推理",
+            "资料分析"
+        )
+        private const val baseNationalSeasonIndex = 3
+        private const val baseProvincialSeasonNumber = 4
+        private val seasons = listOf("一", "二", "三", "四")
     }
 }

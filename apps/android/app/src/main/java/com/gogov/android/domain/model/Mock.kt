@@ -4,7 +4,7 @@ data class MockMetricInput(
     val subject: String? = null,
     val correct: Int? = null,
     val total: Int? = null,
-    val timeMinutes: Int? = null
+    val timeMinutes: Double? = null
 )
 
 data class MockAnalysisRequest(

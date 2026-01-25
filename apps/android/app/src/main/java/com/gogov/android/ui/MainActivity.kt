@@ -256,10 +256,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable(Screen.Pomodoro.route) {
-                    PomodoroScreen(
-                        viewModel = pomodoroViewModel,
-                        onOpenMore = { navController.navigate(Screen.More.route) }
-                    )
+                    PomodoroScreen(viewModel = pomodoroViewModel)
                 }
 
                 composable(Screen.Tasks.route) {

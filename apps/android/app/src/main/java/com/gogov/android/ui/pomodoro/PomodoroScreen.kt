@@ -29,8 +29,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
 import com.gogov.android.ui.components.PageTitle
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
@@ -52,8 +50,7 @@ import kotlin.math.sin
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PomodoroScreen(
-    viewModel: PomodoroViewModel,
-    onOpenMore: () -> Unit
+    viewModel: PomodoroViewModel
 ) {
     val state by viewModel.state.collectAsState()
     val customSubjects by viewModel.customSubjects.collectAsState()
@@ -102,15 +99,6 @@ fun PomodoroScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onOpenMore) {
-                Icon(Icons.Default.Menu, contentDescription = "更多功能")
-            }
-        }
-
         // Header
         PageTitle(
             title = "番茄钟",

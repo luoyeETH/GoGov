@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
@@ -176,28 +175,14 @@ fun MockAnalysisScreen(
                         state.metrics.forEachIndexed { index, metric ->
                             Card(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "科目 ${index + 1}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        if (state.metrics.size > 1) {
-                                            IconButton(onClick = { viewModel.removeMetricRow(index) }) {
-                                                Icon(Icons.Default.Close, contentDescription = "删除")
-                                            }
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     OutlinedTextField(
                                         value = metric.subject,
                                         onValueChange = { value ->
                                             viewModel.updateMetric(index) { it.copy(subject = value) }
                                         },
                                         label = { Text("科目") },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -226,18 +211,18 @@ fun MockAnalysisScreen(
                                             },
                                             label = { Text("耗时(分)") },
                                             modifier = Modifier.weight(1f),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                                         )
                                     }
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                         }
-                        OutlinedButton(onClick = { viewModel.addMetricRow() }) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("添加科目")
-                        }
+                        Text(
+                            text = "只填写正确与总题即可，时间可选填。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
