@@ -318,11 +318,10 @@ private fun MarkdownText(
 }
 
 private fun normalizeLatex(markdown: String): String {
-    val escapedInlineDelimiter = Regex.escape("\\$")
-    val inlineDelimiter = Regex.escape("\$")
-    val blockDelimiter = Regex.escape("\$\$")
-
     var output = markdown
+
+    // Collapse double-escaped backslashes from JSON/LLM output (e.g., "\\le" -> "\le").
+    output = output.replace(Regex("""\\+(?=\S)"""), "\\")
 
     val inlineParenRegex = Regex("""\\\(\s*([\s\S]+?)\s*\\\)""")
     output = inlineParenRegex.replace(output) { match ->
@@ -334,19 +333,17 @@ private fun normalizeLatex(markdown: String): String {
         "${'$'}${'$'}${match.groupValues[1].trim()}${'$'}${'$'}"
     }
 
-    val escapedInlineRegex =
-        Regex("$escapedInlineDelimiter\\s*([^\\$\\n]+?)\\s*$escapedInlineDelimiter")
+    val escapedInlineRegex = Regex("""\\\$\s*([^$\n]+?)\s*\\\$""")
     output = escapedInlineRegex.replace(output) { match ->
         "${'$'}${match.groupValues[1].trim()}${'$'}"
     }
 
-    val blockRegex = Regex("$blockDelimiter\\s*([\\s\\S]+?)\\s*$blockDelimiter")
+    val blockRegex = Regex("""\$\$\s*([\s\S]+?)\s*\$\$""")
     output = blockRegex.replace(output) { match ->
         "${'$'}${'$'}${match.groupValues[1].trim()}${'$'}${'$'}"
     }
 
-    val inlineRegex =
-        Regex("(?<!\\$)$inlineDelimiter\\s*([^\\$\\n]+?)\\s*$inlineDelimiter(?!\\$)")
+    val inlineRegex = Regex("""(?<!\$)\$\s*([^$\n]+?)\s*\$(?!\$)""")
     output = inlineRegex.replace(output) { match ->
         "${'$'}${match.groupValues[1].trim()}${'$'}"
     }
