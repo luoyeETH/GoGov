@@ -1,6 +1,7 @@
 package com.gogov.android.data.api
 
 import com.gogov.android.domain.model.*
+import com.google.gson.JsonObject
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.*
@@ -30,7 +31,7 @@ interface GoGovApi {
     fun logout(): Call<LogoutResponse>
 
     @POST("profile")
-    fun updateProfile(@Body request: ProfileUpdateRequest): Call<ProfileUpdateResponse>
+    fun updateProfile(@Body request: JsonObject): Call<ProfileUpdateResponse>
 
     @POST("auth/password/update")
     fun updatePassword(@Body request: PasswordUpdateRequest): Call<PasswordUpdateResponse>

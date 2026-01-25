@@ -168,8 +168,9 @@ class AuthRepository(private val tokenManager: TokenManager) {
 
     suspend fun updateProfile(request: ProfileUpdateRequest): Result<User> {
         return try {
+            val payload = buildProfilePayload(request)
             val response = withContext(Dispatchers.IO) {
-                ApiClient.api.updateProfile(request).execute()
+                ApiClient.api.updateProfile(payload).execute()
             }
             if (response.isSuccessful) {
                 Result.success(response.body()!!.user)
@@ -180,6 +181,21 @@ class AuthRepository(private val tokenManager: TokenManager) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun buildProfilePayload(request: ProfileUpdateRequest): JsonObject {
+        val json = JsonObject()
+        request.username?.let { json.addProperty("username", it) }
+        request.gender?.let { json.addProperty("gender", it) }
+        request.age?.let { json.addProperty("age", it) }
+        request.examStartDate?.let { json.addProperty("examStartDate", it) }
+        request.aiProvider?.let { json.addProperty("aiProvider", it) }
+        request.aiModel?.let { json.addProperty("aiModel", it) }
+        request.aiBaseUrl?.let { json.addProperty("aiBaseUrl", it) }
+        request.aiApiKey?.let { json.addProperty("aiApiKey", it) }
+        request.reminderHour?.let { json.addProperty("reminderHour", it) }
+        request.reminderMinute?.let { json.addProperty("reminderMinute", it) }
+        return json
     }
 
     suspend fun updatePassword(oldPassword: String, newPassword: String): Result<Unit> {
