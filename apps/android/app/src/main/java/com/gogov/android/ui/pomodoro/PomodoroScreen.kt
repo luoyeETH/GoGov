@@ -35,6 +35,7 @@ import com.gogov.android.domain.model.PomodoroStatus
 import com.gogov.android.domain.model.PomodoroTimeBucket
 import com.gogov.android.domain.model.PomodoroRadarItem
 import com.gogov.android.domain.model.PomodoroHeatmapDay
+import com.gogov.android.domain.model.PomodoroTotals
 import com.gogov.android.util.DateUtils
 import android.graphics.Paint
 import java.time.LocalDate
@@ -45,6 +46,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,22 +111,7 @@ fun PomodoroScreen(
 
         // Stats summary
         insights?.let { data ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatCard("累计次数", data.totals.sessions.toString())
-                StatCard("累计完成", data.totals.completed.toString())
-                StatCard("累计学习", DateUtils.formatMinutes(data.totals.focusMinutes))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "统计周期：近12周",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            OverviewCard(totals = data.totals)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -349,8 +336,58 @@ fun PomodoroScreen(
 }
 
 @Composable
-private fun StatCard(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun OverviewCard(totals: PomodoroTotals) {
+    val completionRate = if (totals.sessions > 0) {
+        totals.completed.toFloat() / totals.sessions.toFloat()
+    } else 0f
+    val completionText = if (totals.sessions > 0) {
+        "${(completionRate * 100).roundToInt()}%"
+    } else "--"
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "学习概览",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "近12周",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                MetricCell("累计学习", DateUtils.formatMinutes(totals.focusMinutes))
+                MetricCell("完成率", completionText)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                MetricCell("累计次数", totals.sessions.toString())
+                MetricCell("累计完成", totals.completed.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricCell(label: String, value: String) {
+    Column {
         Text(
             text = value,
             style = MaterialTheme.typography.titleLarge,
@@ -390,6 +427,9 @@ private fun TodayDistributionCard(days: List<PomodoroHeatmapDay>, today: String)
                 val topItems = totals.entries
                     .sortedByDescending { it.value }
                     .take(6)
+
+                DistributionSummary(topItems = topItems, totalMinutes = totalMinutes)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 topItems.forEach { entry ->
                     val ratio = entry.value.toFloat() / max(1, totalMinutes).toFloat()
@@ -438,6 +478,92 @@ private fun TodayDistributionCard(days: List<PomodoroHeatmapDay>, today: String)
 }
 
 @Composable
+private fun DistributionSummary(
+    topItems: List<Map.Entry<String, Int>>,
+    totalMinutes: Int
+) {
+    val topSubject = topItems.firstOrNull()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        DistributionPieChart(items = topItems, totalMinutes = totalMinutes)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "今日总计",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${totalMinutes} 分钟",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            topSubject?.let {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "最高占比 · ${it.key} ${it.value} 分钟",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DistributionPieChart(
+    items: List<Map.Entry<String, Int>>,
+    totalMinutes: Int
+) {
+    val safeTotal = max(1, totalMinutes)
+    val emptyColor = MaterialTheme.colorScheme.surfaceVariant
+    Box(
+        modifier = Modifier.size(120.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            if (items.isEmpty()) {
+                drawArc(
+                    color = emptyColor,
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = true
+                )
+                return@Canvas
+            }
+            var startAngle = -90f
+            items.forEach { entry ->
+                val sweep = entry.value.toFloat() / safeTotal.toFloat() * 360f
+                if (sweep > 0f) {
+                    drawArc(
+                        color = subjectColor(entry.key),
+                        startAngle = startAngle,
+                        sweepAngle = sweep,
+                        useCenter = true,
+                        size = androidx.compose.ui.geometry.Size(size.width, size.height)
+                    )
+                }
+                startAngle += sweep
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "今日",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${totalMinutes}m",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
 private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
     val formatter = remember { DateTimeFormatter.ISO_DATE }
     var selectedDay by remember { mutableStateOf<PomodoroHeatmapDay?>(null) }
@@ -447,6 +573,12 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                 text = "学习热力图",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = buildStreakMessage(days),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -561,6 +693,42 @@ private fun HeatmapCard(days: List<PomodoroHeatmapDay>) {
                 }
             }
         )
+    }
+}
+
+private fun buildStreakMessage(days: List<PomodoroHeatmapDay>): String {
+    val today = runCatching {
+        LocalDate.parse(DateUtils.getBeijingDateString(), DateTimeFormatter.ISO_DATE)
+    }.getOrNull() ?: return "继续坚持，每一次专注都会被记录。"
+    val activeDates = days
+        .filter { it.totalMinutes > 0 }
+        .mapNotNull { day ->
+            runCatching { LocalDate.parse(day.date, DateTimeFormatter.ISO_DATE) }.getOrNull()
+        }
+        .sorted()
+
+    if (activeDates.isEmpty()) {
+        return "还没有连续学习记录，今天开始吧。"
+    }
+
+    val latestActive = activeDates.last()
+    var streak = 0
+    var cursor = latestActive
+    val activeSet = activeDates.toSet()
+    while (activeSet.contains(cursor)) {
+        streak += 1
+        cursor = cursor.minusDays(1)
+    }
+
+    return if (latestActive == today) {
+        "你已连续学习${streak}天，保持这个节奏。"
+    } else {
+        val gap = ChronoUnit.DAYS.between(latestActive, today).toInt()
+        if (gap <= 0) {
+            "继续坚持，下一次专注就能点亮今日。"
+        } else {
+            "上次连续学习${streak}天，已间隔${gap}天，今天继续吧。"
+        }
     }
 }
 
