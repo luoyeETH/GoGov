@@ -355,7 +355,7 @@ private fun ResultSection(result: MockAnalysisResponse) {
 
 @Composable
 private fun HistoryCard(item: MockHistoryRecord, onClick: () -> Unit) {
-    val accuracyText = item.overallAccuracy?.let { String.format("%.1f%%", it * 100) } ?: "--"
+    val accuracyText = formatAccuracy(item.overallAccuracy)
     val timeText = item.timeTotalMinutes?.let { "${it.toInt()} 分钟" } ?: "--"
     val dateText = item.createdAt.takeIf { it.isNotBlank() }?.let {
         runCatching { OffsetDateTime.parse(it).toLocalDate().toString() }.getOrNull()
@@ -399,7 +399,7 @@ private fun HistoryCard(item: MockHistoryRecord, onClick: () -> Unit) {
 
 @Composable
 private fun HistoryDetailContent(item: MockHistoryRecord) {
-    val accuracyText = item.overallAccuracy?.let { String.format("%.1f%%", it * 100) } ?: "--"
+    val accuracyText = formatAccuracy(item.overallAccuracy)
     val timeText = item.timeTotalMinutes?.let { "${it.toInt()} 分钟" } ?: "--"
     val dateText = item.createdAt.takeIf { it.isNotBlank() }?.let {
         runCatching { OffsetDateTime.parse(it).toLocalDate().toString() }.getOrNull()
@@ -473,4 +473,10 @@ private fun HistoryDetailContent(item: MockHistoryRecord) {
             }
         }
     }
+}
+
+private fun formatAccuracy(value: Double?): String {
+    if (value == null) return "--"
+    val percent = if (value <= 1.0) value * 100 else value
+    return String.format("%.1f%%", percent)
 }
