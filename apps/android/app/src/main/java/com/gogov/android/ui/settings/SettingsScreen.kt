@@ -37,7 +37,7 @@ import com.gogov.android.ui.components.PageTitle
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onLogout: () -> Unit,
-    onNavigateToStudyPlan: () -> Unit
+    onNavigateToMore: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -352,11 +352,11 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Study Plan entry card
+        // More features entry card
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onNavigateToStudyPlan() }
+                .clickable { onNavigateToMore() }
         ) {
             Row(
                 modifier = Modifier
@@ -367,12 +367,12 @@ fun SettingsScreen(
             ) {
                 Column {
                     Text(
-                        text = "备考档案",
+                        text = "更多功能",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "设置目标考试、学习进度等信息",
+                        text = "备考档案、模考解读、记账本等",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

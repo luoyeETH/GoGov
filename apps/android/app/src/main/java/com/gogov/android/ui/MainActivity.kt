@@ -34,12 +34,19 @@ import com.gogov.android.data.local.TokenManager
 import com.gogov.android.data.repository.AuthRepository
 import com.gogov.android.data.repository.ChatRepository
 import com.gogov.android.data.repository.DailyTaskRepository
+import com.gogov.android.data.repository.ExpenseRepository
+import com.gogov.android.data.repository.MockRepository
 import com.gogov.android.data.repository.PomodoroRepository
 import com.gogov.android.data.repository.QuickPracticeRepository
 import com.gogov.android.ui.auth.LoginScreen
 import com.gogov.android.ui.auth.RegisterScreen
 import com.gogov.android.ui.chat.ChatScreen
 import com.gogov.android.ui.chat.ChatViewModel
+import com.gogov.android.ui.ledger.LedgerScreen
+import com.gogov.android.ui.ledger.LedgerViewModel
+import com.gogov.android.ui.mock.MockAnalysisScreen
+import com.gogov.android.ui.mock.MockAnalysisViewModel
+import com.gogov.android.ui.more.MoreFeaturesScreen
 import com.gogov.android.ui.pomodoro.PomodoroScreen
 import com.gogov.android.ui.pomodoro.PomodoroViewModel
 import com.gogov.android.ui.quick.QuickPracticeScreen
@@ -59,6 +66,9 @@ sealed class Screen(val route: String, val label: String) {
     object Chat : Screen("chat", "AI 答疑")
     object Settings : Screen("settings", "设置")
     object StudyPlan : Screen("studyplan", "备考档案")
+    object More : Screen("more", "更多功能")
+    object MockAnalysis : Screen("mock-analysis", "模考解读")
+    object Ledger : Screen("ledger", "记账本")
     object Login : Screen("login", "登录")
     object Register : Screen("register", "注册")
 }
@@ -80,6 +90,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var chatRepository: ChatRepository
     private lateinit var dailyTaskRepository: DailyTaskRepository
     private lateinit var quickPracticeRepository: QuickPracticeRepository
+    private lateinit var mockRepository: MockRepository
+    private lateinit var expenseRepository: ExpenseRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +106,8 @@ class MainActivity : ComponentActivity() {
         chatRepository = ChatRepository()
         dailyTaskRepository = DailyTaskRepository()
         quickPracticeRepository = QuickPracticeRepository()
+        mockRepository = MockRepository()
+        expenseRepository = ExpenseRepository()
 
         setContent {
             GoGovTheme {
@@ -120,6 +134,8 @@ class MainActivity : ComponentActivity() {
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
         val studyPlanViewModel = remember { StudyPlanViewModel(authRepository) }
         val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
+        val mockAnalysisViewModel = remember { MockAnalysisViewModel(mockRepository) }
+        val ledgerViewModel = remember { LedgerViewModel(expenseRepository) }
 
         LaunchedEffect(isLoggedIn) {
             if (isLoggedIn) {
@@ -240,7 +256,10 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable(Screen.Pomodoro.route) {
-                    PomodoroScreen(viewModel = pomodoroViewModel)
+                    PomodoroScreen(
+                        viewModel = pomodoroViewModel,
+                        onOpenMore = { navController.navigate(Screen.More.route) }
+                    )
                 }
 
                 composable(Screen.Tasks.route) {
@@ -268,9 +287,7 @@ class MainActivity : ComponentActivity() {
                                 popUpTo(0) { inclusive = true }
                             }
                         },
-                        onNavigateToStudyPlan = {
-                            navController.navigate(Screen.StudyPlan.route)
-                        }
+                        onNavigateToMore = { navController.navigate(Screen.More.route) }
                     )
                 }
 
@@ -280,6 +297,29 @@ class MainActivity : ComponentActivity() {
                         onBack = {
                             navController.popBackStack()
                         }
+                    )
+                }
+
+                composable(Screen.More.route) {
+                    MoreFeaturesScreen(
+                        onBack = { navController.popBackStack() },
+                        onNavigateToStudyPlan = { navController.navigate(Screen.StudyPlan.route) },
+                        onNavigateToMock = { navController.navigate(Screen.MockAnalysis.route) },
+                        onNavigateToLedger = { navController.navigate(Screen.Ledger.route) }
+                    )
+                }
+
+                composable(Screen.MockAnalysis.route) {
+                    MockAnalysisScreen(
+                        viewModel = mockAnalysisViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Screen.Ledger.route) {
+                    LedgerScreen(
+                        viewModel = ledgerViewModel,
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }

@@ -72,6 +72,13 @@ interface GoGovApi {
     @POST("ai/chat")
     fun sendChat(@Body request: ChatRequest): Call<ChatResponse>
 
+    // Mock Analysis
+    @POST("ai/mock/analysis")
+    fun analyzeMock(@Body request: MockAnalysisRequest): Call<MockAnalysisResponse>
+
+    @GET("mock/reports")
+    fun getMockReports(@Query("limit") limit: Int = 20): Call<MockHistoryResponse>
+
     // Daily Tasks
     @GET("study-plan/daily")
     fun getDailyTask(@Query("date") date: String): Call<DailyTaskResponse>
@@ -106,4 +113,14 @@ interface GoGovApi {
 
     @POST("practice/quick/session")
     fun submitQuickSession(@Body request: QuickPracticeSessionRequest): Call<ResponseBody>
+
+    // Expense Ledger
+    @POST("expenses/parse")
+    fun parseExpense(@Body request: ExpenseParseRequest): Call<ExpenseParseResponse>
+
+    @POST("expenses")
+    fun createExpenses(@Body request: ExpenseCreateRequest): Call<ExpenseCreateResponse>
+
+    @GET("expenses/overview")
+    fun getExpenseOverview(@Query("range") range: String = "month"): Call<ExpenseOverviewResponse>
 }
