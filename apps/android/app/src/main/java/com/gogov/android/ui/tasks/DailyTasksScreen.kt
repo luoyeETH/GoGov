@@ -48,7 +48,9 @@ fun DailyTasksScreen(
                         )
                     }
                 }
-                if (state.greetingText != null && state.countdownText != null) {
+                val greetingText = state.greetingText
+                val countdownText = state.countdownText
+                if (greetingText != null && countdownText != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -58,14 +60,14 @@ fun DailyTasksScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = state.greetingText,
+                                text = greetingText,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = state.countdownText,
+                                text = countdownText,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
