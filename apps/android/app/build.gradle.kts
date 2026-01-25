@@ -133,6 +133,9 @@ dependencies {
     implementation("io.noties.markwon:inline-parser:4.6.2")
     implementation("ru.noties:jlatexmath-android:0.2.0")
 
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

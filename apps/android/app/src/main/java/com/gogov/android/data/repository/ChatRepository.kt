@@ -22,10 +22,10 @@ class ChatRepository {
         }
     }
 
-    suspend fun sendMessage(message: String, mode: ChatMode): Result<List<ChatMessage>> {
+    suspend fun sendMessage(message: String, mode: ChatMode, imageDataUrl: String? = null): Result<List<ChatMessage>> {
         return try {
             val response = withContext(Dispatchers.IO) {
-                ApiClient.api.sendChat(ChatRequest(message, mode.value)).execute()
+                ApiClient.api.sendChat(ChatRequest(message, mode.value, imageDataUrl)).execute()
             }
             if (response.isSuccessful) {
                 Result.success(response.body()?.messages ?: emptyList())

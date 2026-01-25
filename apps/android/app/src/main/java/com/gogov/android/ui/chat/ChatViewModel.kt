@@ -1,15 +1,23 @@
 package com.gogov.android.ui.chat
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gogov.android.data.repository.ChatRepository
 import com.gogov.android.domain.model.ChatMessage
 import com.gogov.android.domain.model.ChatMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -17,7 +25,9 @@ data class ChatUiState(
     val isLoading: Boolean = false,
     val isSending: Boolean = false,
     val error: String? = null,
-    val inputText: String = ""
+    val inputText: String = "",
+    val selectedImageUri: android.net.Uri? = null,
+    val selectedImageDataUrl: String? = null
 )
 
 class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
@@ -52,10 +62,66 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
         _state.update { it.copy(inputText = text, error = null) }
     }
 
+    fun setSelectedImage(uri: Uri?, context: Context) {
+        if (uri == null) {
+            _state.update { it.copy(selectedImageUri = null, selectedImageDataUrl = null) }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val dataUrl = withContext(Dispatchers.IO) {
+                    uriToDataUrl(uri, context)
+                }
+                _state.update { it.copy(selectedImageUri = uri, selectedImageDataUrl = dataUrl) }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "图片处理失败：${e.message}") }
+            }
+        }
+    }
+
+    fun clearSelectedImage() {
+        _state.update { it.copy(selectedImageUri = null, selectedImageDataUrl = null) }
+    }
+
+    private fun uriToDataUrl(uri: Uri, context: Context): String {
+        val bitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream)
+        } ?: throw Exception("无法读取图片或图片格式不支持")
+
+        // 压缩图片以减小尺寸
+        val maxSize = 1024
+        val ratio = Math.min(
+            maxSize.toFloat() / bitmap.width,
+            maxSize.toFloat() / bitmap.height
+        )
+
+        val resizedBitmap = if (ratio < 1) {
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * ratio).toInt(),
+                (bitmap.height * ratio).toInt(),
+                true
+            )
+        } else {
+            bitmap
+        }
+
+        val outputStream = ByteArrayOutputStream()
+        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+        val bytes = outputStream.toByteArray()
+
+        val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        return "data:image/jpeg;base64,$base64"
+    }
+
     fun sendMessage() {
         val content = _state.value.inputText.trim()
-        if (content.isBlank()) {
-            _state.update { it.copy(error = "请输入内容。") }
+        val selectedImageUri = _state.value.selectedImageUri
+        val imageDataUrl = _state.value.selectedImageDataUrl
+
+        if (content.isBlank() && imageDataUrl == null) {
+            _state.update { it.copy(error = "请输入内容或选择图片。") }
             return
         }
 
@@ -64,24 +130,34 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
             return
         }
 
+        // 如果有图片但没有文字，使用简短的默认提示
+        val messageContent = if (imageDataUrl != null && content.isBlank()) {
+            "请看图"
+        } else {
+            content
+        }
+
         val pendingMessage = ChatMessage(
             id = "pending-${System.currentTimeMillis()}",
             role = "user",
-            content = content,
-            createdAt = java.time.Instant.now().toString()
+            content = messageContent,
+            createdAt = java.time.Instant.now().toString(),
+            imageUrl = imageDataUrl
         )
 
         _state.update {
             it.copy(
                 messages = it.messages + pendingMessage,
                 inputText = "",
+                selectedImageUri = null,
+                selectedImageDataUrl = null,
                 isSending = true,
                 error = null
             )
         }
 
         viewModelScope.launch {
-            repository.sendMessage(content, _state.value.mode).fold(
+            repository.sendMessage(messageContent, _state.value.mode, imageDataUrl).fold(
                 onSuccess = { newMessages ->
                     _state.update { state ->
                         val withoutPending = state.messages.filter { it.id != pendingMessage.id }
@@ -96,6 +172,8 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
                     _state.update { state ->
                         state.copy(
                             inputText = content,
+                            selectedImageUri = selectedImageUri,
+                            selectedImageDataUrl = imageDataUrl,
                             error = error.message,
                             isSending = false,
                             messages = state.messages.map {

@@ -7,7 +7,8 @@ data class ChatMessage(
     val id: String,
     val role: String,
     val content: String,
-    val createdAt: String
+    val createdAt: String,
+    val imageUrl: String? = null
 )
 
 @Serializable
@@ -18,7 +19,8 @@ data class ChatHistoryResponse(
 @Serializable
 data class ChatRequest(
     val message: String,
-    val mode: String
+    val mode: String,
+    val imageDataUrl: String? = null
 )
 
 @Serializable

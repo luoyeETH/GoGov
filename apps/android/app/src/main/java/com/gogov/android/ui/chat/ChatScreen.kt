@@ -1,10 +1,16 @@
 package com.gogov.android.ui.chat
 
 import android.graphics.Color
+import android.net.Uri
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,18 +19,25 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
+import coil.compose.rememberAsyncImagePainter
 import com.gogov.android.domain.model.ChatMessage
 import com.gogov.android.domain.model.ChatMode
 import com.gogov.android.ui.components.PageTitle
@@ -34,6 +47,7 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import org.json.JSONObject
+import java.io.File
 import kotlin.math.roundToInt
 
 private const val USE_WEB_KATEX = true
@@ -43,7 +57,27 @@ private const val KATEX_ASSET_BASE_URL = "file:///android_asset/katex/"
 @Composable
 fun ChatScreen(viewModel: ChatViewModel) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
     val listState = rememberLazyListState()
+    var showImagePickerDialog by remember { mutableStateOf(false) }
+
+    // 图片选择器
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { viewModel.setSelectedImage(it, context) }
+    }
+
+    // 相机启动器
+    val cameraUri = remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            cameraUri.value?.let { viewModel.setSelectedImage(it, context) }
+        }
+    }
+
     val displayMessages = remember(state.messages, state.isSending) {
         buildList {
             if (state.isSending) {
@@ -177,44 +211,160 @@ fun ChatScreen(viewModel: ChatViewModel) {
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(12.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                OutlinedTextField(
-                    value = state.inputText,
-                    onValueChange = { viewModel.setInputText(it) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("输入问题...") },
-                    maxLines = 4,
-                    enabled = !state.isSending
-                )
+            Column {
+                // 图片预览（紧凑版，类似微信）
+                state.selectedImageUri?.let { uri ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 图片缩略图
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(uri),
+                                contentDescription = "选中的图片",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                IconButton(
-                    onClick = { viewModel.sendMessage() },
-                    enabled = !state.isSending && state.inputText.isNotBlank()
+                        Text(
+                            text = "已选择图片，可以继续输入问题",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        IconButton(
+                            onClick = { viewModel.clearSelectedImage() },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "移除图片",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 0.5.dp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    if (state.isSending) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
+                    // 图片选择按钮
+                    IconButton(
+                        onClick = { showImagePickerDialog = true },
+                        enabled = !state.isSending
+                    ) {
                         Icon(
-                            Icons.Default.Send,
-                            contentDescription = "发送",
-                            tint = if (state.inputText.isNotBlank())
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                            Icons.Default.Image,
+                            contentDescription = "选择图片",
+                            tint = MaterialTheme.colorScheme.primary
                         )
+                    }
+
+                    OutlinedTextField(
+                        value = state.inputText,
+                        onValueChange = { viewModel.setInputText(it) },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("输入问题...") },
+                        maxLines = 4,
+                        enabled = !state.isSending
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = { viewModel.sendMessage() },
+                        enabled = !state.isSending && (state.inputText.isNotBlank() || state.selectedImageUri != null)
+                    ) {
+                        if (state.isSending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Send,
+                                contentDescription = "发送",
+                                tint = if (state.inputText.isNotBlank() || state.selectedImageUri != null)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        // 图片选择对话框
+        if (showImagePickerDialog) {
+            AlertDialog(
+                onDismissRequest = { showImagePickerDialog = false },
+                title = { Text("选择图片") },
+                text = {
+                    Column {
+                        TextButton(
+                            onClick = {
+                                showImagePickerDialog = false
+                                // 创建临时文件用于拍照
+                                val photoFile = File(
+                                    context.cacheDir,
+                                    "photo_${System.currentTimeMillis()}.jpg"
+                                )
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    photoFile
+                                )
+                                cameraUri.value = uri
+                                cameraLauncher.launch(uri)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("拍照")
+                        }
+                        TextButton(
+                            onClick = {
+                                showImagePickerDialog = false
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("从相册选择")
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showImagePickerDialog = false }) {
+                        Text("取消")
+                    }
+                }
+            )
         }
     }
 }
@@ -251,34 +401,86 @@ private fun ChatBubble(
                 )
                 .padding(12.dp)
         ) {
-            if (isUser || isPending) {
-                SelectionContainer {
-                    Text(
-                        text = message.content,
-                        color = when {
-                            isFailed -> MaterialTheme.colorScheme.onErrorContainer
-                            isUser -> MaterialTheme.colorScheme.onPrimary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        style = if (isPending)
-                            MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        else
-                            MaterialTheme.typography.bodyMedium
-                    )
+            Column {
+                // 显示图片（如果有）
+                message.imageUrl?.let { imageUrl ->
+                    if (imageUrl.startsWith("data:image")) {
+                        // 解析Base64图片并显示
+                        val imageData = remember(imageUrl) {
+                            try {
+                                val base64String = imageUrl.substringAfter("base64,")
+                                android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+
+                        imageData?.let { data ->
+                            val bitmap = remember(data) {
+                                android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size)
+                            }
+
+                            bitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = "上传的图片",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+
+                                // 如果有文字内容，添加间距
+                                if (message.content.isNotBlank() && message.content != "请看图") {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                        }
+                    }
                 }
-            } else {
-                if (USE_WEB_KATEX) {
-                    KaTeXMarkdownText(
-                        markdown = message.content,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    MarkdownText(
-                        markdown = message.content,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+                // 显示文字内容
+                if (message.content.isNotBlank() && message.content != "请看图") {
+                    if (isUser || isPending) {
+                        SelectionContainer {
+                            Text(
+                                text = message.content,
+                                color = when {
+                                    isFailed -> MaterialTheme.colorScheme.onErrorContainer
+                                    isUser -> MaterialTheme.colorScheme.onPrimary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                style = if (isPending)
+                                    MaterialTheme.typography.bodyMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                else
+                                    MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    } else {
+                        if (USE_WEB_KATEX) {
+                            KaTeXMarkdownText(
+                                markdown = message.content,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            MarkdownText(
+                                markdown = message.content,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else if (message.imageUrl == null) {
+                    // 只有在没有图片且没有有效文字时才显示思考中
+                    if (isPending) {
+                        Text(
+                            text = message.content,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }

@@ -3109,11 +3109,13 @@ server.post("/ai/chat", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
-    const body = request.body as { message?: string; mode?: string };
+    const body = request.body as { message?: string; mode?: string; imageDataUrl?: string };
     const message = body?.message?.trim() ?? "";
+    const imageDataUrl = body?.imageDataUrl?.trim();
     const chatMode = normalizeChatMode(body?.mode);
-    if (!message) {
-      reply.code(400).send({ error: "请输入问题" });
+
+    if (!message && !imageDataUrl) {
+      reply.code(400).send({ error: "请输入问题或上传图片" });
       return;
     }
     if (message.length > MAX_CHAT_MESSAGE_LENGTH) {
@@ -3178,27 +3180,62 @@ server.post("/ai/chat", async (request, reply) => {
       mockReports: chatMode === "planner" ? mockReports : []
     });
 
-    const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
-      (record) => {
-        if (record.role !== "user" && record.role !== "assistant") {
-          return [];
-        }
-        return [{ role: record.role as "user" | "assistant", content: record.content }];
-      }
-    );
     const aiConfig = resolveAiConfig(session.user);
     await consumeFreeAiUsage(session.user.id, aiConfig);
-    const result = await generateAssistAnswer({
-      provider: aiConfig.provider,
-      baseUrl: aiConfig.baseUrl,
-      apiKey: aiConfig.apiKey,
-      model: aiConfig.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...historyMessages,
-        { role: "user", content: message }
-      ]
-    });
+
+    let result: { answer: string; model: string };
+
+    // 如果包含图片，使用视觉API
+    if (imageDataUrl) {
+      const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
+        (record) => {
+          if (record.role !== "user" && record.role !== "assistant") {
+            return [];
+          }
+          return [{ role: record.role as "user" | "assistant", content: record.content }];
+        }
+      );
+
+      const userContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [];
+      if (message) {
+        userContent.push({ type: "text", text: message });
+      }
+      userContent.push({ type: "image_url", image_url: { url: imageDataUrl } });
+
+      result = await generateVisionAnswer({
+        provider: aiConfig.provider,
+        baseUrl: aiConfig.baseUrl,
+        apiKey: aiConfig.apiKey,
+        model: aiConfig.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...historyMessages,
+          { role: "user", content: userContent }
+        ]
+      });
+    } else {
+      // 纯文本消息
+      const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
+        (record) => {
+          if (record.role !== "user" && record.role !== "assistant") {
+            return [];
+          }
+          return [{ role: record.role as "user" | "assistant", content: record.content }];
+        }
+      );
+
+      result = await generateAssistAnswer({
+        provider: aiConfig.provider,
+        baseUrl: aiConfig.baseUrl,
+        apiKey: aiConfig.apiKey,
+        model: aiConfig.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...historyMessages,
+          { role: "user", content: message }
+        ]
+      });
+    }
 
     const now = new Date();
     const assistantTime = new Date(now.getTime() + 1);
@@ -3208,7 +3245,7 @@ server.post("/ai/chat", async (request, reply) => {
           userId: session.user.id,
           mode: chatMode,
           role: "user",
-          content: message,
+          content: message || "[图片消息]",
           createdAt: now
         }
       }),
