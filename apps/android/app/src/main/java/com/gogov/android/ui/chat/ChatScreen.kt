@@ -1,16 +1,18 @@
 package com.gogov.android.ui.chat
 
 import android.graphics.Color
+import android.Manifest
 import android.net.Uri
+import android.content.pm.PackageManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
 import com.gogov.android.domain.model.ChatMessage
 import com.gogov.android.domain.model.ChatMode
@@ -75,6 +78,17 @@ fun ChatScreen(viewModel: ChatViewModel) {
     ) { success ->
         if (success) {
             cameraUri.value?.let { viewModel.setSelectedImage(it, context) }
+        }
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            cameraUri.value?.let { cameraLauncher.launch(it) }
+        } else {
+            Toast
+                .makeText(context, "需要相机权限才能拍照", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -336,7 +350,15 @@ fun ChatScreen(viewModel: ChatViewModel) {
                                     photoFile
                                 )
                                 cameraUri.value = uri
-                                cameraLauncher.launch(uri)
+                                if (ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.CAMERA
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    cameraLauncher.launch(uri)
+                                } else {
+                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -376,105 +398,77 @@ private fun ChatBubble(
 ) {
     val isUser = message.role == "user"
     val isFailed = message.id.startsWith("failed-")
+    val showImage = message.imageUrl?.startsWith("data:image") == true
+    val showText = message.content.isNotBlank() && message.content != "请看图"
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 300.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
-                    )
-                )
-                .background(
-                    when {
-                        isFailed -> MaterialTheme.colorScheme.errorContainer
-                        isUser -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                )
-                .padding(12.dp)
+        Column(
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
         ) {
-            Column {
-                // 显示图片（如果有）
-                message.imageUrl?.let { imageUrl ->
-                    if (imageUrl.startsWith("data:image")) {
-                        // 解析Base64图片并显示
-                        val imageData = remember(imageUrl) {
-                            try {
-                                val base64String = imageUrl.substringAfter("base64,")
-                                android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
+            if (showImage) {
+                ChatImage(imageUrl = message.imageUrl!!)
+            }
 
-                        imageData?.let { data ->
-                            val bitmap = remember(data) {
-                                android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size)
-                            }
+            if (showImage && showText) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-                            bitmap?.let {
-                                Image(
-                                    bitmap = it.asImageBitmap(),
-                                    contentDescription = "上传的图片",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 200.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Fit
+            if (showText || (isPending && !showImage)) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 300.dp)
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomStart = if (isUser) 16.dp else 4.dp,
+                                bottomEnd = if (isUser) 4.dp else 16.dp
+                            )
+                        )
+                        .background(
+                            when {
+                                isFailed -> MaterialTheme.colorScheme.errorContainer
+                                isUser -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        )
+                        .padding(12.dp)
+                ) {
+                    if (showText) {
+                        if (isUser || isPending) {
+                            SelectionContainer {
+                                Text(
+                                    text = message.content,
+                                    color = when {
+                                        isFailed -> MaterialTheme.colorScheme.onErrorContainer
+                                        isUser -> MaterialTheme.colorScheme.onPrimary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    style = if (isPending)
+                                        MaterialTheme.typography.bodyMedium.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    else
+                                        MaterialTheme.typography.bodyMedium
                                 )
-
-                                // 如果有文字内容，添加间距
-                                if (message.content.isNotBlank() && message.content != "请看图") {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
+                            }
+                        } else {
+                            if (USE_WEB_KATEX) {
+                                KaTeXMarkdownText(
+                                    markdown = message.content,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                MarkdownText(
+                                    markdown = message.content,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
-                    }
-                }
-
-                // 显示文字内容
-                if (message.content.isNotBlank() && message.content != "请看图") {
-                    if (isUser || isPending) {
-                        SelectionContainer {
-                            Text(
-                                text = message.content,
-                                color = when {
-                                    isFailed -> MaterialTheme.colorScheme.onErrorContainer
-                                    isUser -> MaterialTheme.colorScheme.onPrimary
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = if (isPending)
-                                    MaterialTheme.typography.bodyMedium.copy(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                else
-                                    MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    } else {
-                        if (USE_WEB_KATEX) {
-                            KaTeXMarkdownText(
-                                markdown = message.content,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            MarkdownText(
-                                markdown = message.content,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else if (message.imageUrl == null) {
-                    // 只有在没有图片且没有有效文字时才显示思考中
-                    if (isPending) {
+                    } else if (isPending) {
                         Text(
                             text = message.content,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -483,6 +477,36 @@ private fun ChatBubble(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ChatImage(imageUrl: String) {
+    val imageData = remember(imageUrl) {
+        try {
+            val base64String = imageUrl.substringAfter("base64,")
+            android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    imageData?.let { data ->
+        val bitmap = remember(data) {
+            android.graphics.BitmapFactory.decodeByteArray(data, 0, data.size)
+        }
+
+        bitmap?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = "上传的图片",
+                modifier = Modifier
+                    .widthIn(max = 240.dp)
+                    .heightIn(max = 200.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }

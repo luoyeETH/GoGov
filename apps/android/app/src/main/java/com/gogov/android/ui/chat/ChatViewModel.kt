@@ -34,6 +34,11 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
+    private val imageCache = object : LinkedHashMap<String, String>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean {
+            return size > 20
+        }
+    }
 
     fun loadHistory() {
         viewModelScope.launch {
@@ -42,7 +47,12 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
             repository.getHistory(_state.value.mode).fold(
                 onSuccess = { messages ->
                     val ordered = normalizeMessages(messages)
-                    _state.update { it.copy(messages = ordered, isLoading = false) }
+                    _state.update {
+                        it.copy(
+                            messages = withCachedImages(ordered),
+                            isLoading = false
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _state.update { it.copy(error = error.message, isLoading = false) }
@@ -161,9 +171,10 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
                 onSuccess = { newMessages ->
                     _state.update { state ->
                         val withoutPending = state.messages.filter { it.id != pendingMessage.id }
-                        val ordered = normalizeMessages(withoutPending + newMessages)
+                        val withImage = attachImageToResponse(newMessages, imageDataUrl)
+                        val ordered = normalizeMessages(withoutPending + withImage)
                         state.copy(
-                            messages = ordered,
+                            messages = withCachedImages(ordered),
                             isSending = false
                         )
                     }
@@ -184,6 +195,36 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
                     }
                 }
             )
+        }
+    }
+
+    private fun attachImageToResponse(
+        messages: List<ChatMessage>,
+        imageDataUrl: String?
+    ): List<ChatMessage> {
+        if (imageDataUrl.isNullOrBlank()) {
+            return messages
+        }
+
+        val userMessage = messages.lastOrNull { it.role == "user" } ?: return messages
+        imageCache[userMessage.id] = imageDataUrl
+        return messages.map { message ->
+            if (message.id == userMessage.id) message.copy(imageUrl = imageDataUrl) else message
+        }
+    }
+
+    private fun withCachedImages(messages: List<ChatMessage>): List<ChatMessage> {
+        return messages.map { message ->
+            val cached = imageCache[message.id]
+            val imageUrl = message.imageUrl ?: cached
+            if (imageUrl != null && message.imageUrl == null) {
+                message.copy(imageUrl = imageUrl)
+            } else {
+                if (message.imageUrl != null) {
+                    imageCache[message.id] = message.imageUrl
+                }
+                message
+            }
         }
     }
 
