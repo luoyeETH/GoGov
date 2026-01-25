@@ -320,8 +320,12 @@ private fun MarkdownText(
 private fun normalizeLatex(markdown: String): String {
     var output = markdown
 
-    // Collapse double-escaped backslashes from JSON/LLM output (e.g., "\\le" -> "\le").
-    output = output.replace(Regex("""\\+(?=\S)""")) { "\\" }
+    output = output
+        .replace('＄', '$')
+        .replace("&dollar;", "$")
+        .replace("&#36;", "$")
+        .replace("\u200B", "")
+        .replace("\uFEFF", "")
 
     val inlineParenRegex = Regex("""\\\(\s*([\s\S]+?)\s*\\\)""")
     output = inlineParenRegex.replace(output) { match ->
@@ -338,14 +342,25 @@ private fun normalizeLatex(markdown: String): String {
         "${'$'}${match.groupValues[1].trim()}${'$'}"
     }
 
+    return normalizeMathSegments(output)
+}
+
+private fun normalizeMathSegments(text: String): String {
+    fun unescapeMath(content: String): String {
+        return content
+            .replace(Regex("""\\\\(?=\S)""")) { "\\" }
+            .trim()
+    }
+
+    var output = text
     val blockRegex = Regex("""\$\$\s*([\s\S]+?)\s*\$\$""")
     output = blockRegex.replace(output) { match ->
-        "${'$'}${'$'}${match.groupValues[1].trim()}${'$'}${'$'}"
+        "${'$'}${'$'}${unescapeMath(match.groupValues[1])}${'$'}${'$'}"
     }
 
     val inlineRegex = Regex("""(?<!\$)\$\s*([^$\n]+?)\s*\$(?!\$)""")
     output = inlineRegex.replace(output) { match ->
-        "${'$'}${match.groupValues[1].trim()}${'$'}"
+        "${'$'}${unescapeMath(match.groupValues[1])}${'$'}"
     }
 
     return output
