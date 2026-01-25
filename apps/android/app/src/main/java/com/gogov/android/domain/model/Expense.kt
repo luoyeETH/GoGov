@@ -49,5 +49,19 @@ data class ExpenseTotals(
 
 data class ExpenseOverviewResponse(
     val totals: ExpenseTotals? = null,
+    val breakdown: List<ExpenseBreakdownItem> = emptyList(),
+    val series: List<ExpenseSeriesItem> = emptyList(),
     val records: List<ExpenseRecord> = emptyList()
+)
+
+data class ExpenseBreakdownItem(
+    val item: String,
+    val amount: Double,
+    val count: Int,
+    val percent: Double
+)
+
+data class ExpenseSeriesItem(
+    val label: String,
+    val amount: Double
 )

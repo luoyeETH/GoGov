@@ -21,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,7 +37,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gogov.android.domain.model.ExpenseParsedEntry
+import com.gogov.android.domain.model.ExpenseBreakdownItem
 import com.gogov.android.domain.model.ExpenseRecord
+import com.gogov.android.domain.model.ExpenseSeriesItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,6 +168,29 @@ fun LedgerScreen(
                             text = "支出：¥${overview.totals?.amount ?: 0} · 记录：${overview.totals?.count ?: 0}",
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        if (overview.breakdown.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "分类统计",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            overview.breakdown.take(5).forEach { item ->
+                                BreakdownRow(item)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                        if (overview.series.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "趋势",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TrendList(overview.series)
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "最近记录",
@@ -184,6 +210,60 @@ fun LedgerScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BreakdownRow(item: ExpenseBreakdownItem) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = item.item, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "¥${item.amount} · ${item.percent}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = (item.percent / 100.0).toFloat().coerceIn(0f, 1f),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun TrendList(series: List<ExpenseSeriesItem>) {
+    val maxAmount = series.maxOfOrNull { it.amount } ?: 0.0
+    val safeMax = if (maxAmount <= 0.0) 1.0 else maxAmount
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        series.takeLast(7).forEach { item ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(52.dp)
+                )
+                LinearProgressIndicator(
+                    progress = (item.amount / safeMax).toFloat().coerceIn(0f, 1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "¥${item.amount}",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
     }
