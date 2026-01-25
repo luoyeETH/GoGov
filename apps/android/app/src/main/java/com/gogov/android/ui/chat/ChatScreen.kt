@@ -1,6 +1,7 @@
 package com.gogov.android.ui.chat
 
 import android.graphics.Color
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
@@ -37,7 +38,7 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 
 private const val USE_WEB_KATEX = true
-private const val KATEX_VERSION = "0.16.9"
+private const val KATEX_ASSET_BASE_URL = "file:///android_asset/katex/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -341,11 +342,21 @@ private fun KaTeXMarkdownText(
     val baseFontSize = MaterialTheme.typography.bodyMedium.fontSize
     val textSizeSp = if (baseFontSize == TextUnit.Unspecified) 14f else baseFontSize.value
     val textColor = String.format("#%06X", 0xFFFFFF and color.toArgb())
-    var contentHeightPx by remember { mutableStateOf(0) }
+    var contentHeightPx by remember(markdown) { mutableStateOf(0) }
 
-    val html = remember(markdown, textColor, textSizeSp) {
+    val normalizedMarkdown = remember(markdown) {
+        normalizeLatex(markdown)
+    }
+
+    val onHeightChange by rememberUpdatedState { heightPx: Int ->
+        if (heightPx > 0 && heightPx != contentHeightPx) {
+            contentHeightPx = heightPx
+        }
+    }
+
+    val html = remember(normalizedMarkdown, textColor, textSizeSp) {
         buildKaTeXHtml(
-            markdown = markdown,
+            markdown = normalizedMarkdown,
             textColor = textColor,
             textSizeSp = textSizeSp
         )
@@ -361,6 +372,7 @@ private fun KaTeXMarkdownText(
             .heightIn(min = 1.dp)
             .height(heightDp),
         factory = { ctx ->
+            val bridge = KaTeXHeightBridge(onHeightChange)
             WebView(ctx).apply {
                 setBackgroundColor(Color.TRANSPARENT)
                 isVerticalScrollBarEnabled = false
@@ -370,24 +382,24 @@ private fun KaTeXMarkdownText(
 
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = false
-                settings.allowFileAccess = false
+                settings.allowFileAccess = true
+                settings.allowFileAccessFromFileURLs = true
+                settings.allowUniversalAccessFromFileURLs = false
                 settings.allowContentAccess = false
+                settings.blockNetworkLoads = true
+
+                addJavascriptInterface(bridge, "AndroidHeight")
 
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String?) {
-                        view.evaluateJavascript("document.documentElement.scrollHeight") { value ->
-                            val height = value?.trim('"')?.toFloatOrNull()?.roundToInt() ?: 0
-                            if (height > 0) {
-                                contentHeightPx = height
-                            }
-                        }
+                        view.evaluateJavascript("window.__katexReportHeight && window.__katexReportHeight()") {}
                     }
                 }
             }
         },
         update = { webView ->
             webView.loadDataWithBaseURL(
-                "https://cdn.jsdelivr.net/",
+                KATEX_ASSET_BASE_URL,
                 html,
                 "text/html",
                 "UTF-8",
@@ -395,6 +407,17 @@ private fun KaTeXMarkdownText(
             )
         }
     )
+}
+
+private class KaTeXHeightBridge(
+    private val onHeightChange: (Int) -> Unit
+) {
+    @JavascriptInterface
+    fun reportHeight(height: Float, devicePixelRatio: Float) {
+        val dpr = if (devicePixelRatio > 0f) devicePixelRatio else 1f
+        val px = (height * dpr).roundToInt()
+        onHeightChange(px)
+    }
 }
 
 private fun buildKaTeXHtml(
@@ -408,7 +431,7 @@ private fun buildKaTeXHtml(
         <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.css">
+          <link rel="stylesheet" href="katex.min.css">
           <style>
             :root { color-scheme: light only; }
             html, body { margin: 0; padding: 0; background: transparent; }
@@ -425,23 +448,56 @@ private fun buildKaTeXHtml(
         </head>
         <body>
           <div id="content"></div>
-          <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-          <script src="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.js"></script>
-          <script src="https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/contrib/auto-render.min.js"></script>
+          <script src="marked.min.js"></script>
+          <script src="katex.min.js"></script>
+          <script src="contrib/auto-render.min.js"></script>
           <script>
             const raw = $escaped;
-            const html = marked.parse(raw, { breaks: true });
             const container = document.getElementById('content');
+            let html = '';
+            try {
+              html = marked.parse(raw, { breaks: true });
+            } catch (e) {
+              html = raw.replace(/\\n/g, '<br>');
+            }
             container.innerHTML = html;
-            renderMathInElement(container, {
-              delimiters: [
-                {left: "$$", right: "$$", display: true},
-                {left: "$", right: "$", display: false},
-                {left: "\\\\(", right: "\\\\)", display: false},
-                {left: "\\\\[", right: "\\\\]", display: true}
-              ],
-              throwOnError: false
-            });
+
+            function renderMath() {
+              try {
+                renderMathInElement(container, {
+                  delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\\\(", right: "\\\\)", display: false},
+                    {left: "\\\\[", right: "\\\\]", display: true}
+                  ],
+                  throwOnError: false
+                });
+              } catch (e) {}
+            }
+
+            function reportHeight() {
+              const height = Math.max(
+                document.documentElement.scrollHeight || 0,
+                document.body ? document.body.scrollHeight : 0
+              );
+              const dpr = window.devicePixelRatio || 1;
+              if (window.AndroidHeight && window.AndroidHeight.reportHeight) {
+                window.AndroidHeight.reportHeight(height, dpr);
+              }
+            }
+
+            window.__katexReportHeight = function() {
+              reportHeight();
+            };
+
+            renderMath();
+            reportHeight();
+            setTimeout(reportHeight, 50);
+            setTimeout(reportHeight, 200);
+            if (document.fonts && document.fonts.ready) {
+              document.fonts.ready.then(reportHeight).catch(() => {});
+            }
           </script>
         </body>
         </html>
