@@ -321,7 +321,7 @@ private fun normalizeLatex(markdown: String): String {
     var output = markdown
 
     // Collapse double-escaped backslashes from JSON/LLM output (e.g., "\\le" -> "\le").
-    output = output.replace(Regex("""\\+(?=\S)"""), "\\")
+    output = output.replace(Regex("""\\+(?=\S)""")) { "\\" }
 
     val inlineParenRegex = Regex("""\\\(\s*([\s\S]+?)\s*\\\)""")
     output = inlineParenRegex.replace(output) { match ->

@@ -115,8 +115,9 @@ function getBeijingDate() {
 function getWeekStart(date: Date) {
   const start = new Date(date);
   const day = start.getDay();
+  const diff = (day + 6) % 7;
   start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - day);
+  start.setDate(start.getDate() - diff);
   return start;
 }
 
