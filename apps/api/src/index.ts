@@ -4850,15 +4850,16 @@ server.get("/ai/chat/history", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
-    const { mode } = request.query as { mode?: string };
+    const { mode, scope } = request.query as { mode?: string; scope?: string };
     const chatMode = normalizeChatMode(mode);
+    const isHistoryScope = scope === "history";
     await trimChatHistory(session.user.id, chatMode);
     const historyWhere: {
       userId: string;
       mode: ChatMode;
       createdAt?: { gte: Date };
     } = { userId: session.user.id, mode: chatMode };
-    if (chatMode === "tutor") {
+    if (chatMode === "tutor" && !isHistoryScope) {
       historyWhere.createdAt = { gte: getTutorContextCutoff() };
     }
     const records = (await aiChatMessageDelegate.findMany({

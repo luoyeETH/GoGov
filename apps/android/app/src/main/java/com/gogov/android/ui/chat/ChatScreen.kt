@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,7 +59,10 @@ private const val KATEX_ASSET_BASE_URL = "file:///android_asset/katex/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(viewModel: ChatViewModel) {
+fun ChatScreen(
+    viewModel: ChatViewModel,
+    onOpenHistory: () -> Unit
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -121,13 +125,29 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Column(modifier = Modifier.padding(16.dp)) {
-                PageTitle(
-                    title = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
-                    subtitle = if (state.mode == ChatMode.PLANNER)
-                        "备考规划辅助 · 最近 30 天记忆"
-                    else
-                        "快速答疑 · 不加载历史"
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PageTitle(
+                        title = if (state.mode == ChatMode.PLANNER) "AI 规划" else "AI 导师",
+                        subtitle = if (state.mode == ChatMode.PLANNER)
+                            "备考规划辅助 · 最近 30 天记忆"
+                        else
+                            "快速答疑 · 不加载历史"
+                    )
+
+                    if (state.mode == ChatMode.TUTOR) {
+                        IconButton(onClick = onOpenHistory) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "历史消息",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

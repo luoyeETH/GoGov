@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +41,8 @@ import com.gogov.android.data.repository.PomodoroRepository
 import com.gogov.android.data.repository.QuickPracticeRepository
 import com.gogov.android.ui.auth.LoginScreen
 import com.gogov.android.ui.auth.RegisterScreen
+import com.gogov.android.ui.chat.ChatHistoryScreen
+import com.gogov.android.ui.chat.ChatHistoryViewModel
 import com.gogov.android.ui.chat.ChatScreen
 import com.gogov.android.ui.chat.ChatViewModel
 import com.gogov.android.ui.ledger.LedgerScreen
@@ -58,12 +61,14 @@ import com.gogov.android.ui.studyplan.StudyPlanViewModel
 import com.gogov.android.ui.tasks.DailyTasksScreen
 import com.gogov.android.ui.tasks.DailyTasksViewModel
 import com.gogov.android.ui.theme.GoGovTheme
+import com.gogov.android.util.DateUtils
 
 sealed class Screen(val route: String, val label: String) {
     object Pomodoro : Screen("pomodoro", "番茄钟")
     object Tasks : Screen("tasks", "今日任务")
     object QuickPractice : Screen("quick", "速算")
     object Chat : Screen("chat", "AI 答疑")
+    object ChatHistory : Screen("chat-history", "历史消息")
     object Settings : Screen("settings", "设置")
     object StudyPlan : Screen("studyplan", "备考档案")
     object More : Screen("more", "更多功能")
@@ -121,6 +126,7 @@ class MainActivity : ComponentActivity() {
     private fun MainContent(initialLoggedIn: Boolean) {
         val navController = rememberNavController()
         val isLoggedIn by authRepository.isLoggedIn.collectAsState(initial = initialLoggedIn)
+        val isForeground by GoGovApplication.instance.appLifecycleObserver.isInForeground.collectAsState()
 
         val pomodoroViewModel = remember {
             PomodoroViewModel(
@@ -130,6 +136,7 @@ class MainActivity : ComponentActivity() {
             )
         }
         val chatViewModel = remember { ChatViewModel(chatRepository) }
+        val chatHistoryViewModel = remember { ChatHistoryViewModel(chatRepository) }
         val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository, authRepository) }
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
         val studyPlanViewModel = remember { StudyPlanViewModel(authRepository) }
@@ -137,12 +144,37 @@ class MainActivity : ComponentActivity() {
         val mockAnalysisViewModel = remember { MockAnalysisViewModel(mockRepository) }
         val ledgerViewModel = remember { LedgerViewModel(expenseRepository) }
 
+        var lastSyncDay by rememberSaveable { mutableStateOf<String?>(null) }
+        var lastSyncAt by rememberSaveable { mutableStateOf(0L) }
+
+        fun refreshAllData(force: Boolean = false) {
+            if (!isLoggedIn) return
+            val today = DateUtils.getBeijingDateString()
+            val now = System.currentTimeMillis()
+            val dailyChanged = lastSyncDay != today
+            val intervalExpired = now - lastSyncAt > 5 * 60 * 1000L
+            if (!force && !dailyChanged && !intervalExpired) return
+
+            pomodoroViewModel.loadData()
+            chatViewModel.loadHistory()
+            dailyTasksViewModel.loadTasks()
+            settingsViewModel.loadUser()
+            ledgerViewModel.loadOverview()
+            mockAnalysisViewModel.loadHistory()
+
+            lastSyncDay = today
+            lastSyncAt = now
+        }
+
         LaunchedEffect(isLoggedIn) {
             if (isLoggedIn) {
-                pomodoroViewModel.loadData()
-                chatViewModel.loadHistory()
-                dailyTasksViewModel.loadTasks()
-                settingsViewModel.loadUser()
+                refreshAllData(force = true)
+            }
+        }
+
+        LaunchedEffect(isLoggedIn, isForeground) {
+            if (isLoggedIn && isForeground) {
+                refreshAllData()
             }
         }
 
@@ -269,7 +301,17 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable(Screen.Chat.route) {
-                    ChatScreen(viewModel = chatViewModel)
+                    ChatScreen(
+                        viewModel = chatViewModel,
+                        onOpenHistory = { navController.navigate(Screen.ChatHistory.route) }
+                    )
+                }
+
+                composable(Screen.ChatHistory.route) {
+                    ChatHistoryScreen(
+                        viewModel = chatHistoryViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
 
                 composable(Screen.QuickPractice.route) {

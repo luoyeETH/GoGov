@@ -35,3 +35,7 @@ enum class ChatMode(val value: String) {
     PLANNER("planner"),
     TUTOR("tutor")
 }
+
+enum class ChatHistoryScope(val value: String) {
+    HISTORY("history")
+}

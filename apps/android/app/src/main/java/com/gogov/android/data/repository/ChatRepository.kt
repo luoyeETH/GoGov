@@ -7,10 +7,13 @@ import kotlinx.coroutines.withContext
 
 class ChatRepository {
 
-    suspend fun getHistory(mode: ChatMode? = null): Result<List<ChatMessage>> {
+    suspend fun getHistory(
+        mode: ChatMode? = null,
+        scope: ChatHistoryScope? = null
+    ): Result<List<ChatMessage>> {
         return try {
             val response = withContext(Dispatchers.IO) {
-                ApiClient.api.getChatHistory(mode?.value).execute()
+                ApiClient.api.getChatHistory(mode?.value, scope?.value).execute()
             }
             if (response.isSuccessful) {
                 Result.success(response.body()?.messages ?: emptyList())

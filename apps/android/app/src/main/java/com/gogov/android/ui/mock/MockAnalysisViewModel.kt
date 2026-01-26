@@ -274,8 +274,8 @@ class MockAnalysisViewModel(
     companion object {
         private val defaultSubjects = listOf(
             "政治理论",
-            "常识",
-            "言语理解",
+            "常识判断",
+            "言语理解与表达",
             "数量关系",
             "判断推理",
             "资料分析"

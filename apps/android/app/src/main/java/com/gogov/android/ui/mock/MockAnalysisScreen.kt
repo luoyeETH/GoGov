@@ -5,7 +5,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,9 +21,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -28,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,19 +55,34 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import coil.compose.rememberAsyncImagePainter
 import com.gogov.android.domain.model.MockHistoryRecord
 import com.gogov.android.domain.model.MockAnalysisResponse
+import com.gogov.android.domain.model.MockMetricInput
 import java.time.OffsetDateTime
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -296,6 +321,8 @@ fun MockAnalysisScreen(
                 ResultSection(result)
             }
 
+            MockTrendSection(history = state.history)
+
             Text(text = "历史记录", style = MaterialTheme.typography.titleMedium)
             if (state.isLoadingHistory) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -347,6 +374,360 @@ private fun ResultSection(result: MockAnalysisResponse) {
                 Text(text = "下周安排", style = MaterialTheme.typography.titleSmall)
                 list.forEach { line ->
                     Text(text = "• $line", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+private data class TrendEntry(
+    val id: String,
+    val title: String,
+    val createdAt: String,
+    val metrics: List<MockMetricInput>,
+    val overallAccuracy: Double?
+)
+
+private data class TrendSeries(
+    val key: String,
+    val label: String,
+    val values: List<Double?>,
+    val hasData: Boolean
+)
+
+@Composable
+private fun MockTrendSection(history: List<MockHistoryRecord>) {
+    val sortedHistory = remember(history) {
+        history.sortedBy { parseEpochMillis(it.createdAt) }
+    }
+    val entries = remember(sortedHistory) {
+        sortedHistory.map { record ->
+            val normalizedMetrics = record.metrics.mapNotNull { metric ->
+                val subject = normalizeSubjectName(metric.subject)
+                if (subject.isNullOrBlank()) {
+                    null
+                } else {
+                    metric.copy(subject = subject)
+                }
+            }
+            TrendEntry(
+                id = record.id,
+                title = record.title,
+                createdAt = record.createdAt,
+                metrics = normalizedMetrics,
+                overallAccuracy = normalizeAccuracy(record.overallAccuracy)
+                    ?: computeOverallAccuracy(normalizedMetrics)
+            )
+        }
+    }
+    val labels = remember(entries) { entries.map { formatTrendDate(it.createdAt) } }
+    val subjects = remember(entries) {
+        val subjectSet = entries.flatMap { it.metrics }.mapNotNull { it.subject }.toMutableSet()
+        DefaultSubjects + subjectSet.filterNot { DefaultSubjects.contains(it) }.sorted()
+    }
+    val seriesList = remember(entries, subjects) {
+        val overallValues = entries.map { it.overallAccuracy }
+        val series = mutableListOf(
+            TrendSeries(
+                key = "overall",
+                label = "整体",
+                values = overallValues,
+                hasData = overallValues.any { it != null }
+            )
+        )
+        subjects.forEach { subject ->
+            val values = entries.map { entry ->
+                val metric = entry.metrics.firstOrNull { it.subject == subject }
+                metricAccuracy(metric)
+            }
+            series.add(
+                TrendSeries(
+                    key = subject,
+                    label = subject,
+                    values = values,
+                    hasData = values.any { it != null }
+                )
+            )
+        }
+        series
+    }
+    val availableSeries = remember(seriesList) { seriesList.filter { it.hasData } }
+
+    var selectedSeriesKey by rememberSaveable { mutableStateOf("all") }
+    var selectedIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(entries.size) {
+        selectedIndex = if (entries.isEmpty()) null else entries.size - 1
+    }
+
+    val activeIndex = remember(entries.size, selectedIndex) {
+        if (entries.isEmpty()) {
+            null
+        } else {
+            val fallbackIndex = entries.size - 1
+            val candidate = selectedIndex ?: fallbackIndex
+            candidate.coerceIn(0, fallbackIndex)
+        }
+    }
+
+    val activeEntry = activeIndex?.let { entries.getOrNull(it) }
+
+    val visibleSeries = remember(selectedSeriesKey, availableSeries) {
+        if (selectedSeriesKey == "all") {
+            availableSeries
+        } else {
+            availableSeries.filter { it.key == selectedSeriesKey }.ifEmpty { availableSeries }
+        }
+    }
+
+    val colorScheme = MaterialTheme.colorScheme
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(text = "历史正确率走势", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "覆盖常识判断、政治理论、言语理解与表达、数量关系、判断推理、资料分析",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    FilterChip(
+                        selected = selectedSeriesKey == "all",
+                        onClick = { selectedSeriesKey = "all" },
+                        label = { Text("全部") }
+                    )
+                }
+                items(seriesList) { series ->
+                    FilterChip(
+                        selected = selectedSeriesKey == series.key,
+                        onClick = { selectedSeriesKey = series.key },
+                        enabled = series.hasData,
+                        label = { Text(series.label, maxLines = 1) },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(seriesColor(series.key, colorScheme), shape = CircleShape)
+                            )
+                        }
+                    )
+                }
+            }
+
+            if (entries.isEmpty()) {
+                Text(
+                    text = "暂无历史记录，先生成一次解读。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                return@Column
+            }
+
+            val scrollState = rememberScrollState()
+            val density = LocalDensity.current
+
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val viewportWidthPx = with(density) { maxWidth.toPx() }
+                val maxVisible = if (maxWidth <= 720.dp) 8 else 18
+                val paddingLeftPx = with(density) { 44.dp.toPx() }
+                val paddingRightPx = with(density) { 16.dp.toPx() }
+                val paddingTopPx = with(density) { 20.dp.toPx() }
+                val paddingBottomPx = with(density) { 32.dp.toPx() }
+                val plotWidth = max(1f, viewportWidthPx - paddingLeftPx - paddingRightPx)
+                val slotSpacing = plotWidth / max(1, maxVisible - 1)
+                val count = entries.size
+                val chartWidthPx = if (count <= maxVisible) {
+                    viewportWidthPx
+                } else {
+                    paddingLeftPx + paddingRightPx + slotSpacing * (count - 1)
+                }
+                val chartWidthDp = with(density) { chartWidthPx.toDp() }
+                val chartHeightDp: Dp = if (maxWidth <= 720.dp) 200.dp else 240.dp
+                val chartHeightPx = with(density) { chartHeightDp.toPx() }
+                val labelOffsetPx = with(density) { 14.dp.toPx() }
+                val labelYOffset = (chartHeightPx - with(density) { 18.dp.toPx() }).roundToInt()
+
+                LaunchedEffect(count, chartWidthPx, viewportWidthPx) {
+                    if (count > maxVisible) {
+                        scrollState.scrollTo(scrollState.maxValue)
+                    } else {
+                        scrollState.scrollTo(0)
+                    }
+                }
+
+                val xLabelIndices = remember(count, maxVisible) {
+                    if (count <= maxVisible) {
+                        (0 until count).toList()
+                    } else {
+                        listOf(0, count / 3, (2 * count) / 3, count - 1).distinct()
+                    }
+                }
+
+                val activeX = activeIndex?.let { paddingLeftPx + slotSpacing * it }
+
+                Box(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .width(chartWidthDp)
+                        .height(chartHeightDp)
+                ) {
+                    Canvas(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .pointerInput(count, slotSpacing, scrollState.value) {
+                                detectTapGestures { tap ->
+                                    val x = tap.x + scrollState.value
+                                    val rawIndex = ((x - paddingLeftPx) / slotSpacing).roundToInt()
+                                    val clamped = rawIndex.coerceIn(0, max(0, count - 1))
+                                    selectedIndex = clamped
+                                }
+                            }
+                    ) {
+                        val backgroundColor = colorScheme.surfaceVariant
+                        val borderColor = colorScheme.outlineVariant
+                        drawRoundRect(
+                            color = backgroundColor,
+                            topLeft = Offset.Zero,
+                            size = Size(chartWidthPx, chartHeightPx),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
+                        )
+                        drawRoundRect(
+                            color = borderColor,
+                            topLeft = Offset.Zero,
+                            size = Size(chartWidthPx, chartHeightPx),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+
+                        val gridColor = colorScheme.onSurface.copy(alpha = 0.08f)
+                        listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { tick ->
+                            val y =
+                                paddingTopPx + (1 - tick) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(paddingLeftPx, y),
+                                end = Offset(chartWidthPx - paddingRightPx, y),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+
+                        activeX?.let { x ->
+                            drawLine(
+                                color = colorScheme.onSurface.copy(alpha = 0.2f),
+                                start = Offset(x, paddingTopPx),
+                                end = Offset(x, chartHeightPx - paddingBottomPx),
+                                strokeWidth = 1.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                            )
+                        }
+
+                        visibleSeries.forEach { series ->
+                            val color = seriesColor(series.key, colorScheme)
+                            val path = Path()
+                            var started = false
+                            series.values.forEachIndexed { index, value ->
+                                val normalized = normalizeAccuracy(value)
+                                if (normalized == null) {
+                                    started = false
+                                } else {
+                                    val x = paddingLeftPx + slotSpacing * index
+                                    val y =
+                                        paddingTopPx +
+                                            (1 - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                    if (!started) {
+                                        path.moveTo(x, y)
+                                        started = true
+                                    } else {
+                                        path.lineTo(x, y)
+                                    }
+                                }
+                            }
+                            drawPath(
+                                path = path,
+                                color = color,
+                                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                            series.values.forEachIndexed { index, value ->
+                                val normalized = normalizeAccuracy(value) ?: return@forEachIndexed
+                                val x = paddingLeftPx + slotSpacing * index
+                                val y =
+                                    paddingTopPx +
+                                        (1 - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                val radius = if (activeIndex == index) 4.5.dp.toPx() else 3.5.dp.toPx()
+                                drawCircle(
+                                    color = color,
+                                    radius = radius,
+                                    center = Offset(x, y)
+                                )
+                            }
+                        }
+                    }
+
+                    xLabelIndices.forEach { index ->
+                        val label = labels.getOrNull(index) ?: return@forEach
+                        val x = paddingLeftPx + slotSpacing * index
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset {
+                                    IntOffset((x - labelOffsetPx).roundToInt(), labelYOffset)
+                                }
+                        )
+                    }
+                }
+            }
+
+            activeEntry?.let { entry ->
+                Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "当日正确率", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = formatTrendDate(entry.createdAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        subjectsWithOverall(seriesList).forEach { series ->
+                            val value = activeIndex?.let { series.values.getOrNull(it) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                        .background(seriesColor(series.key, colorScheme), shape = CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = series.label,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Text(
+                                    text = value?.let { formatAccuracy(it) } ?: "--",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -480,3 +861,89 @@ private fun formatAccuracy(value: Double?): String {
     val percent = if (value <= 1.0) value * 100 else value
     return String.format("%.1f%%", percent)
 }
+
+private val DefaultSubjects = listOf(
+    "政治理论",
+    "常识判断",
+    "言语理解与表达",
+    "数量关系",
+    "判断推理",
+    "资料分析"
+)
+
+private val SubjectAliases = mapOf(
+    "常识" to "常识判断",
+    "言语理解" to "言语理解与表达"
+)
+
+private fun normalizeSubjectName(subject: String?): String? {
+    val trimmed = subject?.trim().orEmpty()
+    if (trimmed.isBlank()) return null
+    return SubjectAliases[trimmed] ?: trimmed
+}
+
+private fun parseEpochMillis(value: String): Long {
+    return runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
+        .getOrElse { 0L }
+}
+
+private fun formatTrendDate(value: String): String {
+    return runCatching {
+        val date = OffsetDateTime.parse(value)
+        "${date.monthValue.toString().padStart(2, '0')}-${date.dayOfMonth.toString().padStart(2, '0')}"
+    }.getOrElse { value }
+}
+
+private fun normalizeAccuracy(value: Double?): Double? {
+    if (value == null || value.isNaN()) return null
+    var normalized = value
+    normalized = when {
+        normalized > 1 && normalized <= 100 -> normalized / 100.0
+        normalized > 1000 -> normalized / 10000.0
+        else -> normalized
+    }
+    if (normalized < 0) normalized = 0.0
+    if (normalized > 1) normalized = 1.0
+    return normalized
+}
+
+private fun metricAccuracy(metric: MockMetricInput?): Double? {
+    if (metric == null) return null
+    val correct = metric.correct
+    val total = metric.total
+    return if (correct != null && total != null && total > 0) {
+        normalizeAccuracy(correct.toDouble() / total.toDouble())
+    } else {
+        null
+    }
+}
+
+private fun computeOverallAccuracy(metrics: List<MockMetricInput>): Double? {
+    var correctSum = 0
+    var totalSum = 0
+    metrics.forEach { metric ->
+        val correct = metric.correct
+        val total = metric.total
+        if (correct != null && total != null) {
+            correctSum += correct
+            totalSum += total
+        }
+    }
+    if (totalSum == 0) return null
+    return normalizeAccuracy(correctSum.toDouble() / totalSum.toDouble())
+}
+
+private fun seriesColor(key: String, colorScheme: androidx.compose.material3.ColorScheme): Color {
+    return when (key) {
+        "overall" -> colorScheme.primary
+        "政治理论" -> Color(0xFF2563EB)
+        "常识判断" -> Color(0xFF22C55E)
+        "言语理解与表达" -> Color(0xFF0EA5E9)
+        "数量关系" -> Color(0xFFEF4444)
+        "判断推理" -> Color(0xFF14B8A6)
+        "资料分析" -> Color(0xFFEAB308)
+        else -> colorScheme.secondary
+    }
+}
+
+private fun subjectsWithOverall(seriesList: List<TrendSeries>): List<TrendSeries> = seriesList

@@ -67,7 +67,10 @@ interface GoGovApi {
 
     // AI Chat
     @GET("ai/chat/history")
-    fun getChatHistory(@Query("mode") mode: String? = null): Call<ChatHistoryResponse>
+    fun getChatHistory(
+        @Query("mode") mode: String? = null,
+        @Query("scope") scope: String? = null
+    ): Call<ChatHistoryResponse>
 
     @POST("ai/chat")
     fun sendChat(@Body request: ChatRequest): Call<ChatResponse>
