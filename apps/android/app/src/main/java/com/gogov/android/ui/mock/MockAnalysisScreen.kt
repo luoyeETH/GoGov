@@ -72,6 +72,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -548,6 +549,11 @@ private fun MockTrendSection(history: List<MockHistoryRecord>) {
                 val chartHeightPx = with(density) { chartHeightDp.toPx() }
                 val labelOffsetPx = with(density) { 14.dp.toPx() }
                 val labelYOffset = (chartHeightPx - with(density) { 18.dp.toPx() }).roundToInt()
+                val yLabelXPaddingPx = with(density) { 6.dp.toPx() }
+                val yLabelWidthPx = max(0f, paddingLeftPx - yLabelXPaddingPx)
+                val yLabelWidthDp = with(density) { yLabelWidthPx.toDp() }
+                val yLabelCenterOffsetPx = with(density) { 7.dp.toPx() }
+                val yTickValues = listOf(1f, 0.75f, 0.5f, 0.25f, 0f)
 
                 LaunchedEffect(count, chartWidthPx, viewportWidthPx) {
                     if (count > maxVisible) {
@@ -569,113 +575,136 @@ private fun MockTrendSection(history: List<MockHistoryRecord>) {
 
                 Box(
                     modifier = Modifier
-                        .horizontalScroll(scrollState)
-                        .width(chartWidthDp)
+                        .fillMaxWidth()
                         .height(chartHeightDp)
                 ) {
-                    Canvas(
+                    Box(
                         modifier = Modifier
-                            .matchParentSize()
-                            .pointerInput(count, slotSpacing, scrollState.value) {
-                                detectTapGestures { tap ->
-                                    val x = tap.x + scrollState.value
-                                    val rawIndex = ((x - paddingLeftPx) / slotSpacing).roundToInt()
-                                    val clamped = rawIndex.coerceIn(0, max(0, count - 1))
-                                    selectedIndex = clamped
-                                }
-                            }
+                            .horizontalScroll(scrollState)
+                            .width(chartWidthDp)
+                            .height(chartHeightDp)
                     ) {
-                        val backgroundColor = colorScheme.surfaceVariant
-                        val borderColor = colorScheme.outlineVariant
-                        drawRoundRect(
-                            color = backgroundColor,
-                            topLeft = Offset.Zero,
-                            size = Size(chartWidthPx, chartHeightPx),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
-                        )
-                        drawRoundRect(
-                            color = borderColor,
-                            topLeft = Offset.Zero,
-                            size = Size(chartWidthPx, chartHeightPx),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
-                            style = Stroke(width = 1.dp.toPx())
-                        )
-
-                        val gridColor = colorScheme.onSurface.copy(alpha = 0.08f)
-                        listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { tick ->
-                            val y =
-                                paddingTopPx + (1 - tick) * (chartHeightPx - paddingTopPx - paddingBottomPx)
-                            drawLine(
-                                color = gridColor,
-                                start = Offset(paddingLeftPx, y),
-                                end = Offset(chartWidthPx - paddingRightPx, y),
-                                strokeWidth = 1.dp.toPx()
+                        Canvas(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .pointerInput(count, slotSpacing, scrollState.value) {
+                                    detectTapGestures { tap ->
+                                        val x = tap.x + scrollState.value
+                                        val rawIndex = ((x - paddingLeftPx) / slotSpacing).roundToInt()
+                                        val clamped = rawIndex.coerceIn(0, max(0, count - 1))
+                                        selectedIndex = clamped
+                                    }
+                                }
+                        ) {
+                            val backgroundColor = colorScheme.surfaceVariant
+                            val borderColor = colorScheme.outlineVariant
+                            drawRoundRect(
+                                color = backgroundColor,
+                                topLeft = Offset.Zero,
+                                size = Size(chartWidthPx, chartHeightPx),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
                             )
-                        }
-
-                        activeX?.let { x ->
-                            drawLine(
-                                color = colorScheme.onSurface.copy(alpha = 0.2f),
-                                start = Offset(x, paddingTopPx),
-                                end = Offset(x, chartHeightPx - paddingBottomPx),
-                                strokeWidth = 1.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                            drawRoundRect(
+                                color = borderColor,
+                                topLeft = Offset.Zero,
+                                size = Size(chartWidthPx, chartHeightPx),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                                style = Stroke(width = 1.dp.toPx())
                             )
-                        }
 
-                        visibleSeries.forEach { series ->
-                            val color = seriesColor(series.key, colorScheme)
-                            val path = Path()
-                            var started = false
-                            series.values.forEachIndexed { index, value ->
-                                val normalized = normalizeAccuracy(value)?.toFloat()
-                                if (normalized == null) {
-                                    started = false
-                                } else {
+                            val gridColor = colorScheme.onSurface.copy(alpha = 0.08f)
+                            yTickValues.forEach { tick ->
+                                val y =
+                                    paddingTopPx + (1 - tick) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                drawLine(
+                                    color = gridColor,
+                                    start = Offset(paddingLeftPx, y),
+                                    end = Offset(chartWidthPx - paddingRightPx, y),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                            }
+
+                            activeX?.let { x ->
+                                drawLine(
+                                    color = colorScheme.onSurface.copy(alpha = 0.2f),
+                                    start = Offset(x, paddingTopPx),
+                                    end = Offset(x, chartHeightPx - paddingBottomPx),
+                                    strokeWidth = 1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                                )
+                            }
+
+                            visibleSeries.forEach { series ->
+                                val color = seriesColor(series.key, colorScheme)
+                                val path = Path()
+                                var started = false
+                                series.values.forEachIndexed { index, value ->
+                                    val normalized = normalizeAccuracy(value)?.toFloat()
+                                    if (normalized == null) {
+                                        started = false
+                                    } else {
+                                        val x = paddingLeftPx + slotSpacing * index
+                                        val y =
+                                            paddingTopPx +
+                                                (1f - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                        if (!started) {
+                                            path.moveTo(x, y)
+                                            started = true
+                                        } else {
+                                            path.lineTo(x, y)
+                                        }
+                                    }
+                                }
+                                drawPath(
+                                    path = path,
+                                    color = color,
+                                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                                series.values.forEachIndexed { index, value ->
+                                    val normalized = normalizeAccuracy(value)?.toFloat() ?: return@forEachIndexed
                                     val x = paddingLeftPx + slotSpacing * index
                                     val y =
                                         paddingTopPx +
                                             (1f - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
-                                    if (!started) {
-                                        path.moveTo(x, y)
-                                        started = true
-                                    } else {
-                                        path.lineTo(x, y)
-                                    }
+                                    val radius = if (activeIndex == index) 4.5.dp.toPx() else 3.5.dp.toPx()
+                                    drawCircle(
+                                        color = color,
+                                        radius = radius,
+                                        center = Offset(x, y)
+                                    )
                                 }
                             }
-                            drawPath(
-                                path = path,
-                                color = color,
-                                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                        }
+
+                        xLabelIndices.forEach { index ->
+                            val label = labels.getOrNull(index) ?: return@forEach
+                            val x = paddingLeftPx + slotSpacing * index
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .offset {
+                                        IntOffset((x - labelOffsetPx).roundToInt(), labelYOffset)
+                                    }
                             )
-                            series.values.forEachIndexed { index, value ->
-                                val normalized = normalizeAccuracy(value)?.toFloat() ?: return@forEachIndexed
-                                val x = paddingLeftPx + slotSpacing * index
-                                val y =
-                                    paddingTopPx +
-                                        (1f - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
-                                val radius = if (activeIndex == index) 4.5.dp.toPx() else 3.5.dp.toPx()
-                                drawCircle(
-                                    color = color,
-                                    radius = radius,
-                                    center = Offset(x, y)
-                                )
-                            }
                         }
                     }
 
-                    xLabelIndices.forEach { index ->
-                        val label = labels.getOrNull(index) ?: return@forEach
-                        val x = paddingLeftPx + slotSpacing * index
+                    yTickValues.forEach { tick ->
+                        val y =
+                            paddingTopPx + (1 - tick) * (chartHeightPx - paddingTopPx - paddingBottomPx)
                         Text(
-                            text = label,
+                            text = "${(tick * 100).roundToInt()}%",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
                             modifier = Modifier
                                 .align(Alignment.TopStart)
+                                .width(yLabelWidthDp)
                                 .offset {
-                                    IntOffset((x - labelOffsetPx).roundToInt(), labelYOffset)
+                                    IntOffset(0, (y - yLabelCenterOffsetPx).roundToInt())
                                 }
                         )
                     }
