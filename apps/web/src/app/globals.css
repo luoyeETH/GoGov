@@ -2399,6 +2399,260 @@ button {
   font-family: "Courier New", monospace;
 }
 
+.mock-trend {
+  grid-column: 1 / -1;
+  gap: 16px;
+}
+
+.mock-card.mock-trend .mock-trend-scroll {
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.mock-trend-header {
+  align-items: flex-start;
+}
+
+.mock-trend-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mock-trend-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mock-trend-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+}
+
+.mock-trend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mock-trend-toggle .mock-trend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--trend-color, var(--brand));
+}
+
+.mock-trend-toggle:hover:not(:disabled) {
+  border-color: var(--trend-color, var(--brand));
+  transform: translateY(-1px);
+}
+
+.mock-trend-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mock-trend-toggle.active {
+  background: var(--trend-color, var(--brand));
+  color: #fff;
+  border-color: transparent;
+}
+
+.mock-trend-toggle.active .mock-trend-dot {
+  background: #fff;
+}
+
+.mock-trend-chart {
+  display: inline-block;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.mock-trend-chart svg {
+  height: 240px;
+  display: block;
+}
+
+.mock-trend-svg {
+  cursor: pointer;
+}
+
+.mock-trend-bg {
+  fill: var(--glass-bg-subtle);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.mock-trend-grid line {
+  stroke: var(--text-alpha-12);
+  stroke-width: 1;
+}
+
+.mock-trend-axis text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.mock-trend-line {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mock-trend-line.overall {
+  stroke-width: 2.8;
+}
+
+.mock-trend-point {
+  stroke: var(--card);
+  stroke-width: 2;
+}
+
+
+.mock-trend-focus line {
+  stroke: var(--text-alpha-16);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.mock-trend-detail {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-accent);
+}
+
+.mock-trend-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mock-trend-detail-header strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.mock-trend-detail-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.mock-trend-detail-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mock-trend-detail-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mock-trend-detail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.mock-trend-detail-value {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mock-trend-legend {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.mock-trend-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--glass-bg-accent);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.mock-trend-legend-item.is-disabled {
+  opacity: 0.6;
+}
+
+.mock-trend-legend-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mock-trend-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.mock-trend-legend-value {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .mock-card.mock-trend .mock-trend-scroll {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+
+  .mock-trend-chart svg {
+    height: 200px;
+  }
+
+  .mock-trend-legend {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mock-trend-toggle {
+    transition: none;
+  }
+
+  .mock-trend-toggle:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
 .plan-page {
   display: grid;
   gap: 32px;
@@ -5344,6 +5598,23 @@ body.pomodoro-immersive .page {
     flex-wrap: wrap;
     gap: 12px;
     padding: 18px 6vw 14px;
+  }
+
+  .main.mock-page {
+    padding: 0 4vw 40px;
+  }
+
+  .mock-page {
+    gap: 24px;
+  }
+
+  .mock-grid {
+    gap: 16px;
+  }
+
+  .mock-card {
+    padding: 14px;
+    border-radius: 14px;
   }
 
   .header-left {

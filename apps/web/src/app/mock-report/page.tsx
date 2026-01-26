@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, CSSProperties, MouseEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LoadingButton from "../../components/loading-button";
@@ -24,12 +24,42 @@ const sessionKey = "gogov_session_token";
 
 const manualSubjects = [
   "政治理论",
-  "常识",
-  "言语理解",
+  "常识判断",
+  "言语理解与表达",
   "数量关系",
   "判断推理",
   "资料分析"
 ];
+
+const subjectAliases: Record<string, string> = {
+  常识: "常识判断",
+  言语理解: "言语理解与表达"
+};
+
+const trendSeriesColors: Record<string, string> = {
+  overall: "var(--brand)",
+  政治理论: "#2563eb",
+  常识判断: "#22c55e",
+  言语理解与表达: "#0ea5e9",
+  数量关系: "#ef4444",
+  判断推理: "#14b8a6",
+  资料分析: "#eab308"
+};
+
+const trendFallbackColors = [
+  "#2563eb",
+  "#22c55e",
+  "#0ea5e9",
+  "#ef4444",
+  "#14b8a6",
+  "#eab308",
+  "#f97316",
+  "#0f766e"
+];
+
+const maxTrendVisibleCountDesktop = 18;
+const maxTrendVisibleCountMobile = 8;
+const trendMobileBreakpoint = 720;
 
 const baseSeasonDate = "2025-12-21";
 const baseNationalSeasonIndex = 3;
@@ -99,6 +129,17 @@ function formatDate(value: string) {
   }).format(date);
 }
 
+function formatTrendDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
 function makeId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -119,6 +160,23 @@ function getWeekStart(date: Date) {
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - diff);
   return start;
+}
+
+function normalizeSubjectName(subject: string) {
+  const trimmed = subject.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return subjectAliases[trimmed] ?? trimmed;
+}
+
+function getMaxVisibleCount(viewportWidth: number) {
+  if (!viewportWidth || !Number.isFinite(viewportWidth)) {
+    return maxTrendVisibleCountDesktop;
+  }
+  return viewportWidth <= trendMobileBreakpoint
+    ? maxTrendVisibleCountMobile
+    : maxTrendVisibleCountDesktop;
 }
 
 function formatChineseNumber(value: number) {
@@ -155,7 +213,7 @@ function getDefaultMockTitles() {
 
 function buildManualMetrics(entries: ManualEntry[]) {
   return entries.flatMap((entry) => {
-    const subject = entry.subject.trim();
+    const subject = normalizeSubjectName(entry.subject);
     const hasCorrect = entry.correct.trim().length > 0;
     const hasTotal = entry.total.trim().length > 0;
     if (!subject || !hasCorrect || !hasTotal) {
@@ -231,6 +289,63 @@ function computeOverallAccuracy(metrics: Metric[]) {
     return null;
   }
   return totals.correct / totals.total;
+}
+
+function getMetricAccuracy(metric?: Metric | null) {
+  if (!metric) {
+    return null;
+  }
+  if (
+    typeof metric.correct === "number" &&
+    typeof metric.total === "number" &&
+    metric.total > 0
+  ) {
+    return normalizeAccuracy(metric.correct / metric.total);
+  }
+  return normalizeAccuracy(metric.accuracy ?? null);
+}
+
+function getHistoryOverallAccuracy(item: HistoryItem) {
+  const provided = normalizeAccuracy(item.overallAccuracy);
+  if (provided !== null) {
+    return provided;
+  }
+  return normalizeAccuracy(computeOverallAccuracy(item.metrics));
+}
+
+function getLastValue(values: Array<number | null>) {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index];
+    if (typeof value === "number") {
+      return value;
+    }
+  }
+  return null;
+}
+
+function buildLinePath(points: Array<{ x: number; y: number | null }>) {
+  let path = "";
+  let started = false;
+  points.forEach((point) => {
+    if (point.y === null) {
+      started = false;
+      return;
+    }
+    if (!started) {
+      path += `M ${point.x} ${point.y}`;
+      started = true;
+    } else {
+      path += ` L ${point.x} ${point.y}`;
+    }
+  });
+  return path;
+}
+
+function getXAxisLabelIndices(count: number, maxVisibleCount: number) {
+  if (count <= maxVisibleCount) {
+    return Array.from({ length: count }, (_, index) => index);
+  }
+  return [0, Math.floor(count / 3), Math.floor((2 * count) / 3), count - 1];
 }
 
 function parseJsonAnalysis(raw: string) {
@@ -428,6 +543,10 @@ export default function MockReportPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [state, setState] = useState<RequestState>("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [trendFilter, setTrendFilter] = useState<string>("all");
+  const [trendViewportWidth, setTrendViewportWidth] = useState<number>(0);
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
+  const trendScrollRef = useRef<HTMLDivElement | null>(null);
 
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>(() =>
     manualSubjects.map((subject) => ({
@@ -506,6 +625,24 @@ export default function MockReportPage() {
   }, []);
 
   useEffect(() => {
+    const node = trendScrollRef.current;
+    if (!node) {
+      return;
+    }
+    const updateWidth = () => {
+      setTrendViewportWidth(node.clientWidth || 0);
+    };
+    updateWidth();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [history.length]);
+
+  useEffect(() => {
     return () => {
       uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl));
     };
@@ -561,7 +698,7 @@ export default function MockReportPage() {
     return history.slice(0, 3).map((item) => ({
       date: item.createdAt,
       metrics: item.metrics.map((metric) => ({
-        subject: metric.subject,
+        subject: normalizeSubjectName(metric.subject),
         correct: metric.correct ?? undefined,
         total: metric.total ?? undefined,
         timeMinutes: metric.timeMinutes ?? undefined
@@ -678,6 +815,233 @@ export default function MockReportPage() {
     [analysis]
   );
 
+  const trendData = useMemo(() => {
+    const sorted = [...history]
+      .filter((item) => item.createdAt)
+      .sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    const normalizedHistory = sorted.map((item) => ({
+      ...item,
+      normalizedMetrics: item.metrics
+        .map((metric) => ({
+          ...metric,
+          subject: normalizeSubjectName(metric.subject)
+        }))
+        .filter((metric) => metric.subject)
+    }));
+    const labels = normalizedHistory.map((item) => formatTrendDate(item.createdAt));
+    const subjectSet = new Set<string>();
+    normalizedHistory.forEach((item) => {
+      item.normalizedMetrics.forEach((metric) => {
+        if (metric.subject) {
+          subjectSet.add(metric.subject);
+        }
+      });
+    });
+    const extraSubjects = Array.from(subjectSet)
+      .filter((subject) => !manualSubjects.includes(subject))
+      .sort();
+    const subjects = [
+      ...manualSubjects,
+      ...extraSubjects.filter((subject) => !manualSubjects.includes(subject))
+    ].filter((subject, index, list) => list.indexOf(subject) === index);
+
+    const overallValues = normalizedHistory.map((item) =>
+      getHistoryOverallAccuracy(item)
+    );
+    const overallHasData = overallValues.some((value) => value !== null);
+    const seriesList = [
+      {
+        key: "overall",
+        label: "整体",
+        color: trendSeriesColors.overall,
+        values: overallValues,
+        hasData: overallHasData,
+        latest: getLastValue(overallValues)
+      },
+      ...subjects.map((subject, index) => {
+        const values = normalizedHistory.map((item) => {
+          const metric = item.normalizedMetrics.find(
+            (entry) => entry.subject === subject
+          );
+          return getMetricAccuracy(metric ?? null);
+        });
+        return {
+          key: subject,
+          label: subject,
+          color:
+            trendSeriesColors[subject] ??
+            trendFallbackColors[index % trendFallbackColors.length],
+          values,
+          hasData: values.some((value) => value !== null),
+          latest: getLastValue(values)
+        };
+      })
+    ];
+
+    const rangeText =
+      normalizedHistory.length > 1
+        ? `${formatTrendDate(normalizedHistory[0].createdAt)} - ${formatTrendDate(
+            normalizedHistory[normalizedHistory.length - 1].createdAt
+          )}`
+        : normalizedHistory.length === 1
+        ? formatTrendDate(normalizedHistory[0].createdAt)
+        : "暂无记录";
+
+    const entries = normalizedHistory.map((item) => ({
+      id: item.id,
+      title: item.title,
+      createdAt: item.createdAt,
+      overallAccuracy: getHistoryOverallAccuracy(item),
+      metrics: item.normalizedMetrics
+    }));
+
+    return {
+      labels,
+      records: normalizedHistory.length,
+      seriesList,
+      rangeText,
+      entries
+    };
+  }, [history]);
+
+  const chartLayout = useMemo(() => {
+    const fallbackViewportWidth =
+      typeof window !== "undefined" && window.innerWidth
+        ? window.innerWidth
+        : 680;
+    const height = 240;
+    const padding = { top: 20, right: 16, bottom: 32, left: 44 };
+    const count = trendData.labels.length;
+    const viewportWidth = Math.max(
+      0,
+      Math.floor(trendViewportWidth || fallbackViewportWidth)
+    );
+    const maxVisibleCount = getMaxVisibleCount(viewportWidth);
+    const plotWidthForVisible = Math.max(
+      1,
+      viewportWidth - padding.left - padding.right
+    );
+    const slotSpacing = plotWidthForVisible / Math.max(1, maxVisibleCount - 1);
+    const plotWidth = slotSpacing * Math.max(0, count - 1);
+    const rawChartWidth = padding.left + padding.right + plotWidth;
+    const chartWidth =
+      count <= maxVisibleCount ? viewportWidth : Math.max(viewportWidth, rawChartWidth);
+    const plotHeight = height - padding.top - padding.bottom;
+    const getX = (index: number) => {
+      if (count <= 1) {
+        return padding.left;
+      }
+      return padding.left + slotSpacing * index;
+    };
+    const getY = (value: number) => padding.top + (1 - value) * plotHeight;
+    const seriesWithPoints = trendData.seriesList.map((series) => ({
+      ...series,
+      points: series.values.map((value, index) => ({
+        value,
+        x: getX(index),
+        y: value === null ? null : getY(value)
+      }))
+    }));
+    return {
+      chartWidth,
+      viewportWidth,
+      maxVisibleCount,
+      slotSpacing,
+      height,
+      padding,
+      count,
+      seriesWithPoints,
+      xLabelIndices: getXAxisLabelIndices(count, maxVisibleCount),
+      shouldScroll: chartWidth > viewportWidth + 1
+    };
+  }, [trendData, trendViewportWidth]);
+
+  const availableSeries = useMemo(
+    () => chartLayout.seriesWithPoints.filter((series) => series.hasData),
+    [chartLayout.seriesWithPoints]
+  );
+
+  const visibleSeries = useMemo(() => {
+    if (trendFilter === "all") {
+      return availableSeries;
+    }
+    const selected = availableSeries.find((series) => series.key === trendFilter);
+    return selected ? [selected] : availableSeries;
+  }, [availableSeries, trendFilter]);
+
+  const activeTrendIndex = useMemo(() => {
+    if (!trendData.entries.length) {
+      return null;
+    }
+    const fallbackIndex = trendData.entries.length - 1;
+    if (selectedTrendIndex === null || selectedTrendIndex > fallbackIndex) {
+      return fallbackIndex;
+    }
+    return selectedTrendIndex;
+  }, [selectedTrendIndex, trendData.entries.length]);
+
+  const activeTrendEntry = useMemo(() => {
+    if (activeTrendIndex === null) {
+      return null;
+    }
+    return trendData.entries[activeTrendIndex] ?? null;
+  }, [activeTrendIndex, trendData.entries]);
+
+  useEffect(() => {
+    if (!trendData.entries.length) {
+      setSelectedTrendIndex(null);
+      return;
+    }
+    setSelectedTrendIndex((prev) => {
+      if (prev === null || prev >= trendData.entries.length) {
+        return trendData.entries.length - 1;
+      }
+      return prev;
+    });
+  }, [trendData.entries.length]);
+
+  const handleTrendClick = (event: MouseEvent<SVGSVGElement>) => {
+    if (!trendData.entries.length) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const rawIndex = Math.round(
+      (x - chartLayout.padding.left) / Math.max(1, chartLayout.slotSpacing)
+    );
+    const clamped = Math.min(
+      Math.max(rawIndex, 0),
+      Math.max(0, trendData.entries.length - 1)
+    );
+    setSelectedTrendIndex(clamped);
+  };
+
+  const activeX =
+    activeTrendIndex === null
+      ? null
+      : chartLayout.padding.left + chartLayout.slotSpacing * activeTrendIndex;
+
+  useEffect(() => {
+    const node = trendScrollRef.current;
+    if (!node) {
+      return;
+    }
+    if (trendData.records > chartLayout.maxVisibleCount) {
+      requestAnimationFrame(() => {
+        node.scrollLeft = node.scrollWidth - node.clientWidth;
+      });
+    } else {
+      node.scrollLeft = 0;
+    }
+  }, [
+    trendData.records,
+    chartLayout.chartWidth,
+    chartLayout.viewportWidth,
+    chartLayout.maxVisibleCount
+  ]);
+
   return (
     <main className="main mock-page">
       <section className="mock-hero">
@@ -693,7 +1057,7 @@ export default function MockReportPage() {
           <div className="status-title">输入方式</div>
           <div className="status-lines">
             <span>图片识别：最多 3 张截图。</span>
-            <span>手动输入：格式如“常识 13/20 7m”。</span>
+            <span>手动输入：格式如“常识判断 13/20 7m”。</span>
             <span>会结合历史记录生成趋势建议。</span>
           </div>
         </div>
@@ -814,7 +1178,7 @@ export default function MockReportPage() {
             <textarea
               id="mock-note"
               rows={3}
-              placeholder="例如：这次主要练习言语理解，时间偏紧"
+              placeholder="例如：这次主要练习言语理解与表达，时间偏紧"
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
@@ -863,6 +1227,214 @@ export default function MockReportPage() {
           ) : (
             <div className="knowledge-empty">提交数据后显示点评。</div>
           )}
+        </div>
+      </section>
+
+      <section className="mock-grid">
+        <div className="mock-card mock-trend">
+          <div className="mock-card-header mock-trend-header">
+            <div>
+              <h3>历史正确率走势</h3>
+              <span className="form-message">
+                覆盖常识判断、政治理论、言语理解与表达、数量关系、判断推理、资料分析
+              </span>
+            </div>
+            <div className="mock-trend-meta">
+              <span>记录数：{trendData.records}</span>
+              <span>区间：{trendData.rangeText}</span>
+            </div>
+          </div>
+
+          <div className="mock-trend-controls">
+            <button
+              type="button"
+              className={`mock-trend-toggle ${trendFilter === "all" ? "active" : ""}`}
+              onClick={() => setTrendFilter("all")}
+              style={{ "--trend-color": trendSeriesColors.overall } as CSSProperties}
+            >
+              <span className="mock-trend-dot" />
+              全部
+            </button>
+            {chartLayout.seriesWithPoints.map((series) => (
+              <button
+                key={series.key}
+                type="button"
+                className={`mock-trend-toggle ${
+                  trendFilter === series.key ? "active" : ""
+                }`}
+                onClick={() => setTrendFilter(series.key)}
+                disabled={!series.hasData}
+                style={{ "--trend-color": series.color } as CSSProperties}
+              >
+                <span className="mock-trend-dot" />
+                {series.label}
+              </button>
+            ))}
+          </div>
+
+          {trendData.records ? (
+            <div
+              className="mock-trend-scroll"
+              ref={trendScrollRef}
+              style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
+            >
+              <div className="mock-trend-chart">
+              <svg
+                width={chartLayout.chartWidth}
+                height={chartLayout.height}
+                viewBox={`0 0 ${chartLayout.chartWidth} ${chartLayout.height}`}
+                role="img"
+                aria-label="模考历史正确率趋势"
+                className="mock-trend-svg"
+                onClick={handleTrendClick}
+              >
+                <rect
+                  x="0"
+                  y="0"
+                  width={chartLayout.chartWidth}
+                  height={chartLayout.height}
+                  rx="14"
+                  ry="14"
+                  className="mock-trend-bg"
+                />
+                <g className="mock-trend-grid">
+                  {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+                    const y =
+                      chartLayout.padding.top +
+                      (1 - tick) *
+                        (chartLayout.height -
+                          chartLayout.padding.top -
+                          chartLayout.padding.bottom);
+                    return (
+                      <line
+                        key={`grid-${tick}`}
+                        x1={chartLayout.padding.left}
+                        y1={y}
+                        x2={chartLayout.chartWidth - chartLayout.padding.right}
+                        y2={y}
+                      />
+                    );
+                  })}
+                </g>
+                <g className="mock-trend-axis">
+                  {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+                    const y =
+                      chartLayout.padding.top +
+                      (1 - tick) *
+                        (chartLayout.height -
+                          chartLayout.padding.top -
+                          chartLayout.padding.bottom);
+                    return (
+                      <text
+                        key={`label-${tick}`}
+                        x={chartLayout.padding.left - 8}
+                        y={y + 4}
+                        textAnchor="end"
+                      >
+                        {(tick * 100).toFixed(0)}%
+                      </text>
+                    );
+                  })}
+                  {chartLayout.xLabelIndices.map((index) => (
+                    <text
+                      key={`x-${index}`}
+                      x={
+                        chartLayout.padding.left +
+                        (chartLayout.count <= 1 ? 0 : chartLayout.slotSpacing * index)
+                      }
+                      y={chartLayout.height - 10}
+                      textAnchor="middle"
+                    >
+                      {trendData.labels[index]}
+                    </text>
+                  ))}
+                </g>
+                {activeX !== null ? (
+                  <g className="mock-trend-focus">
+                    <line
+                      x1={activeX}
+                      y1={chartLayout.padding.top}
+                      x2={activeX}
+                      y2={chartLayout.height - chartLayout.padding.bottom}
+                    />
+                  </g>
+                ) : null}
+                <g className="mock-trend-lines">
+                  {visibleSeries.map((series) => (
+                    <path
+                      key={`line-${series.key}`}
+                      d={buildLinePath(
+                        series.points.map((point) => ({
+                          x: point.x,
+                          y: point.y
+                        }))
+                      )}
+                      className={`mock-trend-line ${
+                        series.key === "overall" ? "overall" : ""
+                      }`}
+                      style={{ stroke: series.color }}
+                    />
+                  ))}
+                </g>
+                <g className="mock-trend-points">
+                  {visibleSeries.map((series) =>
+                    series.points.map((point, index) =>
+                      point.y === null ? null : (
+                        <circle
+                          key={`point-${series.key}-${index}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r={activeTrendIndex === index ? 4.5 : 3.5}
+                          className="mock-trend-point"
+                          style={{ fill: series.color }}
+                        >
+                          <title>
+                            {`${series.label} ${trendData.labels[index]} ${formatAccuracy(
+                              point.value,
+                              1
+                            )}`}
+                          </title>
+                        </circle>
+                      )
+                    )
+                  )}
+                </g>
+              </svg>
+            </div>
+            </div>
+          ) : (
+            <div className="knowledge-empty">暂无历史记录，先生成一次解读。</div>
+          )}
+
+          {activeTrendEntry ? (
+            <div className="mock-trend-detail">
+              <div className="mock-trend-detail-header">
+                <strong>当日正确率</strong>
+                <span>{formatTrendDate(activeTrendEntry.createdAt)}</span>
+              </div>
+              <div className="mock-trend-detail-grid">
+                {chartLayout.seriesWithPoints.map((series) => {
+                  const value =
+                    activeTrendIndex === null ? null : series.values[activeTrendIndex];
+                  return (
+                    <div key={`detail-${series.key}`} className="mock-trend-detail-item">
+                      <span className="mock-trend-detail-label">
+                        <span
+                          className="mock-trend-detail-dot"
+                          style={{ backgroundColor: series.color }}
+                        />
+                        {series.label}
+                      </span>
+                      <span className="mock-trend-detail-value">
+                        {typeof value === "number" ? formatAccuracy(value, 1) : "暂无"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
         </div>
       </section>
 
