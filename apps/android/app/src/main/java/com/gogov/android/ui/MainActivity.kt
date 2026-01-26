@@ -310,7 +310,13 @@ class MainActivity : ComponentActivity() {
                 composable(Screen.ChatHistory.route) {
                     ChatHistoryScreen(
                         viewModel = chatHistoryViewModel,
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onOpenConversation = { messageId ->
+                            chatViewModel.loadConversation(messageId)
+                            navController.navigate(Screen.Chat.route) {
+                                popUpTo(Screen.ChatHistory.route) { inclusive = true }
+                            }
+                        }
                     )
                 }
 

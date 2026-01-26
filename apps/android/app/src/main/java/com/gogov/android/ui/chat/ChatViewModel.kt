@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gogov.android.data.repository.ChatRepository
 import com.gogov.android.domain.model.ChatMessage
+import com.gogov.android.domain.model.ChatHistoryScope
 import com.gogov.android.domain.model.ChatMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +51,28 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
                     _state.update {
                         it.copy(
                             messages = withCachedImages(ordered),
+                            isLoading = false
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _state.update { it.copy(error = error.message, isLoading = false) }
+                }
+            )
+        }
+    }
+
+    fun loadConversation(userMessageId: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+
+            repository.getHistory(_state.value.mode, ChatHistoryScope.HISTORY).fold(
+                onSuccess = { messages ->
+                    val ordered = normalizeMessages(messages)
+                    val conversation = extractConversation(ordered, userMessageId)
+                    _state.update {
+                        it.copy(
+                            messages = withCachedImages(conversation),
                             isLoading = false
                         )
                     }
@@ -258,5 +281,25 @@ class ChatViewModel(private val repository: ChatRepository) : ViewModel() {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun extractConversation(
+        messages: List<ChatMessage>,
+        userMessageId: String
+    ): List<ChatMessage> {
+        if (messages.isEmpty()) return emptyList()
+        val startIndex = messages.indexOfFirst { it.id == userMessageId }
+        if (startIndex == -1) return messages
+
+        val slice = mutableListOf<ChatMessage>()
+        slice.add(messages[startIndex])
+        var index = startIndex + 1
+        while (index < messages.size) {
+            val message = messages[index]
+            if (message.role == "user") break
+            slice.add(message)
+            index += 1
+        }
+        return slice
     }
 }
