@@ -23,9 +23,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -55,7 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,7 +76,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import coil.compose.rememberAsyncImagePainter
 import com.gogov.android.domain.model.MockHistoryRecord
@@ -627,14 +628,14 @@ private fun MockTrendSection(history: List<MockHistoryRecord>) {
                             val path = Path()
                             var started = false
                             series.values.forEachIndexed { index, value ->
-                                val normalized = normalizeAccuracy(value)
+                                val normalized = normalizeAccuracy(value)?.toFloat()
                                 if (normalized == null) {
                                     started = false
                                 } else {
                                     val x = paddingLeftPx + slotSpacing * index
                                     val y =
                                         paddingTopPx +
-                                            (1 - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                            (1f - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
                                     if (!started) {
                                         path.moveTo(x, y)
                                         started = true
@@ -649,11 +650,11 @@ private fun MockTrendSection(history: List<MockHistoryRecord>) {
                                 style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
                             )
                             series.values.forEachIndexed { index, value ->
-                                val normalized = normalizeAccuracy(value) ?: return@forEachIndexed
+                                val normalized = normalizeAccuracy(value)?.toFloat() ?: return@forEachIndexed
                                 val x = paddingLeftPx + slotSpacing * index
                                 val y =
                                     paddingTopPx +
-                                        (1 - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
+                                        (1f - normalized) * (chartHeightPx - paddingTopPx - paddingBottomPx)
                                 val radius = if (activeIndex == index) 4.5.dp.toPx() else 3.5.dp.toPx()
                                 drawCircle(
                                     color = color,
