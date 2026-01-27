@@ -34,6 +34,11 @@ fun LeaderboardScreen(
     val data by viewModel.data.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
 
+    // 每次进入页面时刷新数据
+    LaunchedEffect(Unit) {
+        viewModel.loadLeaderboard()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
