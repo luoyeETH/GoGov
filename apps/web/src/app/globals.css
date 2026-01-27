@@ -6416,3 +6416,117 @@ body.pomodoro-immersive .page {
     font-size: 12px;
   }
 }
+
+/* Mobile PWA Bottom Navigation */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 64px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 1000;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  height: 100%;
+  text-decoration: none;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.mobile-nav-item.active {
+  color: var(--brand-dark);
+}
+
+.mobile-nav-item.highlight {
+  position: relative;
+}
+
+.mobile-nav-item.highlight .mobile-nav-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--brand);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -12px;
+  box-shadow: 0 4px 12px rgba(181, 82, 43, 0.3);
+}
+
+.mobile-nav-item.highlight .mobile-nav-icon svg {
+  color: white;
+  width: 22px;
+  height: 22px;
+}
+
+.mobile-nav-item.highlight.active .mobile-nav-icon {
+  background: var(--brand-dark);
+}
+
+.mobile-nav-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-nav-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mobile-nav-label {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+}
+
+.mobile-nav-item.highlight .mobile-nav-label {
+  margin-top: -4px;
+}
+
+/* PWA 模式下隐藏顶部导航和 footer */
+@media (display-mode: standalone) and (max-width: 768px) {
+  .header {
+    display: none;
+  }
+
+  .footer {
+    display: none;
+  }
+
+  .floating-chat {
+    display: none;
+  }
+
+  .page {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .main {
+    min-height: calc(100vh - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* iOS standalone 模式额外处理 */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    .mobile-bottom-nav {
+      padding-bottom: max(env(safe-area-inset-bottom), 20px);
+    }
+  }
+}

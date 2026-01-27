@@ -3,6 +3,7 @@ import Script from "next/script";
 import { cookies } from "next/headers";
 import NavUser from "../components/nav-user";
 import MainNav from "../components/main-nav";
+import MobileBottomNav from "../components/mobile-bottom-nav";
 import { ThemeProvider } from "../components/theme-provider";
 import ThemeToggle from "../components/theme-toggle";
 import { FontSizeProvider } from "../components/font-size-provider";
@@ -14,6 +15,12 @@ import "katex/dist/katex.min.css";
 export const metadata = {
   title: "学了么 公考助手",
   description: "AI 驱动的公考学习与训练平台",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "学了么"
+  },
   icons: {
     icon: [
       { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
@@ -29,7 +36,8 @@ export const metadata = {
 
 export const viewport = {
   width: "device-width",
-  initialScale: 1
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({
@@ -157,6 +165,7 @@ export default function RootLayout({
                 </span>
               </footer>
               <FloatingChat />
+              <MobileBottomNav />
             </div>
           </ThemeProvider>
         </FontSizeProvider>
