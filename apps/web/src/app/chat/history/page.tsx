@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  buildConversationSessions,
+  conversationKey,
+  conversationModeKey,
+  conversationStartKey,
+  loadConversationMarkers,
+  upsertConversationMarker
+} from "../conversations";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -19,17 +27,42 @@ const apiBase = (() => {
 })();
 
 const sessionKey = "gogov_session_token";
+const modeKey = "gogov_ai_chat_mode";
+
+type ChatMode = "planner" | "tutor";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
 
 type HistoryItem = {
   id: string;
-  mode: string;
-  preview: string;
-  messageCount: number;
+  title: string;
+  startAt: string;
   createdAt: string;
-  updatedAt: string;
 };
 
 type LoadState = "idle" | "loading" | "error";
+
+function buildHistoryItems(messages: ChatMessage[]): HistoryItem[] {
+  if (!messages.length) {
+    return [];
+  }
+  const markers = loadConversationMarkers("tutor");
+  const sessions = buildConversationSessions(messages, markers);
+  return sessions
+    .filter((session) => session.messages.length > 0)
+    .map((session) => ({
+      id: session.startAt,
+      startAt: session.startAt,
+      title: session.title,
+      createdAt: session.startAt
+    }))
+    .reverse();
+}
 
 export default function ChatHistoryPage() {
   const router = useRouter();
@@ -48,50 +81,28 @@ export default function ChatHistoryPage() {
 
       setLoadState("loading");
       try {
-        // 加载两种模式的历史
-        const [plannerRes, tutorRes] = await Promise.all([
-          fetch(`${apiBase}/ai/chat/history?mode=planner`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`${apiBase}/ai/chat/history?mode=tutor`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
+        const mode: ChatMode = "tutor";
+        window.localStorage.setItem(modeKey, mode);
+        const res = await fetch(`${apiBase}/ai/chat/history?mode=${mode}&scope=history`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-        const plannerData = await plannerRes.json();
-        const tutorData = await tutorRes.json();
-
-        const allHistory: HistoryItem[] = [];
-
-        // 从 planner 消息中提取会话
-        if (plannerData.messages?.length > 0) {
-          const firstMsg = plannerData.messages[0];
-          allHistory.push({
-            id: "planner",
-            mode: "planner",
-            preview: firstMsg.content?.slice(0, 50) || "规划 AI 对话",
-            messageCount: plannerData.messages.length,
-            createdAt: plannerData.messages[plannerData.messages.length - 1]?.createdAt || new Date().toISOString(),
-            updatedAt: firstMsg.createdAt || new Date().toISOString()
-          });
+        if (res.status === 401) {
+          window.localStorage.removeItem(sessionKey);
+          setErrorMessage("登录已过期，请重新登录");
+          setLoadState("error");
+          return;
         }
 
-        if (tutorData.messages?.length > 0) {
-          const firstMsg = tutorData.messages[0];
-          allHistory.push({
-            id: "tutor",
-            mode: "tutor",
-            preview: firstMsg.content?.slice(0, 50) || "导师 AI 对话",
-            messageCount: tutorData.messages.length,
-            createdAt: tutorData.messages[tutorData.messages.length - 1]?.createdAt || new Date().toISOString(),
-            updatedAt: firstMsg.createdAt || new Date().toISOString()
-          });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error ?? "加载历史失败");
         }
 
-        // 按更新时间排序
-        allHistory.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-        setHistory(allHistory);
+        const messages = Array.isArray(data.messages)
+          ? (data.messages as ChatMessage[])
+          : [];
+        setHistory(buildHistoryItems(messages));
         setLoadState("idle");
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : "加载历史失败");
@@ -103,8 +114,12 @@ export default function ChatHistoryPage() {
   }, []);
 
   const handleSelectHistory = (item: HistoryItem) => {
-    // 保存选择的模式，然后返回聊天页面
-    window.localStorage.setItem("gogov_ai_chat_mode", item.mode);
+    const mode: ChatMode = "tutor";
+    window.localStorage.setItem(modeKey, mode);
+    upsertConversationMarker(mode, item.startAt);
+    window.localStorage.setItem(conversationStartKey, item.startAt);
+    window.localStorage.setItem(conversationKey, item.startAt);
+    window.localStorage.setItem(conversationModeKey, mode);
     router.push("/chat");
   };
 
@@ -146,7 +161,7 @@ export default function ChatHistoryPage() {
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <p>暂无历史对话</p>
+            <p>暂无历史消息</p>
             <Link href="/chat" className="primary button-link">
               开始对话
             </Link>
@@ -168,13 +183,9 @@ export default function ChatHistoryPage() {
                   </svg>
                 </div>
                 <div className="history-item-content">
-                  <div className="history-item-title">
-                    {item.mode === "planner" ? "规划 AI" : "导师 AI"}
-                    <span className="history-item-count">{item.messageCount} 条消息</span>
-                  </div>
-                  <p className="history-item-preview">{item.preview}</p>
+                  <div className="history-item-title">{item.title || "未命名提问"}</div>
                   <span className="history-item-time">
-                    {new Date(item.updatedAt).toLocaleString("zh-CN", {
+                    {new Date(item.createdAt).toLocaleString("zh-CN", {
                       month: "numeric",
                       day: "numeric",
                       hour: "2-digit",
