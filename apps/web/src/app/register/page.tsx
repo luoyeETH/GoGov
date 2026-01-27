@@ -25,12 +25,59 @@ type SubmitState = "idle" | "submitting" | "success" | "error";
 
 type GenderOption = "male" | "female" | "hidden";
 
-function isValidUsername(value: string) {
+type FieldErrors = {
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
+  age?: string;
+};
+
+function validateUsername(value: string): string | undefined {
   const trimmed = value.trim();
-  if (/\s/.test(trimmed)) {
-    return false;
+  if (!trimmed) {
+    return "请输入用户名";
   }
-  return trimmed.length >= 2 && trimmed.length <= 10;
+  if (/\s/.test(trimmed)) {
+    return "用户名不能包含空格";
+  }
+  if (trimmed.length < 2) {
+    return "用户名至少 2 个字符";
+  }
+  if (trimmed.length > 10) {
+    return "用户名最多 10 个字符";
+  }
+  return undefined;
+}
+
+function validatePassword(value: string): string | undefined {
+  if (!value) {
+    return "请输入密码";
+  }
+  if (value.length < 8) {
+    return "密码长度至少 8 位";
+  }
+  return undefined;
+}
+
+function validateConfirmPassword(password: string, confirmPassword: string): string | undefined {
+  if (!confirmPassword) {
+    return "请确认密码";
+  }
+  if (password !== confirmPassword) {
+    return "两次输入的密码不一致";
+  }
+  return undefined;
+}
+
+function validateAge(value: string): string | undefined {
+  if (!value) {
+    return undefined; // 年龄是可选的
+  }
+  const num = Number(value);
+  if (isNaN(num) || num < 0 || num > 120) {
+    return "请输入有效的年龄（0-120）";
+  }
+  return undefined;
 }
 
 function RegisterPageContent() {
@@ -47,19 +94,61 @@ function RegisterPageContent() {
   const [age, setAge] = useState("");
   const [examStartDate, setExamStartDate] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validateAllFields = (): FieldErrors => {
+    return {
+      username: validateUsername(username),
+      password: validatePassword(password),
+      confirmPassword: validateConfirmPassword(password, confirmPassword),
+      age: validateAge(age)
+    };
+  };
+
+  const hasErrors = useMemo(() => {
+    const errors = validateAllFields();
+    return Object.values(errors).some(Boolean);
+  }, [username, password, confirmPassword, age]);
 
   const canSubmit = useMemo(() => {
     if (!token || !email) {
       return false;
     }
-    if (!isValidUsername(username.trim())) {
-      return false;
-    }
-    if (password.length < 8 || password !== confirmPassword) {
+    if (hasErrors) {
       return false;
     }
     return submitState !== "submitting";
-  }, [token, email, username, password, confirmPassword, submitState]);
+  }, [token, email, hasErrors, submitState]);
+
+  const handleBlur = (field: keyof FieldErrors) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    let error: string | undefined;
+    switch (field) {
+      case "username":
+        error = validateUsername(username);
+        break;
+      case "password":
+        error = validatePassword(password);
+        // 同时更新确认密码的错误状态
+        if (touched.confirmPassword) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            confirmPassword: validateConfirmPassword(password, confirmPassword)
+          }));
+        }
+        break;
+      case "confirmPassword":
+        error = validateConfirmPassword(password, confirmPassword);
+        break;
+      case "age":
+        error = validateAge(age);
+        break;
+    }
+
+    setFieldErrors((prev) => ({ ...prev, [field]: error }));
+  };
 
   useEffect(() => {
     if (!token) {
@@ -93,6 +182,21 @@ function RegisterPageContent() {
   }, [token]);
 
   const submit = async () => {
+    // 先验证所有字段
+    const errors = validateAllFields();
+    setFieldErrors(errors);
+    setTouched({
+      username: true,
+      password: true,
+      confirmPassword: true,
+      age: true
+    });
+
+    // 如果有错误，不提交
+    if (Object.values(errors).some(Boolean)) {
+      return;
+    }
+
     setSubmitState("submitting");
     setMessage(null);
     try {
@@ -162,16 +266,20 @@ function RegisterPageContent() {
                 <label>邮箱</label>
                 <input value={email ?? ""} disabled />
               </div>
-              <div className="form-row">
+              <div className={`form-row ${touched.username && fieldErrors.username ? "has-error" : ""}`}>
                 <label htmlFor="username">用户名</label>
                 <input
                   id="username"
                   value={username}
                   placeholder="2-10 位字符"
                   onChange={(event) => setUsername(event.target.value)}
+                  onBlur={() => handleBlur("username")}
                 />
+                {touched.username && fieldErrors.username && (
+                  <span className="field-error">{fieldErrors.username}</span>
+                )}
               </div>
-              <div className="form-row">
+              <div className={`form-row ${touched.password && fieldErrors.password ? "has-error" : ""}`}>
                 <label htmlFor="password">设置密码</label>
                 <input
                   id="password"
@@ -179,16 +287,25 @@ function RegisterPageContent() {
                   value={password}
                   placeholder="至少 8 位"
                   onChange={(event) => setPassword(event.target.value)}
+                  onBlur={() => handleBlur("password")}
                 />
+                {touched.password && fieldErrors.password && (
+                  <span className="field-error">{fieldErrors.password}</span>
+                )}
               </div>
-              <div className="form-row">
+              <div className={`form-row ${touched.confirmPassword && fieldErrors.confirmPassword ? "has-error" : ""}`}>
                 <label htmlFor="confirmPassword">确认密码</label>
                 <input
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
+                  placeholder="再次输入密码"
                   onChange={(event) => setConfirmPassword(event.target.value)}
+                  onBlur={() => handleBlur("confirmPassword")}
                 />
+                {touched.confirmPassword && fieldErrors.confirmPassword && (
+                  <span className="field-error">{fieldErrors.confirmPassword}</span>
+                )}
               </div>
               <div className="form-row">
                 <label htmlFor="gender">性别</label>
@@ -204,7 +321,7 @@ function RegisterPageContent() {
                   <option value="hidden">隐藏</option>
                 </select>
               </div>
-              <div className="form-row">
+              <div className={`form-row ${touched.age && fieldErrors.age ? "has-error" : ""}`}>
                 <label htmlFor="age">年龄</label>
                 <input
                   id="age"
@@ -214,7 +331,11 @@ function RegisterPageContent() {
                   value={age}
                   placeholder="可选"
                   onChange={(event) => setAge(event.target.value)}
+                  onBlur={() => handleBlur("age")}
                 />
+                {touched.age && fieldErrors.age && (
+                  <span className="field-error">{fieldErrors.age}</span>
+                )}
               </div>
               <div className="form-row">
                 <label htmlFor="examStart">备考开始时间</label>

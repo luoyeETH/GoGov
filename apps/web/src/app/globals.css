@@ -1273,6 +1273,27 @@ button {
   background: var(--card);
 }
 
+/* Form error states */
+.form-row.has-error input,
+.form-row.has-error select,
+.form-row.has-error textarea {
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.form-row.has-error input:focus,
+.form-row.has-error select:focus,
+.form-row.has-error textarea:focus {
+  outline-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.field-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 2px;
+}
+
 .captcha-row {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
