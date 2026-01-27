@@ -60,8 +60,10 @@ import com.gogov.android.ui.studyplan.StudyPlanScreen
 import com.gogov.android.ui.studyplan.StudyPlanViewModel
 import com.gogov.android.ui.tasks.DailyTasksScreen
 import com.gogov.android.ui.tasks.DailyTasksViewModel
+import com.gogov.android.ui.splash.SplashScreen
 import com.gogov.android.ui.theme.GoGovTheme
 import com.gogov.android.util.DateUtils
+import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String, val label: String) {
     object Pomodoro : Screen("pomodoro", "番茄钟")
@@ -128,6 +130,9 @@ class MainActivity : ComponentActivity() {
         val isLoggedIn by authRepository.isLoggedIn.collectAsState(initial = initialLoggedIn)
         val isForeground by GoGovApplication.instance.appLifecycleObserver.isInForeground.collectAsState()
 
+        var showSplash by rememberSaveable { mutableStateOf(true) }
+        var dataLoaded by rememberSaveable { mutableStateOf(false) }
+
         val pomodoroViewModel = remember {
             PomodoroViewModel(
                 pomodoroRepository,
@@ -147,13 +152,19 @@ class MainActivity : ComponentActivity() {
         var lastSyncDay by rememberSaveable { mutableStateOf<String?>(null) }
         var lastSyncAt by rememberSaveable { mutableStateOf(0L) }
 
-        fun refreshAllData(force: Boolean = false) {
-            if (!isLoggedIn) return
+        fun refreshAllData(force: Boolean = false, onComplete: () -> Unit = {}) {
+            if (!isLoggedIn) {
+                onComplete()
+                return
+            }
             val today = DateUtils.getBeijingDateString()
             val now = System.currentTimeMillis()
             val dailyChanged = lastSyncDay != today
             val intervalExpired = now - lastSyncAt > 5 * 60 * 1000L
-            if (!force && !dailyChanged && !intervalExpired) return
+            if (!force && !dailyChanged && !intervalExpired) {
+                onComplete()
+                return
+            }
 
             pomodoroViewModel.loadData()
             chatViewModel.loadHistory()
@@ -164,11 +175,23 @@ class MainActivity : ComponentActivity() {
 
             lastSyncDay = today
             lastSyncAt = now
+            onComplete()
         }
 
         LaunchedEffect(isLoggedIn) {
             if (isLoggedIn) {
-                refreshAllData(force = true)
+                refreshAllData(force = true) {
+                    dataLoaded = true
+                }
+            } else {
+                dataLoaded = true
+            }
+        }
+
+        LaunchedEffect(dataLoaded) {
+            if (dataLoaded && showSplash) {
+                delay(500)
+                showSplash = false
             }
         }
 
@@ -181,6 +204,11 @@ class MainActivity : ComponentActivity() {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
         val showBottomBar = isLoggedIn && currentDestination?.route in bottomNavItems.map { it.first.route }
+
+        if (showSplash) {
+            SplashScreen()
+            return
+        }
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
