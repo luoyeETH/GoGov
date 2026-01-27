@@ -65,6 +65,10 @@ interface GoGovApi {
     @GET("pomodoro/insights")
     fun getInsights(@Query("days") days: Int = 84): Call<PomodoroInsights>
 
+    // Leaderboard
+    @GET("leaderboard")
+    fun getLeaderboard(@Query("period") period: String): Call<LeaderboardResponse>
+
     // AI Chat
     @GET("ai/chat/history")
     fun getChatHistory(

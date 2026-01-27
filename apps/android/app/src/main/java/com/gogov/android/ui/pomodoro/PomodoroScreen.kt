@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +54,8 @@ import kotlin.math.sin
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PomodoroScreen(
-    viewModel: PomodoroViewModel
+    viewModel: PomodoroViewModel,
+    onNavigateToLeaderboard: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     val customSubjects by viewModel.customSubjects.collectAsState()
@@ -102,10 +105,23 @@ fun PomodoroScreen(
             .verticalScroll(rememberScrollState())
     ) {
         // Header
-        PageTitle(
-            title = "番茄钟",
-            subtitle = "进入专注模式"
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PageTitle(
+                title = "番茄钟",
+                subtitle = "进入专注模式"
+            )
+            IconButton(onClick = onNavigateToLeaderboard) {
+                Icon(
+                    imageVector = Icons.Default.Leaderboard,
+                    contentDescription = "排行榜",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 

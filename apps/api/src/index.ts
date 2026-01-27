@@ -4905,6 +4905,153 @@ server.get("/ai/assist/history", async (request, reply) => {
   }
 });
 
+// --- Leaderboard ---
+
+type LeaderboardPeriod = "day" | "week" | "month";
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0 && minutes > 0) {
+    return `${hours}小时${minutes}分钟`;
+  }
+  if (hours > 0) {
+    return `${hours}小时`;
+  }
+  if (minutes > 0) {
+    return `${minutes}分钟`;
+  }
+  return "0分钟";
+}
+
+function getLeaderboardPeriodRange(period: LeaderboardPeriod) {
+  const todayLabel = getBeijingDateString();
+  const [year, month, day] = todayLabel.split("-").map(Number);
+  const todayUtc = Date.UTC(year, month - 1, day);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  if (period === "day") {
+    const start = parseOptionalDate(todayLabel) ?? new Date(todayUtc);
+    const end = new Date(start.getTime() + dayMs);
+    return { start, end, label: todayLabel };
+  }
+
+  if (period === "week") {
+    const todayDate = new Date(todayUtc);
+    const dayOfWeek = todayDate.getUTCDay();
+    const diff = (dayOfWeek + 6) % 7;
+    const weekStartUtc = todayUtc - diff * dayMs;
+    const weekStartLabel = new Date(weekStartUtc).toISOString().slice(0, 10);
+    const start = parseOptionalDate(weekStartLabel) ?? new Date(weekStartUtc);
+    const end = new Date(start.getTime() + 7 * dayMs);
+    return { start, end, label: `${weekStartLabel} ~ ${todayLabel}` };
+  }
+
+  // month
+  const monthStartLabel = `${year}-${String(month).padStart(2, "0")}-01`;
+  const start = parseOptionalDate(monthStartLabel) ?? new Date(Date.UTC(year, month - 1, 1));
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const monthEndLabel = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+  const end = parseOptionalDate(monthEndLabel) ?? new Date(Date.UTC(nextYear, nextMonth - 1, 1));
+  return { start, end, label: `${year}年${month}月` };
+}
+
+server.get("/leaderboard", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    const session = token ? await verifySession(token).catch(() => null) : null;
+    const currentUserId = session?.user?.id ?? null;
+
+    const query = request.query as { period?: string };
+    const periodInput = query.period;
+    const period: LeaderboardPeriod =
+      periodInput === "week" ? "week" : periodInput === "month" ? "month" : "day";
+
+    const { start, end, label: periodLabel } = getLeaderboardPeriodRange(period);
+
+    // Use raw SQL for aggregation to improve performance
+    const rankings = await prisma.$queryRaw<
+      Array<{ userId: string; username: string | null; totalSeconds: bigint }>
+    >`
+      SELECT
+        p."userId",
+        u."username",
+        SUM(p."durationSeconds") as "totalSeconds"
+      FROM "PomodoroSession" p
+      LEFT JOIN "User" u ON p."userId" = u."id"
+      WHERE p."status" = 'completed'
+        AND p."startedAt" >= ${start}
+        AND p."startedAt" < ${end}
+        AND p."durationSeconds" IS NOT NULL
+      GROUP BY p."userId", u."username"
+      ORDER BY "totalSeconds" DESC
+      LIMIT 100
+    `;
+
+    // Calculate ranks with ties (1, 2, 3, 3, 5 style)
+    let currentRank = 0;
+    let lastSeconds: bigint | null = null;
+    let skipCount = 0;
+    const rankedResults: Array<{
+      rank: number;
+      userId: string;
+      username: string | null;
+      totalSeconds: number;
+      formattedDuration: string;
+    }> = [];
+
+    for (const row of rankings) {
+      const seconds = Number(row.totalSeconds);
+      if (lastSeconds === null || row.totalSeconds !== lastSeconds) {
+        currentRank += 1 + skipCount;
+        skipCount = 0;
+        lastSeconds = row.totalSeconds;
+      } else {
+        skipCount += 1;
+      }
+      rankedResults.push({
+        rank: currentRank,
+        userId: row.userId,
+        username: row.username,
+        totalSeconds: seconds,
+        formattedDuration: formatDuration(seconds)
+      });
+    }
+
+    // Get top 10 for display
+    const top10 = rankedResults.slice(0, 10);
+
+    // Find current user's ranking
+    let myRanking: { rank: number; totalSeconds: number; formattedDuration: string } | null = null;
+    if (currentUserId) {
+      const myEntry = rankedResults.find((r) => r.userId === currentUserId);
+      if (myEntry) {
+        myRanking = {
+          rank: myEntry.rank,
+          totalSeconds: myEntry.totalSeconds,
+          formattedDuration: myEntry.formattedDuration
+        };
+      }
+    }
+
+    reply.send({
+      period,
+      periodLabel,
+      rankings: top10.map((r) => ({
+        rank: r.rank,
+        userId: r.userId,
+        username: r.username,
+        totalSeconds: r.totalSeconds,
+        formattedDuration: r.formattedDuration
+      })),
+      myRanking
+    });
+  } catch (error) {
+    reply.code(400).send({ error: error instanceof Error ? error.message : "获取排行榜失败" });
+  }
+});
+
 server.listen({ port, host: "0.0.0.0" }).catch((err) => {
   server.log.error(err);
   process.exit(1);

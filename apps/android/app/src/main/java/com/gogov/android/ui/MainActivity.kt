@@ -36,6 +36,7 @@ import com.gogov.android.data.repository.AuthRepository
 import com.gogov.android.data.repository.ChatRepository
 import com.gogov.android.data.repository.DailyTaskRepository
 import com.gogov.android.data.repository.ExpenseRepository
+import com.gogov.android.data.repository.LeaderboardRepository
 import com.gogov.android.data.repository.MockRepository
 import com.gogov.android.data.repository.PomodoroRepository
 import com.gogov.android.data.repository.QuickPracticeRepository
@@ -45,6 +46,8 @@ import com.gogov.android.ui.chat.ChatHistoryScreen
 import com.gogov.android.ui.chat.ChatHistoryViewModel
 import com.gogov.android.ui.chat.ChatScreen
 import com.gogov.android.ui.chat.ChatViewModel
+import com.gogov.android.ui.leaderboard.LeaderboardScreen
+import com.gogov.android.ui.leaderboard.LeaderboardViewModel
 import com.gogov.android.ui.ledger.LedgerScreen
 import com.gogov.android.ui.ledger.LedgerViewModel
 import com.gogov.android.ui.mock.MockAnalysisScreen
@@ -76,6 +79,7 @@ sealed class Screen(val route: String, val label: String) {
     object More : Screen("more", "更多功能")
     object MockAnalysis : Screen("mock-analysis", "模考解读")
     object Ledger : Screen("ledger", "记账本")
+    object Leaderboard : Screen("leaderboard", "排行榜")
     object Login : Screen("login", "登录")
     object Register : Screen("register", "注册")
 }
@@ -99,6 +103,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var quickPracticeRepository: QuickPracticeRepository
     private lateinit var mockRepository: MockRepository
     private lateinit var expenseRepository: ExpenseRepository
+    private lateinit var leaderboardRepository: LeaderboardRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,6 +120,7 @@ class MainActivity : ComponentActivity() {
         quickPracticeRepository = QuickPracticeRepository()
         mockRepository = MockRepository()
         expenseRepository = ExpenseRepository()
+        leaderboardRepository = LeaderboardRepository()
 
         setContent {
             GoGovTheme {
@@ -148,6 +154,7 @@ class MainActivity : ComponentActivity() {
         val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
         val mockAnalysisViewModel = remember { MockAnalysisViewModel(mockRepository) }
         val ledgerViewModel = remember { LedgerViewModel(expenseRepository) }
+        val leaderboardViewModel = remember { LeaderboardViewModel(leaderboardRepository) }
 
         var lastSyncDay by rememberSaveable { mutableStateOf<String?>(null) }
         var lastSyncAt by rememberSaveable { mutableStateOf(0L) }
@@ -316,7 +323,10 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable(Screen.Pomodoro.route) {
-                    PomodoroScreen(viewModel = pomodoroViewModel)
+                    PomodoroScreen(
+                        viewModel = pomodoroViewModel,
+                        onNavigateToLeaderboard = { navController.navigate(Screen.Leaderboard.route) }
+                    )
                 }
 
                 composable(Screen.Tasks.route) {
@@ -392,6 +402,13 @@ class MainActivity : ComponentActivity() {
                 composable(Screen.Ledger.route) {
                     LedgerScreen(
                         viewModel = ledgerViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Screen.Leaderboard.route) {
+                    LeaderboardScreen(
+                        viewModel = leaderboardViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

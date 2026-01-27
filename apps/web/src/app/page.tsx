@@ -71,6 +71,11 @@ export default function Home() {
             <p>沉浸式专注计时 + 学习地图统计。</p>
             <span className="module-status active">已上线</span>
           </Link>
+          <Link href="/leaderboard" className="module-card module-card-active">
+            <div className="module-title">学习排行榜</div>
+            <p>查看日榜、周榜、月榜，比拼学习时长。</p>
+            <span className="module-status active">已上线</span>
+          </Link>
           <div className="module-card" data-tooltip="开发中">
             <div className="module-title">专项训练计划</div>
             <p>按薄弱点自动生成训练目标与计划。</p>
