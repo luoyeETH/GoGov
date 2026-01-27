@@ -13,4 +13,6 @@ apps/android/build/
 apps/android/app/build/
 apps/android/local.properties
 apps/android-project.zip
-AGENTS.md
+# Ignore all markdown files except README
+*.md
+!README.md
