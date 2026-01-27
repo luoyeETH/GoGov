@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -50,6 +51,7 @@ function getInitialChatMode(): ChatMode {
 }
 
 export default function MobileChatPage() {
+  const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [historyState, setHistoryState] = useState<RequestState>("idle");
@@ -58,11 +60,20 @@ export default function MobileChatPage() {
   const [input, setInput] = useState("");
   const [chatMode, setChatMode] = useState<ChatMode>(() => getInitialChatMode());
   const [historyCount, setHistoryCount] = useState(0);
-  const [showHistory, setShowHistory] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatModeRef = useRef<ChatMode>(chatMode);
+
+  const scrollToBottom = () => {
+    if (listRef.current) {
+      requestAnimationFrame(() => {
+        if (listRef.current) {
+          listRef.current.scrollTop = listRef.current.scrollHeight;
+        }
+      });
+    }
+  };
 
   const loadHistory = async (mode: ChatMode = chatMode) => {
     const token = window.localStorage.getItem(sessionKey);
@@ -95,6 +106,8 @@ export default function MobileChatPage() {
       setMessages(history);
       setHistoryCount(data.historyCount ?? 0);
       setHistoryState("idle");
+      // 加载完成后滚动到底部
+      setTimeout(scrollToBottom, 100);
     } catch (err) {
       setHistoryState("error");
       setHistoryMessage(err instanceof Error ? err.message : "加载对话失败");
@@ -118,9 +131,7 @@ export default function MobileChatPage() {
   }, [chatMode]);
 
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages]);
 
   const sendMessage = async () => {
@@ -165,16 +176,19 @@ export default function MobileChatPage() {
       if (!res.ok) {
         throw new Error(data?.error ?? "发送失败");
       }
+      // API returns: { answer, model, messages: [userRecord, assistantRecord] }
+      const userRecord = data.messages?.[0];
+      const assistantRecord = data.messages?.[1];
       setMessages((prev) =>
         prev.map((msg) => {
-          if (msg.id === tempId && data.userMessage?.id) {
-            return { ...msg, id: data.userMessage.id };
+          if (msg.id === tempId && userRecord?.id) {
+            return { ...msg, id: userRecord.id };
           }
           if (msg.id === `${tempId}-reply`) {
             return {
               ...msg,
-              id: data.assistantMessage?.id ?? msg.id,
-              content: data.assistantMessage?.content ?? "",
+              id: assistantRecord?.id ?? msg.id,
+              content: data.answer ?? assistantRecord?.content ?? "",
               pending: false
             };
           }
@@ -202,17 +216,11 @@ export default function MobileChatPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Reset input
     event.target.value = "";
 
-    // For now, we'll convert the image to base64 and send it as part of the message
-    // In a real implementation, you'd upload to a server and get a URL
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = reader.result as string;
       setInput((prev) => prev + `\n[图片已上传，请分析图片内容]`);
-      // Store the image data for sending (in real implementation)
-      // For now, just indicate an image was selected
     };
     reader.readAsDataURL(file);
   };
@@ -222,6 +230,10 @@ export default function MobileChatPage() {
       event.preventDefault();
       sendMessage();
     }
+  };
+
+  const handleHistoryClick = () => {
+    router.push("/chat/history");
   };
 
   if (authState === "anon") {
@@ -241,6 +253,19 @@ export default function MobileChatPage() {
     <main className="main mobile-chat-page">
       {/* Header */}
       <div className="mobile-chat-header">
+        <button
+          type="button"
+          className="mobile-chat-action-btn"
+          onClick={handlePhotoUpload}
+          title="拍照/上传图片"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          <span>拍照</span>
+        </button>
+
         <div className="mobile-chat-mode-switch">
           <button
             type="button"
@@ -257,33 +282,31 @@ export default function MobileChatPage() {
             导师 AI
           </button>
         </div>
+
         <button
           type="button"
-          className="mobile-chat-history-btn"
-          onClick={() => setShowHistory(!showHistory)}
+          className="mobile-chat-action-btn"
+          onClick={handleHistoryClick}
+          title="历史对话"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
-          {historyCount > 0 && <span className="history-badge">{historyCount}</span>}
+          <span>历史</span>
+          {historyCount > 0 && <span className="action-badge">{historyCount}</span>}
         </button>
       </div>
 
-      {/* History Panel */}
-      {showHistory && (
-        <div className="mobile-chat-history-panel">
-          <div className="history-panel-header">
-            <h3>历史对话</h3>
-            <button type="button" onClick={() => setShowHistory(false)}>关闭</button>
-          </div>
-          <div className="history-panel-content">
-            <p className="history-hint">
-              查看更多历史记录请访问{" "}
-              <Link href="/ai/assist">AI 答疑页面</Link>
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Hidden file input */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: "none" }}
+      />
 
       {/* Messages */}
       <div className="mobile-chat-messages" ref={listRef}>
@@ -291,12 +314,20 @@ export default function MobileChatPage() {
           <div className="mobile-chat-loading">加载中...</div>
         ) : messages.length === 0 ? (
           <div className="mobile-chat-empty">
-            <p>
-              {chatMode === "planner"
-                ? "我是规划 AI，帮你制定学习计划、分析岗位选择。"
-                : "我是导师 AI，帮你解答题目、分析错因。"}
+            <div className="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <p className="empty-title">
+              {chatMode === "planner" ? "规划 AI" : "导师 AI"}
             </p>
-            <p>发送消息开始对话吧！</p>
+            <p className="empty-desc">
+              {chatMode === "planner"
+                ? "帮你制定学习计划、分析岗位选择"
+                : "帮你解答题目、分析错因"}
+            </p>
+            <p className="empty-hint">发送消息开始对话</p>
           </div>
         ) : (
           messages.map((msg) => (
@@ -306,7 +337,9 @@ export default function MobileChatPage() {
             >
               {msg.role === "assistant" ? (
                 msg.pending ? (
-                  <span className="typing-indicator">正在输入...</span>
+                  <span className="typing-indicator">
+                    <span></span><span></span><span></span>
+                  </span>
                 ) : (
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkMath]}
@@ -325,26 +358,6 @@ export default function MobileChatPage() {
 
       {/* Input */}
       <div className="mobile-chat-input-area">
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          style={{ display: "none" }}
-        />
-        <button
-          type="button"
-          className="mobile-chat-photo-btn"
-          onClick={handlePhotoUpload}
-          title="拍照/上传图片"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21 15 16 10 5 21" />
-          </svg>
-        </button>
         <textarea
           ref={inputRef}
           value={input}
