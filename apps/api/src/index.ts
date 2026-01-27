@@ -3109,10 +3109,23 @@ server.post("/ai/chat", async (request, reply) => {
       return;
     }
     const session = await verifySession(token);
-    const body = request.body as { message?: string; mode?: string; imageDataUrl?: string };
+    const body = request.body as {
+      message?: string;
+      mode?: string;
+      imageDataUrl?: string;
+      fresh?: boolean;
+      contextSince?: string;
+    };
     const message = body?.message?.trim() ?? "";
     const imageDataUrl = body?.imageDataUrl?.trim();
     const chatMode = normalizeChatMode(body?.mode);
+    const fresh = body?.fresh === true;
+    const contextSinceRaw =
+      typeof body?.contextSince === "string" ? body.contextSince.trim() : "";
+    const contextSinceMillis = contextSinceRaw ? new Date(contextSinceRaw).getTime() : NaN;
+    const contextSinceDate = Number.isFinite(contextSinceMillis)
+      ? new Date(contextSinceMillis)
+      : null;
 
     if (!message && !imageDataUrl) {
       reply.code(400).send({ error: "请输入问题或上传图片" });
@@ -3129,7 +3142,12 @@ server.post("/ai/chat", async (request, reply) => {
       createdAt?: { gte: Date };
     } = { userId: session.user.id, mode: chatMode };
     if (chatMode === "tutor") {
-      historyWhere.createdAt = { gte: getTutorContextCutoff() };
+      const tutorCutoff = getTutorContextCutoff();
+      const effectiveCutoff =
+        contextSinceDate && contextSinceDate > tutorCutoff ? contextSinceDate : tutorCutoff;
+      historyWhere.createdAt = { gte: effectiveCutoff };
+    } else if (contextSinceDate) {
+      historyWhere.createdAt = { gte: contextSinceDate };
     }
     const [studyPlanProfile, latestPlanHistory, mockReports, historyRecords] =
       await Promise.all([
@@ -3187,14 +3205,14 @@ server.post("/ai/chat", async (request, reply) => {
 
     // 如果包含图片，使用视觉API
     if (imageDataUrl) {
-      const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
-        (record) => {
-          if (record.role !== "user" && record.role !== "assistant") {
-            return [];
-          }
-          return [{ role: record.role as "user" | "assistant", content: record.content }];
-        }
-      );
+      const historyMessages = fresh
+        ? []
+        : (historyRecords as ChatMessageRecord[]).flatMap((record) => {
+            if (record.role !== "user" && record.role !== "assistant") {
+              return [];
+            }
+            return [{ role: record.role as "user" | "assistant", content: record.content }];
+          });
 
       const userContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [];
       if (message) {
@@ -3215,14 +3233,14 @@ server.post("/ai/chat", async (request, reply) => {
       });
     } else {
       // 纯文本消息
-      const historyMessages = (historyRecords as ChatMessageRecord[]).flatMap(
-        (record) => {
-          if (record.role !== "user" && record.role !== "assistant") {
-            return [];
-          }
-          return [{ role: record.role as "user" | "assistant", content: record.content }];
-        }
-      );
+      const historyMessages = fresh
+        ? []
+        : (historyRecords as ChatMessageRecord[]).flatMap((record) => {
+            if (record.role !== "user" && record.role !== "assistant") {
+              return [];
+            }
+            return [{ role: record.role as "user" | "assistant", content: record.content }];
+          });
 
       result = await generateAssistAnswer({
         provider: aiConfig.provider,

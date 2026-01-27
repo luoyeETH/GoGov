@@ -120,11 +120,11 @@ export default function MistakesPage() {
 
   return (
     <main className="main mistakes-page">
-      <section className="mistakes-header">
-        <div>
+      <section className="mistakes-header app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">错题复盘</p>
-          <h1>我的错题本</h1>
-          <p className="lead">
+          <h1 className="app-page-title">我的错题本</h1>
+          <p className="lead app-page-subtitle">
             汇总速算与计算机专项练习中的错误题目，随时回看答案与解析。
           </p>
         </div>

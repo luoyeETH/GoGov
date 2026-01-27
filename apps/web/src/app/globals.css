@@ -7285,6 +7285,13 @@ body.pomodoro-immersive .page {
 
 /* PWA 模式下显示更多功能 */
 @media (display-mode: standalone) and (max-width: 768px) {
+  :root {
+    --mobile-bottom-nav-height: 64px;
+    --mobile-bottom-nav-offset: calc(
+      var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 14px
+    );
+  }
+
   .profile-more-features {
     display: block;
   }
@@ -7302,7 +7309,7 @@ body.pomodoro-immersive .page {
   }
 
   .mobile-chat-page {
-    min-height: calc(100vh - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: calc(100vh - env(safe-area-inset-top));
     padding-bottom: 0 !important;
   }
 
@@ -7640,11 +7647,18 @@ body.pomodoro-immersive .page {
 /* PWA mode: Fix mobile chat input to account for bottom nav */
 @media (display-mode: standalone) and (max-width: 768px) {
   .mobile-chat-input-area {
-    padding-bottom: calc(12px + 64px + env(safe-area-inset-bottom));
+    margin-bottom: var(
+      --mobile-bottom-nav-offset,
+      calc(64px + env(safe-area-inset-bottom) + 14px)
+    );
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
 
   .mobile-chat-history-page {
-    min-height: calc(100vh - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    min-height: calc(100vh - env(safe-area-inset-top));
+    padding-bottom: var(
+      --mobile-bottom-nav-offset,
+      calc(64px + env(safe-area-inset-bottom) + 14px)
+    );
   }
 }

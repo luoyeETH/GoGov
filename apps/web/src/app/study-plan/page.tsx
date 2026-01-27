@@ -539,10 +539,10 @@ export default function StudyPlanPage() {
   return (
     <main className="main plan-page">
       <section className="plan-hero">
-        <div>
+        <div className="app-page-header-main">
           <p className="eyebrow">个性化备考规划</p>
-          <h1>基于你的背景与模考数据，生成可执行学习路线</h1>
-          <p className="lead">
+          <h1 className="app-page-title">基于你的背景与模考数据，生成可执行学习路线</h1>
+          <p className="lead app-page-subtitle">
             首次进入请完善备考档案，系统会结合目标考试时间、可学习时段与近期
             模考成绩，输出长期策略、每周节奏与每日任务清单。
           </p>

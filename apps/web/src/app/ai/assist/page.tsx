@@ -194,11 +194,11 @@ export default function AiAssistPage() {
 
   return (
     <main className="main assist-page">
-      <section className="login-hero">
-        <div>
+      <section className="login-hero app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">AI 答疑</p>
-          <h1>一套提示词，覆盖公考核心问题</h1>
-          <p className="lead">
+          <h1 className="app-page-title">一套提示词，覆盖公考核心问题</h1>
+          <p className="lead app-page-subtitle">
             使用你已配置的模型，直接获得真实答复。支持岗位选择、学习路径、题目解析与计划生成。
           </p>
         </div>

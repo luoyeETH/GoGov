@@ -774,26 +774,30 @@ export default function PomodoroPage() {
 
   return (
     <main className="main pomodoro-page">
-      <section className="pomodoro-header">
-        <div>
+      <section className="pomodoro-header app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">专注训练</p>
-          <h1>番茄钟</h1>
-          <p className="lead">
+          <h1 className="app-page-title">番茄钟</h1>
+          <p className="lead app-page-subtitle">
             选择学习科目，进入沉浸模式，用专注时长换来稳定提升。
           </p>
         </div>
-        <div className="pomodoro-summary">
-          <div>
-            <span>近 12 周场次</span>
-            <strong>{insights?.totals?.sessions ?? "--"}</strong>
+        <div className="pomodoro-summary app-page-metrics">
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">近 12 周场次</span>
+            <strong className="app-page-metric-value">
+              {insights?.totals?.sessions ?? "--"}
+            </strong>
           </div>
-          <div>
-            <span>完成次数</span>
-            <strong>{insights?.totals?.completed ?? "--"}</strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">完成次数</span>
+            <strong className="app-page-metric-value">
+              {insights?.totals?.completed ?? "--"}
+            </strong>
           </div>
-          <div>
-            <span>累计专注</span>
-            <strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">累计专注</span>
+            <strong className="app-page-metric-value">
               {insights ? formatMinutesText(insights.totals.focusMinutes) : "--"}
             </strong>
           </div>
@@ -817,7 +821,7 @@ export default function PomodoroPage() {
                   : "番茄钟失败"
                 : "提前结束"}
             </h2>
-            <p className="lead">
+            <p className="lead app-page-subtitle">
               {lastResult.subject} ·
               {lastResult.mode === "countdown"
                 ? `计划 ${lastResult.plannedMinutes} 分钟 · `

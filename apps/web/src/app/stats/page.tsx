@@ -116,38 +116,44 @@ export default function StatsPage() {
 
   return (
     <main className="main stats-page">
-      <section className="stats-header">
-        <div>
+      <section className="stats-header app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">学习统计</p>
-          <h1>训练数据看板</h1>
-          <p className="lead">
+          <h1 className="app-page-title">训练数据看板</h1>
+          <p className="lead app-page-subtitle">
             汇总你的练习记录、正确率与错题分布，帮助定位薄弱点。
           </p>
         </div>
-        <div className="stats-summary">
-          <div>
-            <span>练习场次</span>
-            <strong>{stats?.totals.sessions ?? "--"}</strong>
+        <div className="stats-summary app-page-metrics">
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">练习场次</span>
+            <strong className="app-page-metric-value">
+              {stats?.totals.sessions ?? "--"}
+            </strong>
           </div>
-          <div>
-            <span>总题数</span>
-            <strong>{stats?.totals.questions ?? "--"}</strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">总题数</span>
+            <strong className="app-page-metric-value">
+              {stats?.totals.questions ?? "--"}
+            </strong>
           </div>
-          <div>
-            <span>总体正确率</span>
-            <strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">总体正确率</span>
+            <strong className="app-page-metric-value">
               {stats ? `${stats.totals.accuracy}%` : "--"}
             </strong>
           </div>
-          <div>
-            <span>累计时长</span>
-            <strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">累计时长</span>
+            <strong className="app-page-metric-value">
               {stats ? `${stats.totals.studyMinutes} 分钟` : "--"}
             </strong>
           </div>
-          <div>
-            <span>累计错题</span>
-            <strong>{stats?.mistakes ?? "--"}</strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">累计错题</span>
+            <strong className="app-page-metric-value">
+              {stats?.mistakes ?? "--"}
+            </strong>
           </div>
         </div>
       </section>

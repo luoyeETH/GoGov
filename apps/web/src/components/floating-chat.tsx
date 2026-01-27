@@ -75,13 +75,13 @@ function clampPosition(position: Position) {
 
 function getInitialChatMode(): ChatMode {
   if (typeof window === "undefined") {
-    return "planner";
+    return "tutor";
   }
   const storedMode = window.localStorage.getItem(modeKey);
   if (storedMode === "planner" || storedMode === "tutor") {
     return storedMode;
   }
-  return "planner";
+  return "tutor";
 }
 
 export default function FloatingChat() {
@@ -547,8 +547,8 @@ export default function FloatingChat() {
   }
 
   const modeOptions: Array<{ value: ChatMode; label: string }> = [
-    { value: "planner", label: "规划指导" },
-    { value: "tutor", label: "行测申论答疑" }
+    { value: "tutor", label: "行测申论答疑" },
+    { value: "planner", label: "规划指导" }
   ];
   const headerTitle = chatMode === "planner" ? "AI 伴学" : "AI 行测申论";
   const headerSubtitle =

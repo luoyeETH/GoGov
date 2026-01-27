@@ -1094,10 +1094,10 @@ export default function KlinePage() {
         </div>
       ) : null}
       <section className="kline-hero">
-        <div className="kline-intro">
+        <div className="kline-intro app-page-header-main">
           <p className="eyebrow">UPSHORE KLINE</p>
-          <h1>上岸 K 线</h1>
-          <p className="lead">
+          <h1 className="app-page-title">上岸 K 线</h1>
+          <p className="lead app-page-subtitle">
             输入出生信息，先生成四柱八字与大运节奏，再补充学历与备考经历，
             为 AI 测算做准备。
           </p>

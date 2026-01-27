@@ -285,10 +285,10 @@ export default function KlineResultPage() {
   return (
     <main className="main kline-result-page">
       <section className="kline-result-hero">
-        <div>
+        <div className="app-page-header-main">
           <p className="eyebrow">UPSHORE KLINE REPORT</p>
-          <h1>上岸 K 线报告</h1>
-          <p className="lead">{analysis.summary || "暂无总结"}</p>
+          <h1 className="app-page-title">上岸 K 线报告</h1>
+          <p className="lead app-page-subtitle">{analysis.summary || "暂无总结"}</p>
           <div className="kline-result-meta">
             <div>
               <span>最可能上岸</span>

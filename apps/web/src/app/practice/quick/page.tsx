@@ -576,30 +576,34 @@ export default function QuickPracticePage() {
 
   return (
     <main className="main practice-page">
-      <section className="practice-header">
-        <div>
+      <section className="practice-header app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">速算练习模块</p>
-          <h1>资料分析速算 · 即刻开练</h1>
-          <p className="lead">
+          <h1 className="app-page-title">资料分析速算 · 即刻开练</h1>
+          <p className="lead app-page-subtitle">
             专注行测资料分析常见技巧：尾数判定、百化分、增长率估算与比重截位直除。
           </p>
         </div>
-        <div className="practice-legend">
-          <div>
-            <strong>题型</strong>
-            <span>{categories.length || 4}</span>
+        <div className="practice-legend app-page-metrics">
+          <div className="app-page-metric">
+            <strong className="app-page-metric-label">题型</strong>
+            <span className="app-page-metric-value">{categories.length || 4}</span>
           </div>
-          <div>
-            <strong>进度</strong>
-            <span>{status === "done" ? "已完成" : progressText}</span>
+          <div className="app-page-metric">
+            <strong className="app-page-metric-label">进度</strong>
+            <span className="app-page-metric-value">
+              {status === "done" ? "已完成" : progressText}
+            </span>
           </div>
-          <div>
-            <strong>用时</strong>
-            <span>{elapsedText}</span>
+          <div className="app-page-metric">
+            <strong className="app-page-metric-label">用时</strong>
+            <span className="app-page-metric-value">{elapsedText}</span>
           </div>
-          <div>
-            <strong>正确率</strong>
-            <span>{questions.length ? `${accuracy}%` : "--"}</span>
+          <div className="app-page-metric">
+            <strong className="app-page-metric-label">正确率</strong>
+            <span className="app-page-metric-value">
+              {questions.length ? `${accuracy}%` : "--"}
+            </span>
           </div>
         </div>
       </section>

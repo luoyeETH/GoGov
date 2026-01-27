@@ -518,10 +518,10 @@ export default function KnowledgePage() {
   return (
     <main className="main knowledge-page">
       <section className="knowledge-hero">
-        <div>
+        <div className="app-page-header-main">
           <p className="eyebrow">常识学习</p>
-          <h1>导入资料，快速拆出知识点</h1>
-          <p className="lead">
+          <h1 className="app-page-title">导入资料，快速拆出知识点</h1>
+          <p className="lead app-page-subtitle">
             支持思维导图、试卷截图等图像内容，在浏览器本地完成 OCR
             识别并自动保存，同时支持 AI 多模态识别和 PDF、Word、TXT 文档解析。选中关键词即可一键生成常识学习卡片。
           </p>

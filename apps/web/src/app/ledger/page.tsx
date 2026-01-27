@@ -639,28 +639,30 @@ export default function LedgerPage() {
 
   return (
     <main className="main ledger-page">
-      <section className="ledger-hero">
-        <div>
+      <section className="ledger-hero app-page-header">
+        <div className="app-page-header-main">
           <p className="eyebrow">考试记账本</p>
-          <h1>用自然语言快速记账</h1>
-          <p className="lead">
+          <h1 className="app-page-title">用自然语言快速记账</h1>
+          <p className="lead app-page-subtitle">
             说清楚花费，系统自动解析日期与项目，生成统一格式并进入统计看板。
           </p>
         </div>
-        <div className="ledger-summary">
-          <div>
-            <span>本次统计</span>
-            <strong>{rangeLabel}</strong>
+        <div className="ledger-summary app-page-metrics">
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">本次统计</span>
+            <strong className="app-page-metric-value">{rangeLabel}</strong>
           </div>
-          <div>
-            <span>总支出</span>
-            <strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">总支出</span>
+            <strong className="app-page-metric-value">
               {overview ? `${formatAmount(overview.totals.amount)} 元` : "--"}
             </strong>
           </div>
-          <div>
-            <span>记录数量</span>
-            <strong>{overview?.totals.count ?? "--"}</strong>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">记录数量</span>
+            <strong className="app-page-metric-value">
+              {overview?.totals.count ?? "--"}
+            </strong>
           </div>
         </div>
       </section>
