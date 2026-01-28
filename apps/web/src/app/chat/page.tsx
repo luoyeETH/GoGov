@@ -145,6 +145,14 @@ export default function MobileChatPage() {
     }
   };
 
+  const autoResizeTextarea = () => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    const maxHeight = 120;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+  };
+
   const attachCachedImages = (history: ChatMessage[]) =>
     history.map((message) => {
       if (message.role !== "user") {
@@ -279,6 +287,26 @@ export default function MobileChatPage() {
     }
   }, []);
 
+  // Lock body scroll when chat page is mounted
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalWidth = document.body.style.width;
+    const originalHeight = document.body.style.height;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.height = "100%";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.width = originalWidth;
+      document.body.style.height = originalHeight;
+    };
+  }, []);
+
   useEffect(() => {
     if (authState !== "authed") {
       return;
@@ -317,6 +345,10 @@ export default function MobileChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [input]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -610,11 +642,10 @@ export default function MobileChatPage() {
         )}
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file input - allows both camera and gallery */}
       <input
         type="file"
         accept="image/*"
-        capture="environment"
         ref={fileInputRef}
         onChange={handleFileChange}
         style={{ display: "none" }}
@@ -710,12 +741,14 @@ export default function MobileChatPage() {
             type="button"
             className="mobile-chat-photo-btn"
             onClick={handlePhotoUpload}
-            title="拍照/上传图片"
+            title="拍照/相册"
             disabled={requestState === "loading"}
+            aria-label="拍照或从相册选择"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-              <circle cx="12" cy="13" r="4" />
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
             </svg>
           </button>
           <textarea

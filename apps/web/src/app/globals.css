@@ -52,90 +52,148 @@
 }
 
 [data-theme="eyecare"] {
-  --bg: #f4efe8;
-  --bg-accent: #efe2d2;
-  --text: #1c1b19;
-  --muted: #5f5b54;
-  --brand: #b5522b;
-  --brand-dark: #8f3f20;
-  --card: #fffaf3;
-  --border: rgba(28, 27, 25, 0.12);
-  --shadow: 0 16px 30px rgba(28, 27, 25, 0.12);
-  --radius: 18px;
+  --bg: #faf8f5;
+  --bg-accent: #f5f0e8;
+  --text: #1a1a1a;
+  --muted: #6b6560;
+  --brand: #d4603c;
+  --brand-dark: #b84a2a;
+  --brand-light: #f8d4c8;
+  --card: #ffffff;
+  --border: rgba(28, 27, 25, 0.08);
+  --shadow: 0 8px 32px rgba(28, 27, 25, 0.08);
+  --shadow-sm: 0 2px 8px rgba(28, 27, 25, 0.06);
+  --shadow-lg: 0 16px 48px rgba(28, 27, 25, 0.12);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
 
-  --bg-gradient: radial-gradient(circle at top left, #fbeedc 0%, var(--bg) 55%),
-    linear-gradient(135deg, #f9f2e8 0%, #f1e4d3 100%);
+  --bg-gradient: linear-gradient(180deg, #fdfcfa 0%, #f8f5f0 100%);
 
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.6);
-  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.58);
+  --glass-bg-strong: rgba(255, 255, 255, 0.92);
   --glass-bg-accent: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.5);
 
-  --text-alpha-08: rgba(28, 27, 25, 0.08);
-  --text-alpha-12: rgba(28, 27, 25, 0.12);
-  --text-alpha-16: rgba(28, 27, 25, 0.16);
+  --text-alpha-08: rgba(28, 27, 25, 0.06);
+  --text-alpha-12: rgba(28, 27, 25, 0.1);
+  --text-alpha-16: rgba(28, 27, 25, 0.14);
   --text-alpha-50: rgba(28, 27, 25, 0.5);
   --text-alpha-60: rgba(28, 27, 25, 0.6);
   --text-alpha-75: rgba(28, 27, 25, 0.75);
+
+  /* PWA App-like colors */
+  --nav-bg: rgba(255, 255, 255, 0.85);
+  --nav-active: #d4603c;
+  --nav-inactive: #9a958f;
+  --bubble-user: linear-gradient(135deg, #d4603c 0%, #c45230 100%);
+  --bubble-assistant: #f5f2ef;
+  --input-bg: #f8f6f3;
+  --success: #34c759;
+  --warning: #ff9500;
+  --danger: #ff3b30;
 }
 
 [data-theme="light"] {
-  --bg: #f8fafc;
-  --bg-accent: #f1f5f9;
-  --text: #0f172a;
-  --muted: #64748b;
-  --brand: #b5522b;
-  --brand-dark: #8f3f20;
+  --bg: #f5f7fa;
+  --bg-accent: #eef1f5;
+  --text: #1a1d21;
+  --muted: #6b7280;
+  --brand: #3b82f6;
+  --brand-dark: #2563eb;
+  --brand-light: #dbeafe;
   --card: #ffffff;
-  --border: #cbd5e1;
-  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --radius: 18px;
+  --border: rgba(0, 0, 0, 0.06);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.1);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
 
-  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  --bg-gradient: linear-gradient(180deg, #ffffff 0%, #f5f7fa 100%);
 
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.65);
   --glass-bg-strong: rgba(255, 255, 255, 0.95);
-  --glass-bg-accent: rgba(255, 255, 255, 0.9);
+  --glass-bg-accent: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.5);
 
   --text-alpha-08: rgba(15, 23, 42, 0.05);
-  --text-alpha-12: rgba(15, 23, 42, 0.1);
-  --text-alpha-16: rgba(15, 23, 42, 0.15);
+  --text-alpha-12: rgba(15, 23, 42, 0.08);
+  --text-alpha-16: rgba(15, 23, 42, 0.12);
   --text-alpha-50: rgba(15, 23, 42, 0.5);
   --text-alpha-60: rgba(15, 23, 42, 0.6);
   --text-alpha-75: rgba(15, 23, 42, 0.75);
+
+  /* PWA App-like colors */
+  --nav-bg: rgba(255, 255, 255, 0.88);
+  --nav-active: #3b82f6;
+  --nav-inactive: #9ca3af;
+  --bubble-user: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --bubble-assistant: #f3f4f6;
+  --input-bg: #f9fafb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 }
 
 [data-theme="dark"] {
-  --bg: #09090b;
-  --bg-accent: #18181b;
-  --text: #fafafa;
-  --muted: #a1a1aa;
-  --brand: #ea580c;
-  --brand-dark: #c2410c;
-  --card: #18181b;
-  --border: #27272a;
-  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  --radius: 18px;
+  --bg: #0a0a0b;
+  --bg-accent: #141416;
+  --text: #f5f5f7;
+  --muted: #8e8e93;
+  --brand: #ff6b4a;
+  --brand-dark: #e5553a;
+  --brand-light: #3d2420;
+  --card: #1c1c1e;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
 
-  --bg-gradient: radial-gradient(circle at top left, #18181b 0%, #09090b 55%),
-    linear-gradient(135deg, #18181b 0%, #09090b 100%);
+  --bg-gradient: linear-gradient(180deg, #0a0a0b 0%, #0f0f10 100%);
 
-  --glass-bg: rgba(24, 24, 27, 0.6);
-  --glass-bg-subtle: rgba(24, 24, 27, 0.5);
-  --glass-bg-strong: rgba(24, 24, 27, 0.8);
-  --glass-bg-accent: rgba(39, 39, 42, 0.8);
+  --glass-bg: rgba(28, 28, 30, 0.72);
+  --glass-bg-subtle: rgba(28, 28, 30, 0.58);
+  --glass-bg-strong: rgba(28, 28, 30, 0.88);
+  --glass-bg-accent: rgba(44, 44, 46, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.1);
 
-  --text-alpha-08: rgba(250, 250, 250, 0.08);
-  --text-alpha-12: rgba(250, 250, 250, 0.12);
-  --text-alpha-16: rgba(250, 250, 250, 0.16);
+  --text-alpha-08: rgba(250, 250, 250, 0.06);
+  --text-alpha-12: rgba(250, 250, 250, 0.1);
+  --text-alpha-16: rgba(250, 250, 250, 0.14);
   --text-alpha-50: rgba(250, 250, 250, 0.5);
   --text-alpha-60: rgba(250, 250, 250, 0.6);
   --text-alpha-75: rgba(250, 250, 250, 0.75);
+
+  /* PWA App-like colors */
+  --nav-bg: rgba(28, 28, 30, 0.85);
+  --nav-active: #ff6b4a;
+  --nav-inactive: #636366;
+  --bubble-user: linear-gradient(135deg, #ff6b4a 0%, #e5553a 100%);
+  --bubble-assistant: #2c2c2e;
+  --input-bg: #1c1c1e;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* 消除移动端 300ms 点击延迟 */
+html {
+  touch-action: manipulation;
+}
+
+a, button, [role="button"], input, select, textarea, label {
+  touch-action: manipulation;
 }
 
 body {
@@ -6653,11 +6711,14 @@ body.pomodoro-immersive .page {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  height: 64px;
-  background: var(--card);
-  border-top: 1px solid var(--border);
+  height: 72px;
+  background: var(--nav-bg, var(--glass-bg));
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--glass-border, var(--border));
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 1000;
+  box-shadow: 0 -1px 20px rgba(0, 0, 0, 0.04);
 }
 
 .mobile-nav-item {
@@ -6669,12 +6730,37 @@ body.pomodoro-immersive .page {
   flex: 1;
   height: 100%;
   text-decoration: none;
-  color: var(--muted);
-  transition: color 0.15s ease;
+  color: var(--nav-inactive, var(--muted));
+  transition: color 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.mobile-nav-item::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  width: 48px;
+  height: 48px;
+  background: var(--text-alpha-08);
+  border-radius: 14px;
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  opacity: 0;
+}
+
+.mobile-nav-item:active::before {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
 }
 
 .mobile-nav-item.active {
-  color: var(--brand-dark);
+  color: var(--nav-active, var(--brand-dark));
+}
+
+.mobile-nav-item.active .mobile-nav-icon svg {
+  transform: scale(1.08);
 }
 
 .mobile-nav-item.highlight {
@@ -6682,47 +6768,56 @@ body.pomodoro-immersive .page {
 }
 
 .mobile-nav-item.highlight .mobile-nav-icon {
-  width: 44px;
-  height: 44px;
-  background: var(--brand);
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  background: var(--bubble-user, var(--brand));
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -12px;
-  box-shadow: 0 4px 12px rgba(181, 82, 43, 0.3);
+  margin-top: -16px;
+  box-shadow: 0 6px 20px rgba(212, 96, 60, 0.35), 0 2px 8px rgba(212, 96, 60, 0.2);
+  transition: transform 0.1s ease-out;
+}
+
+.mobile-nav-item.highlight:active .mobile-nav-icon {
+  transform: scale(0.94);
 }
 
 .mobile-nav-item.highlight .mobile-nav-icon svg {
   color: white;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .mobile-nav-item.highlight.active .mobile-nav-icon {
-  background: var(--brand-dark);
+  box-shadow: 0 8px 24px rgba(212, 96, 60, 0.45), 0 3px 10px rgba(212, 96, 60, 0.25);
 }
 
 .mobile-nav-icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.1s ease-out;
 }
 
 .mobile-nav-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.1s ease-out;
 }
 
 .mobile-nav-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
 }
 
 .mobile-nav-item.highlight .mobile-nav-label {
-  margin-top: -4px;
+  margin-top: -2px;
+  font-weight: var(--weight-semibold);
 }
 
 /* PWA 模式下隐藏顶部导航和 footer，增强 app 感 */
@@ -6738,6 +6833,46 @@ body.pomodoro-immersive .page {
   .page {
     padding-top: env(safe-area-inset-top);
   }
+
+  /* App-like scrollbar hiding */
+  * {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Prevent text selection on UI elements */
+  .mobile-bottom-nav,
+  .mobile-chat-header,
+  .mobile-chat-input-area,
+  button,
+  .feature-card,
+  .mobile-nav-item {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Smooth page transitions */
+  .main {
+    animation: pageEnter 0.25s ease-out;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 /* PWA 模式移动端额外处理 */
@@ -6747,8 +6882,13 @@ body.pomodoro-immersive .page {
   }
 
   .main {
-    min-height: calc(100vh - 64px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: calc(64px + env(safe-area-inset-bottom) + 16px);
+    min-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom) + 16px);
+  }
+
+  /* Body background for cleaner app feel */
+  body {
+    background: var(--bg);
   }
 }
 
@@ -6756,7 +6896,17 @@ body.pomodoro-immersive .page {
 @supports (-webkit-touch-callout: none) {
   @media (display-mode: standalone) {
     .mobile-bottom-nav {
-      padding-bottom: max(env(safe-area-inset-bottom), 20px);
+      padding-bottom: max(env(safe-area-inset-bottom), 24px);
+    }
+
+    /* iOS rubber-band effect enhancement */
+    body {
+      overscroll-behavior-y: none;
+    }
+
+    /* iOS-specific touch feedback */
+    .mobile-nav-item:active {
+      opacity: 0.7;
     }
   }
 }
@@ -6765,9 +6915,24 @@ body.pomodoro-immersive .page {
 .mobile-chat-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
   padding: 0 !important;
+  background: var(--bg);
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+.mobile-chat-page > * {
+  touch-action: pan-y;
 }
 
 .mobile-chat-auth {
@@ -6776,8 +6941,8 @@ body.pomodoro-immersive .page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 24px;
+  gap: 20px;
+  padding: 32px;
   text-align: center;
   color: var(--muted);
 }
@@ -6787,44 +6952,48 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--nav-bg, var(--glass-bg));
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--glass-border, var(--border));
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
 .mobile-chat-header-spacer {
-  width: 44px;
+  width: 52px;
   height: 44px;
   flex-shrink: 0;
 }
 
 .mobile-chat-mode-switch {
   display: flex;
-  background: var(--glass-bg);
-  border-radius: 8px;
-  padding: 2px;
+  background: var(--input-bg, var(--glass-bg));
+  border-radius: 10px;
+  padding: 3px;
   margin: 0 auto;
+  gap: 2px;
 }
 
 .mobile-chat-mode-switch button {
-  padding: 8px 16px;
+  padding: 8px 18px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: var(--weight-medium);
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.1s ease-out, color 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-chat-mode-switch button.active {
   background: var(--card);
   color: var(--brand-dark);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
 }
 
 .mobile-chat-history-btn {
@@ -6909,11 +7078,12 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 16px;
-  background: var(--glass-bg);
-  border-bottom: 1px solid var(--border);
-  color: var(--muted);
+  padding: 10px 16px;
+  background: var(--brand-light, var(--glass-bg));
+  border-bottom: 0.5px solid var(--glass-border, var(--border));
+  color: var(--brand-dark);
   font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 
 .mobile-chat-history-banner button {
@@ -6921,24 +7091,47 @@ body.pomodoro-immersive .page {
   background: var(--card);
   color: var(--brand-dark);
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 8px 14px;
   font-size: 12px;
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-chat-history-banner button:active {
+  transform: scale(0.96);
 }
 
 .mobile-chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .mobile-chat-row {
   display: flex;
   width: 100%;
+  animation: messageSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .mobile-chat-row.user {
@@ -6958,7 +7151,7 @@ body.pomodoro-immersive .page {
   justify-content: center;
   text-align: center;
   color: var(--muted);
-  padding: 24px;
+  padding: 32px;
 }
 
 .mobile-chat-empty p {
@@ -6967,37 +7160,40 @@ body.pomodoro-immersive .page {
 }
 
 .mobile-chat-bubble {
-  max-width: 85%;
+  max-width: 82%;
   padding: 12px 16px;
-  border-radius: 16px;
+  border-radius: 20px;
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: 1.55;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative;
 }
 
 .mobile-chat-bubble.user {
   align-self: flex-end;
-  background: var(--brand);
+  background: var(--bubble-user, var(--brand));
   color: white;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 6px;
+  box-shadow: 0 2px 12px rgba(212, 96, 60, 0.2);
 }
 
 .mobile-chat-bubble.assistant {
   align-self: flex-start;
-  background: var(--glass-bg);
+  background: var(--bubble-assistant, var(--glass-bg));
   color: var(--text);
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 6px;
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0, 0, 0, 0.04));
 }
 
 .mobile-chat-bubble.pending {
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .mobile-chat-bubble.failed {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger, #ef4444);
 }
 
 .typing-indicator {
@@ -7031,89 +7227,133 @@ body.pomodoro-immersive .page {
 .mobile-chat-input-area {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 16px;
-  background: var(--card);
-  border-top: 1px solid var(--border);
+  background: var(--nav-bg, var(--glass-bg));
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--glass-border, var(--border));
 }
 
 .mobile-chat-input-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 .mobile-chat-photo-btn {
-  width: 48px;
-  height: 48px;
-  border: 1px solid var(--border);
-  background: var(--glass-bg);
-  border-radius: 14px;
+  width: 32px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--brand-dark);
   flex-shrink: 0;
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-chat-photo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mobile-chat-photo-btn:active:not(:disabled) {
+  transform: scale(0.9);
+  opacity: 0.7;
 }
 
 .mobile-chat-photo-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 .mobile-chat-input-area textarea {
   flex: 1;
-  min-height: 48px;
-  max-height: 140px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--glass-bg);
+  min-height: 44px;
+  max-height: 120px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 22px;
+  background: var(--input-bg, var(--glass-bg));
   font-family: inherit;
   font-size: var(--text-sm);
   resize: none;
   line-height: 1.45;
+  color: var(--text);
+  overflow-y: auto;
+  transition: box-shadow 0.15s ease-out;
+}
+
+.mobile-chat-input-area textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-light, rgba(212, 96, 60, 0.2));
+}
+
+.mobile-chat-input-area textarea::placeholder {
+  color: var(--muted);
 }
 
 .mobile-chat-send-btn {
-  width: 52px;
-  height: 52px;
+  width: 32px;
+  height: 44px;
   border: none;
-  background: var(--brand);
-  border-radius: 16px;
+  background: transparent;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: white;
+  color: var(--brand);
   flex-shrink: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-chat-send-btn:active:not(:disabled) {
+  transform: scale(0.9);
+  opacity: 0.7;
 }
 
 .mobile-chat-send-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .mobile-chat-send-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
 }
 
 .mobile-chat-image-preview {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--glass-bg);
+  padding: 10px 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--input-bg, var(--glass-bg));
+  animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .mobile-chat-image-preview img {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 10px;
   object-fit: cover;
   flex-shrink: 0;
@@ -7126,21 +7366,24 @@ body.pomodoro-immersive .page {
 }
 
 .mobile-chat-image-remove {
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border);
+  width: 32px;
+  height: 32px;
+  border: none;
   background: var(--card);
   color: var(--muted);
-  border-radius: 10px;
-  font-size: 20px;
+  border-radius: 8px;
+  font-size: 18px;
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
+  transition: transform 0.1s ease-out, color 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-chat-image-remove:hover {
-  color: var(--brand-dark);
-  border-color: var(--brand);
+.mobile-chat-image-remove:active {
+  transform: scale(0.92);
+  color: var(--danger, var(--brand-dark));
 }
 
 /* Profile More Features */
@@ -7163,15 +7406,17 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   background: var(--card);
   border-radius: 16px;
-  border: 1px solid var(--border);
+  border: none;
   color: var(--text);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out;
   text-decoration: none;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  -webkit-tap-highlight-color: transparent;
 }
 
 .profile-more-entry:visited {
@@ -7179,11 +7424,11 @@ body.pomodoro-immersive .page {
 }
 
 .profile-more-entry:hover {
-  border-color: var(--brand);
+  box-shadow: var(--shadow, 0 4px 16px rgba(0, 0, 0, 0.08));
 }
 
 .profile-more-entry:active {
-  transform: scale(0.997);
+  transform: scale(0.98);
 }
 
 .profile-more-entry.is-open {
@@ -7209,7 +7454,7 @@ body.pomodoro-immersive .page {
   width: 18px;
   height: 18px;
   color: var(--muted);
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition: transform 0.1s ease-out, color 0.1s ease-out;
 }
 
 .profile-more-entry.is-open .profile-more-entry-chevron {
@@ -7239,54 +7484,60 @@ body.pomodoro-immersive .page {
 .features-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 14px;
 }
 
 .feature-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
+  gap: 10px;
+  padding: 18px 10px;
   background: var(--card);
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  border-radius: 16px;
+  border: none;
   text-decoration: none;
   color: var(--text);
-  transition: all 0.15s ease;
+  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  -webkit-tap-highlight-color: transparent;
+}
+
+.feature-card:active {
+  transform: scale(0.96);
 }
 
 .feature-card:hover {
-  border-color: var(--brand);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow, 0 4px 16px rgba(0, 0, 0, 0.08));
 }
 
 .feature-icon {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--glass-bg-accent);
-  border-radius: 10px;
+  background: var(--brand-light, var(--glass-bg-accent));
+  border-radius: 12px;
   color: var(--brand-dark);
 }
 
 .feature-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .feature-title {
   font-size: 12px;
   font-weight: var(--weight-medium);
   text-align: center;
+  color: var(--text);
 }
 
 /* PWA 模式下显示更多功能 */
 @media (display-mode: standalone) and (max-width: 768px) {
   :root {
-    --mobile-bottom-nav-height: 64px;
+    --mobile-bottom-nav-height: 72px;
     --mobile-bottom-nav-offset: calc(
       var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 14px
     );
@@ -7309,7 +7560,7 @@ body.pomodoro-immersive .page {
   }
 
   .mobile-chat-page {
-    min-height: calc(100vh - env(safe-area-inset-top));
+    height: 100dvh;
     padding-bottom: 0 !important;
   }
 
@@ -7331,21 +7582,22 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 6px 8px;
-  min-width: 44px;
+  padding: 6px 10px;
+  min-width: 52px;
   min-height: 44px;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.15s ease;
+  border-radius: 10px;
+  transition: transform 0.1s ease-out, background 0.1s ease-out;
   position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-chat-action-btn:hover {
-  background: var(--glass-bg);
-  color: var(--brand-dark);
+.mobile-chat-action-btn:active {
+  background: var(--text-alpha-08);
+  transform: scale(0.96);
 }
 
 .mobile-chat-action-btn svg {
@@ -7453,16 +7705,18 @@ body.pomodoro-immersive .page {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--background);
+  background: var(--bg);
 }
 
 .chat-history-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--nav-bg, var(--glass-bg));
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid var(--glass-border, var(--border));
   position: sticky;
   top: 0;
   z-index: 10;
@@ -7475,20 +7729,23 @@ body.pomodoro-immersive .page {
 }
 
 .chat-history-header .back-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: transparent;
-  border-radius: 50%;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text);
+  transition: transform 0.1s ease-out, background 0.1s ease-out;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.chat-history-header .back-btn:hover {
-  background: var(--glass-bg);
+.chat-history-header .back-btn:active {
+  background: var(--text-alpha-08);
+  transform: scale(0.94);
 }
 
 .chat-history-header .back-btn svg {
@@ -7548,36 +7805,41 @@ body.pomodoro-immersive .page {
 .chat-history-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .chat-history-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 14px 16px;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: none;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out;
   text-align: left;
   width: 100%;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chat-history-item:active {
+  transform: scale(0.98);
 }
 
 .chat-history-item:hover {
-  border-color: var(--brand);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow, 0 4px 16px rgba(0, 0, 0, 0.08));
 }
 
 .history-item-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--glass-bg-accent);
-  border-radius: 10px;
+  background: var(--brand-light, var(--glass-bg-accent));
+  border-radius: 12px;
   color: var(--brand-dark);
   flex-shrink: 0;
 }
@@ -7647,18 +7909,63 @@ body.pomodoro-immersive .page {
 /* PWA mode: Fix mobile chat input to account for bottom nav */
 @media (display-mode: standalone) and (max-width: 768px) {
   .mobile-chat-input-area {
-    margin-bottom: var(
-      --mobile-bottom-nav-offset,
-      calc(64px + env(safe-area-inset-bottom) + 14px)
-    );
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    margin-bottom: 72px;
+    padding-bottom: 12px;
   }
 
   .mobile-chat-history-page {
     min-height: calc(100vh - env(safe-area-inset-top));
     padding-bottom: var(
       --mobile-bottom-nav-offset,
-      calc(64px + env(safe-area-inset-bottom) + 14px)
+      calc(72px + env(safe-area-inset-bottom) + 14px)
     );
+  }
+}
+
+/* Theme-specific PWA adjustments */
+[data-theme="light"] .mobile-nav-item.highlight .mobile-nav-icon {
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35), 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="light"] .mobile-nav-item.highlight.active .mobile-nav-icon {
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.45), 0 3px 10px rgba(59, 130, 246, 0.25);
+}
+
+[data-theme="light"] .mobile-chat-bubble.user {
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2);
+}
+
+[data-theme="dark"] .mobile-nav-item.highlight .mobile-nav-icon {
+  box-shadow: 0 6px 20px rgba(255, 107, 74, 0.4), 0 2px 8px rgba(255, 107, 74, 0.25);
+}
+
+[data-theme="dark"] .mobile-nav-item.highlight.active .mobile-nav-icon {
+  box-shadow: 0 8px 24px rgba(255, 107, 74, 0.5), 0 3px 10px rgba(255, 107, 74, 0.3);
+}
+
+[data-theme="dark"] .mobile-chat-bubble.user {
+  box-shadow: 0 2px 12px rgba(255, 107, 74, 0.25);
+}
+
+[data-theme="dark"] .mobile-bottom-nav {
+  box-shadow: 0 -1px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* PWA tap highlight removal for all interactive elements */
+@media (display-mode: standalone) {
+  a, button, input, textarea, select, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent pull-to-refresh on mobile */
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* Smooth momentum scrolling */
+  .mobile-chat-messages,
+  .chat-history-content {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 }
