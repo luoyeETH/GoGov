@@ -5104,6 +5104,7 @@ select {
 }
 
 .pomodoro-header {
+  position: relative;
   display: flex;
   gap: 16px;
   align-items: flex-start;
@@ -5128,6 +5129,31 @@ select {
   font-size: var(--text-sm);
   line-height: 1.6;
   max-width: 40rem;
+}
+
+.pomodoro-leaderboard-link {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  border-radius: 10px;
+  color: var(--accent);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.pomodoro-leaderboard-link:hover {
+  background: var(--glass-hover);
+  transform: scale(1.05);
+}
+
+.pomodoro-leaderboard-link svg {
+  width: 22px;
+  height: 22px;
 }
 
 .pomodoro-summary {
@@ -6827,6 +6853,12 @@ body.pomodoro-immersive .page {
   }
 
   .footer {
+    display: none;
+  }
+
+  /* 隐藏页面副标题，更精简 */
+  .app-page-subtitle,
+  .app-page-header .lead {
     display: none;
   }
 

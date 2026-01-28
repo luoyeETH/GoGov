@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type LoadState = "loading" | "idle" | "error";
@@ -824,6 +825,11 @@ export default function PomodoroPage() {
             选择学习科目，进入沉浸模式，用专注时长换来稳定提升。
           </p>
         </div>
+        <Link href="/leaderboard" className="pomodoro-leaderboard-link" title="今日排行榜">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 21V11M16 21V7M12 21V3" />
+          </svg>
+        </Link>
         <div className="pomodoro-summary app-page-metrics">
           <div className="app-page-metric">
             <span className="app-page-metric-label">近 12 周场次</span>
