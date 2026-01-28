@@ -219,6 +219,29 @@ export default function PomodoroPage() {
   const pauseCountRef = useRef<number>(0);
   const finishingRef = useRef<boolean>(false);
   const lastSegmentElapsedRef = useRef<number>(0);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  const requestWakeLock = async () => {
+    if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
+      return;
+    }
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request("screen");
+    } catch {
+      // Wake lock request failed (e.g., low battery mode)
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+      } catch {
+        // Ignore release errors
+      }
+      wakeLockRef.current = null;
+    }
+  };
 
   const normalizedPlannedMinutes = Math.max(1, Math.round(plannedMinutes || 1));
   const plannedSeconds = useMemo(() => {
@@ -313,6 +336,21 @@ export default function PomodoroPage() {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && status === "running") {
+        void requestWakeLock();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [status]);
 
@@ -463,6 +501,7 @@ export default function PomodoroPage() {
       lastSegmentElapsedRef.current = 0;
       setSegments([]);
       setStatus("running");
+      void requestWakeLock();
       if (document.documentElement.requestFullscreen) {
         void document.documentElement.requestFullscreen().catch(() => undefined);
       }
@@ -481,6 +520,7 @@ export default function PomodoroPage() {
     pauseCountRef.current += 1;
     setPauseElapsedSeconds(0);
     setStatus("paused");
+    void releaseWakeLock();
   };
 
   const resumeSession = () => {
@@ -492,6 +532,7 @@ export default function PomodoroPage() {
     pauseStartRef.current = null;
     setPauseElapsedSeconds(0);
     setStatus("running");
+    void requestWakeLock();
     if (document.documentElement.requestFullscreen) {
       void document.documentElement.requestFullscreen().catch(() => undefined);
     }
@@ -520,6 +561,7 @@ export default function PomodoroPage() {
       return;
     }
     finishingRef.current = true;
+    void releaseWakeLock();
     const segmentsSnapshot =
       mode === "timer"
         ? segments.length
