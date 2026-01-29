@@ -69,13 +69,22 @@ const PAUSE_LIMIT_SECONDS = 5 * 60;
 const HEATMAP_DAYS = 84;
 const MAX_CUSTOM_SUBJECTS = 5;
 const PIE_COLORS = [
-  "#2f855a",
-  "#2c7a7b",
-  "#2b6cb0",
-  "#b7791f",
-  "#c05621",
-  "#4a5568"
+  "#4c7ef3",
+  "#44bba4",
+  "#f2c94c",
+  "#ef6c57",
+  "#9b51e0",
+  "#2d9cdb"
 ];
+
+function getSubjectColor(subject: string) {
+  let hash = 0;
+  for (let i = 0; i < subject.length; i += 1) {
+    hash = (hash * 31 + subject.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % PIE_COLORS.length;
+  return PIE_COLORS[index];
+}
 
 const SUBJECTS = [
   { value: "常识", hint: "政策与常识积累" },
@@ -783,10 +792,10 @@ export default function PomodoroPage() {
     return Object.entries(totals)
       .filter(([, minutes]) => minutes > 0)
       .sort((a, b) => b[1] - a[1])
-      .map(([subjectName, minutes], index) => ({
+      .map(([subjectName, minutes]) => ({
         subject: subjectName,
         minutes,
-        color: PIE_COLORS[index % PIE_COLORS.length]
+        color: getSubjectColor(subjectName)
       }));
   }, [todayRecord]);
   const todayTotalMinutes = useMemo(() => {
