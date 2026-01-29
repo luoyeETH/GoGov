@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme, type Theme } from "../../components/theme-provider";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -65,6 +66,7 @@ function maskKey(value: string) {
 }
 
 export default function ProfilePage() {
+  const { theme, setTheme } = useTheme();
   const [state, setState] = useState<ProfileState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -247,14 +249,54 @@ export default function ProfilePage() {
         ? "今日额度暂无数据"
         : null;
 
+  const cycleTheme = () => {
+    const themes: Theme[] = ["eyecare", "light", "dark"];
+    const currentIndex = themes.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    setTheme(themes[nextIndex]);
+  };
+
+  const themeIcon = theme === "dark" ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  ) : theme === "light" ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12h2M6 12a6 6 0 1 1 12 0 6 6 0 0 1-12 0zM20 12h2" />
+      <path d="M12 2v2M12 20v2" />
+    </svg>
+  );
+
+  const themeLabel = theme === "dark" ? "深色" : theme === "light" ? "浅色" : "护眼";
+
   return (
     <main className="main register-page">
-      <section className="login-hero app-page-header">
+      <section className="login-hero app-page-header profile-page-header">
         <div className="app-page-header-main">
           <p className="eyebrow">个人资料</p>
           <h1 className="app-page-title">完善你的公考画像</h1>
           <p className="lead app-page-subtitle">首次登录建议补充基础信息。</p>
         </div>
+        <button
+          type="button"
+          className="pwa-theme-toggle"
+          onClick={cycleTheme}
+          title={`当前: ${themeLabel}`}
+        >
+          {themeIcon}
+        </button>
         <div className="login-status">
           {message ? (
             <div

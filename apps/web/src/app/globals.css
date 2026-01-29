@@ -52,130 +52,136 @@
 }
 
 [data-theme="eyecare"] {
-  --bg: #faf8f5;
-  --bg-accent: #f5f0e8;
-  --text: #1a1a1a;
-  --muted: #6b6560;
-  --brand: #d4603c;
-  --brand-dark: #b84a2a;
-  --brand-light: #f8d4c8;
+  --bg: #f8f7f4;
+  --bg-accent: #f2f0eb;
+  --text: #1d1d1f;
+  --muted: #86868b;
+  --brand: #ff6b4a;
+  --brand-dark: #e85a3c;
+  --brand-light: #fff0ec;
   --card: #ffffff;
-  --border: rgba(28, 27, 25, 0.08);
-  --shadow: 0 8px 32px rgba(28, 27, 25, 0.08);
-  --shadow-sm: 0 2px 8px rgba(28, 27, 25, 0.06);
-  --shadow-lg: 0 16px 48px rgba(28, 27, 25, 0.12);
-  --radius: 20px;
+  --border: rgba(0, 0, 0, 0.06);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --radius: 16px;
   --radius-sm: 12px;
   --radius-xs: 8px;
 
-  --bg-gradient: linear-gradient(180deg, #fdfcfa 0%, #f8f5f0 100%);
+  --bg-gradient: linear-gradient(180deg, #faf9f7 0%, #f5f4f0 100%);
 
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.58);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.6);
   --glass-bg-strong: rgba(255, 255, 255, 0.92);
-  --glass-bg-accent: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-bg-accent: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.6);
 
-  --text-alpha-08: rgba(28, 27, 25, 0.06);
-  --text-alpha-12: rgba(28, 27, 25, 0.1);
-  --text-alpha-16: rgba(28, 27, 25, 0.14);
-  --text-alpha-50: rgba(28, 27, 25, 0.5);
-  --text-alpha-60: rgba(28, 27, 25, 0.6);
-  --text-alpha-75: rgba(28, 27, 25, 0.75);
+  --text-alpha-08: rgba(0, 0, 0, 0.04);
+  --text-alpha-12: rgba(0, 0, 0, 0.08);
+  --text-alpha-16: rgba(0, 0, 0, 0.12);
+  --text-alpha-50: rgba(0, 0, 0, 0.5);
+  --text-alpha-60: rgba(0, 0, 0, 0.6);
+  --text-alpha-75: rgba(0, 0, 0, 0.75);
 
-  /* PWA App-like colors */
-  --nav-bg: rgba(255, 255, 255, 0.85);
-  --nav-active: #d4603c;
-  --nav-inactive: #9a958f;
-  --bubble-user: linear-gradient(135deg, #d4603c 0%, #c45230 100%);
-  --bubble-assistant: #f5f2ef;
-  --input-bg: #f8f6f3;
+  /* PWA Apple-style colors */
+  --nav-bg: rgba(248, 247, 244, 0.72);
+  --nav-active: #ff6b4a;
+  --nav-inactive: #8e8e93;
+  --nav-highlight-bg: linear-gradient(135deg, #ff6b4a 0%, #ff5333 100%);
+  --nav-highlight-shadow: 0 4px 16px rgba(255, 107, 74, 0.4);
+  --bubble-user: linear-gradient(135deg, #ff6b4a 0%, #ff5333 100%);
+  --bubble-assistant: #f5f5f7;
+  --input-bg: #f5f5f7;
   --success: #34c759;
-  --warning: #ff9500;
+  --warning: #ff9f0a;
   --danger: #ff3b30;
 }
 
 [data-theme="light"] {
-  --bg: #f5f7fa;
-  --bg-accent: #eef1f5;
-  --text: #1a1d21;
-  --muted: #6b7280;
-  --brand: #3b82f6;
-  --brand-dark: #2563eb;
-  --brand-light: #dbeafe;
+  --bg: #f5f5f7;
+  --bg-accent: #ebebed;
+  --text: #1d1d1f;
+  --muted: #86868b;
+  --brand: #007aff;
+  --brand-dark: #0066d6;
+  --brand-light: #e5f1ff;
   --card: #ffffff;
   --border: rgba(0, 0, 0, 0.06);
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.1);
-  --radius: 20px;
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --radius: 16px;
   --radius-sm: 12px;
   --radius-xs: 8px;
 
-  --bg-gradient: linear-gradient(180deg, #ffffff 0%, #f5f7fa 100%);
+  --bg-gradient: linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
 
   --glass-bg: rgba(255, 255, 255, 0.78);
   --glass-bg-subtle: rgba(255, 255, 255, 0.65);
   --glass-bg-strong: rgba(255, 255, 255, 0.95);
   --glass-bg-accent: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.6);
 
-  --text-alpha-08: rgba(15, 23, 42, 0.05);
-  --text-alpha-12: rgba(15, 23, 42, 0.08);
-  --text-alpha-16: rgba(15, 23, 42, 0.12);
-  --text-alpha-50: rgba(15, 23, 42, 0.5);
-  --text-alpha-60: rgba(15, 23, 42, 0.6);
-  --text-alpha-75: rgba(15, 23, 42, 0.75);
+  --text-alpha-08: rgba(0, 0, 0, 0.04);
+  --text-alpha-12: rgba(0, 0, 0, 0.08);
+  --text-alpha-16: rgba(0, 0, 0, 0.12);
+  --text-alpha-50: rgba(0, 0, 0, 0.5);
+  --text-alpha-60: rgba(0, 0, 0, 0.6);
+  --text-alpha-75: rgba(0, 0, 0, 0.75);
 
-  /* PWA App-like colors */
-  --nav-bg: rgba(255, 255, 255, 0.88);
-  --nav-active: #3b82f6;
-  --nav-inactive: #9ca3af;
-  --bubble-user: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --bubble-assistant: #f3f4f6;
-  --input-bg: #f9fafb;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  /* PWA Apple-style colors */
+  --nav-bg: rgba(245, 245, 247, 0.72);
+  --nav-active: #007aff;
+  --nav-inactive: #8e8e93;
+  --nav-highlight-bg: linear-gradient(135deg, #007aff 0%, #0066d6 100%);
+  --nav-highlight-shadow: 0 4px 16px rgba(0, 122, 255, 0.4);
+  --bubble-user: linear-gradient(135deg, #007aff 0%, #0066d6 100%);
+  --bubble-assistant: #f5f5f7;
+  --input-bg: #f5f5f7;
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --danger: #ff3b30;
 }
 
 [data-theme="dark"] {
-  --bg: #0a0a0b;
-  --bg-accent: #141416;
+  --bg: #000000;
+  --bg-accent: #1c1c1e;
   --text: #f5f5f7;
   --muted: #8e8e93;
   --brand: #ff6b4a;
-  --brand-dark: #e5553a;
+  --brand-dark: #ff5333;
   --brand-light: #3d2420;
   --card: #1c1c1e;
-  --border: rgba(255, 255, 255, 0.08);
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --border: rgba(255, 255, 255, 0.1);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --radius: 20px;
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --radius: 16px;
   --radius-sm: 12px;
   --radius-xs: 8px;
 
-  --bg-gradient: linear-gradient(180deg, #0a0a0b 0%, #0f0f10 100%);
+  --bg-gradient: linear-gradient(180deg, #000000 0%, #0a0a0a 100%);
 
-  --glass-bg: rgba(28, 28, 30, 0.72);
-  --glass-bg-subtle: rgba(28, 28, 30, 0.58);
-  --glass-bg-strong: rgba(28, 28, 30, 0.88);
-  --glass-bg-accent: rgba(44, 44, 46, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(28, 28, 30, 0.78);
+  --glass-bg-subtle: rgba(28, 28, 30, 0.6);
+  --glass-bg-strong: rgba(28, 28, 30, 0.92);
+  --glass-bg-accent: rgba(44, 44, 46, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.12);
 
-  --text-alpha-08: rgba(250, 250, 250, 0.06);
-  --text-alpha-12: rgba(250, 250, 250, 0.1);
-  --text-alpha-16: rgba(250, 250, 250, 0.14);
-  --text-alpha-50: rgba(250, 250, 250, 0.5);
-  --text-alpha-60: rgba(250, 250, 250, 0.6);
-  --text-alpha-75: rgba(250, 250, 250, 0.75);
+  --text-alpha-08: rgba(255, 255, 255, 0.06);
+  --text-alpha-12: rgba(255, 255, 255, 0.1);
+  --text-alpha-16: rgba(255, 255, 255, 0.14);
+  --text-alpha-50: rgba(255, 255, 255, 0.5);
+  --text-alpha-60: rgba(255, 255, 255, 0.6);
+  --text-alpha-75: rgba(255, 255, 255, 0.75);
 
-  /* PWA App-like colors */
-  --nav-bg: rgba(28, 28, 30, 0.85);
+  /* PWA Apple-style colors */
+  --nav-bg: rgba(0, 0, 0, 0.72);
   --nav-active: #ff6b4a;
   --nav-inactive: #636366;
-  --bubble-user: linear-gradient(135deg, #ff6b4a 0%, #e5553a 100%);
+  --nav-highlight-bg: linear-gradient(135deg, #ff6b4a 0%, #ff5333 100%);
+  --nav-highlight-shadow: 0 4px 16px rgba(255, 107, 74, 0.35);
+  --bubble-user: linear-gradient(135deg, #ff6b4a 0%, #ff5333 100%);
   --bubble-assistant: #2c2c2e;
   --input-bg: #1c1c1e;
   --success: #30d158;
@@ -206,6 +212,7 @@ body {
   font-weight: var(--weight-normal);
 }
 
+/* iOS 设备使用系统字体 */
 @supports (-webkit-touch-callout: none) {
   html,
   body,
@@ -215,6 +222,17 @@ body {
   select {
     font-family: "PingFang SC", "SF Pro Text", "SF Pro Display",
       -apple-system, "Helvetica Neue", Arial, sans-serif !important;
+  }
+}
+
+/* PWA 模式使用现代无衬线字体 */
+@media (display-mode: standalone) {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+      "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -811,25 +829,46 @@ button {
   color: inherit;
 }
 
+/* Apple-style buttons */
 .primary {
   background: var(--brand);
   color: white;
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.primary:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.primary:active {
+  transform: scale(0.97);
+  filter: brightness(0.95);
 }
 
 .ghost {
   background: transparent;
-  color: var(--brand-dark);
+  color: var(--brand);
   border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.ghost:hover {
+  background: var(--text-alpha-08);
+}
+
+.ghost:active {
+  transform: scale(0.97);
 }
 
 .ghost.danger {
-  color: #c53030;
-  border-color: rgba(229, 62, 62, 0.4);
+  color: var(--danger);
+  border-color: rgba(255, 59, 48, 0.3);
 }
 
 .ghost.danger:hover {
-  background: rgba(229, 62, 62, 0.08);
+  background: rgba(255, 59, 48, 0.08);
 }
 
 .button-link {
@@ -837,9 +876,11 @@ button {
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  border-radius: 999px;
-  padding: 10px 18px;
-  font-size: 14px;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
 }
 
 .hero-card {
@@ -5288,14 +5329,15 @@ select {
   gap: 20px;
 }
 
+/* Pomodoro Setup Card - Apple Style */
 .pomodoro-setup-card {
   background: var(--card);
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  padding: 18px;
+  border: none;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .pomodoro-card-header {
@@ -5307,19 +5349,21 @@ select {
 
 .pomodoro-card-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
 .pomodoro-card-header span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .pomodoro-subject-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .pomodoro-subject-card {
@@ -5328,20 +5372,21 @@ select {
 
 .pomodoro-subject {
   text-align: left;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
   display: grid;
-  gap: 4px;
-  background: var(--glass-bg);
+  gap: 3px;
+  background: var(--text-alpha-08);
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   height: 100%;
 }
 
 .pomodoro-subject strong {
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: var(--weight-medium);
 }
 
 .pomodoro-subject span {
@@ -5350,35 +5395,44 @@ select {
 }
 
 .pomodoro-subject.active {
-  border-color: rgba(56, 161, 105, 0.45);
-  background: rgba(56, 161, 105, 0.12);
-  transform: translateY(-1px);
+  border-color: var(--brand);
+  background: var(--brand-light);
+}
+
+.pomodoro-subject:active {
+  transform: scale(0.97);
 }
 
 .pomodoro-subject-remove {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--card);
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--text-alpha-12);
   color: var(--muted);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 2;
+  transition: all 0.15s ease;
+}
+
+.pomodoro-subject-remove:active {
+  transform: scale(0.9);
+  background: var(--text-alpha-16);
 }
 
 .pomodoro-custom {
   display: grid;
   gap: 10px;
-  padding-top: 6px;
-  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .pomodoro-custom-header {
@@ -5414,21 +5468,21 @@ select {
 
 .pomodoro-custom-message {
   font-size: 12px;
-  color: #b43c32;
+  color: var(--danger);
 }
 
 .pomodoro-mode {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pomodoro-timer-note {
-  border-radius: 12px;
-  border: 1px dashed var(--border);
-  background: var(--glass-bg);
-  padding: 10px 12px;
-  font-size: 12px;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: var(--text-alpha-08);
+  padding: 12px 14px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -5442,52 +5496,63 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 
 .pomodoro-duration input {
-  width: 110px;
-  border-radius: 12px;
+  width: 100px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--card);
   color: inherit;
+  font-size: 15px;
+  text-align: center;
 }
 
 .pomodoro-duration-presets {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
+/* Apple-style chip/pill buttons */
 .pomodoro-chip {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  background: var(--glass-bg);
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  background: var(--text-alpha-08);
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text);
+}
+
+.pomodoro-chip:active {
+  transform: scale(0.95);
 }
 
 .pomodoro-chip.active {
-  border-color: rgba(56, 161, 105, 0.6);
-  color: #276749;
+  border-color: var(--brand);
+  background: var(--brand-light);
+  color: var(--brand);
 }
 
 .pomodoro-start {
   width: 100%;
   justify-content: center;
+  margin-top: 4px;
 }
 
 .pomodoro-map {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .pomodoro-map-header {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .pomodoro-map-header h2 {
@@ -6728,7 +6793,7 @@ body.pomodoro-immersive .page {
   }
 }
 
-/* Mobile PWA Bottom Navigation */
+/* Mobile PWA Bottom Navigation - Apple Style */
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0;
@@ -6736,117 +6801,114 @@ body.pomodoro-immersive .page {
   right: 0;
   display: flex;
   justify-content: space-around;
-  align-items: center;
-  height: 72px;
-  background: var(--nav-bg, var(--glass-bg));
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--glass-border, var(--border));
+  align-items: flex-start;
+  height: calc(56px + env(safe-area-inset-bottom));
+  background: var(--nav-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: 0.5px solid var(--glass-border);
+  padding-top: 6px;
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 1000;
-  box-shadow: 0 -1px 20px rgba(0, 0, 0, 0.04);
 }
 
 .mobile-nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-start;
+  gap: 2px;
   flex: 1;
-  height: 100%;
+  max-width: 80px;
+  height: 50px;
   text-decoration: none;
-  color: var(--nav-inactive, var(--muted));
-  transition: color 0.1s ease-out;
+  color: var(--nav-inactive);
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
   position: relative;
 }
 
-.mobile-nav-item::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%) scale(0);
-  width: 48px;
-  height: 48px;
-  background: var(--text-alpha-08);
-  border-radius: 14px;
-  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
-  opacity: 0;
-}
-
-.mobile-nav-item:active::before {
-  transform: translateX(-50%) scale(1);
-  opacity: 1;
+.mobile-nav-item:active {
+  transform: scale(0.92);
 }
 
 .mobile-nav-item.active {
-  color: var(--nav-active, var(--brand-dark));
+  color: var(--nav-active);
 }
 
-.mobile-nav-item.active .mobile-nav-icon svg {
-  transform: scale(1.08);
-}
-
+/* Highlight (AI) button - floating pill style */
 .mobile-nav-item.highlight {
   position: relative;
 }
 
 .mobile-nav-item.highlight .mobile-nav-icon {
-  width: 52px;
-  height: 52px;
-  background: var(--bubble-user, var(--brand));
-  border-radius: 16px;
+  width: 56px;
+  height: 36px;
+  background: var(--nav-highlight-bg);
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -16px;
-  box-shadow: 0 6px 20px rgba(212, 96, 60, 0.35), 0 2px 8px rgba(212, 96, 60, 0.2);
-  transition: transform 0.1s ease-out;
+  margin-top: -2px;
+  box-shadow: var(--nav-highlight-shadow);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
 }
 
 .mobile-nav-item.highlight:active .mobile-nav-icon {
-  transform: scale(0.94);
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(255, 107, 74, 0.3);
 }
 
 .mobile-nav-item.highlight .mobile-nav-icon svg {
   color: white;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .mobile-nav-item.highlight.active .mobile-nav-icon {
-  box-shadow: 0 8px 24px rgba(212, 96, 60, 0.45), 0 3px 10px rgba(212, 96, 60, 0.25);
+  box-shadow: var(--nav-highlight-shadow), 0 0 0 3px rgba(255, 107, 74, 0.15);
 }
 
+.mobile-nav-item.highlight .mobile-nav-label {
+  color: var(--nav-active);
+  font-weight: var(--weight-semibold);
+}
+
+/* Regular nav icon */
 .mobile-nav-icon {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .mobile-nav-icon svg {
   width: 24px;
   height: 24px;
-  transition: transform 0.1s ease-out;
+  transition: transform 0.2s ease;
 }
 
+.mobile-nav-item.active .mobile-nav-icon svg {
+  transform: scale(1.05);
+}
+
+/* Nav label */
 .mobile-nav-label {
   font-size: 10px;
   font-weight: var(--weight-medium);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  transition: color 0.2s ease;
 }
 
-.mobile-nav-item.highlight .mobile-nav-label {
-  margin-top: -2px;
+.mobile-nav-item.active .mobile-nav-label {
   font-weight: var(--weight-semibold);
 }
 
-/* PWA 模式下隐藏顶部导航和 footer，增强 app 感 */
+/* PWA standalone mode - Apple-like experience */
 @media (display-mode: standalone) {
   .header {
     display: none;
@@ -6856,7 +6918,7 @@ body.pomodoro-immersive .page {
     display: none;
   }
 
-  /* 隐藏页面副标题，更精简 */
+  /* Hide page subtitles for cleaner look */
   .app-page-subtitle,
   .app-page-header .lead {
     display: none;
@@ -6866,7 +6928,7 @@ body.pomodoro-immersive .page {
     padding-top: env(safe-area-inset-top);
   }
 
-  /* App-like scrollbar hiding */
+  /* iOS-style scrollbar hiding */
   * {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -6892,13 +6954,13 @@ body.pomodoro-immersive .page {
 
   /* Smooth page transitions */
   .main {
-    animation: pageEnter 0.25s ease-out;
+    animation: pwaPageEnter 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  @keyframes pageEnter {
+  @keyframes pwaPageEnter {
     from {
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(12px);
     }
     to {
       opacity: 1;
@@ -6907,43 +6969,75 @@ body.pomodoro-immersive .page {
   }
 }
 
-/* PWA 模式移动端额外处理 */
+/* PWA mobile layout adjustments */
 @media (display-mode: standalone) and (max-width: 768px) {
   .floating-chat {
     display: none;
   }
 
   .main {
-    min-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: calc(72px + env(safe-area-inset-bottom) + 16px);
+    min-height: calc(100vh - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 20px);
   }
 
-  /* Body background for cleaner app feel */
   body {
     background: var(--bg);
   }
+
+  /* PWA page title styling */
+  .app-page-title {
+    font-size: 28px;
+    font-weight: var(--weight-bold);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .eyebrow {
+    font-size: 13px;
+    font-weight: var(--weight-semibold);
+    color: var(--nav-active);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+
+  /* Card styling in PWA */
+  .pomodoro-setup-card,
+  .pomodoro-map-card,
+  .login-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: none;
+    box-shadow: var(--shadow-sm);
+  }
 }
 
-/* iOS standalone 模式额外处理 */
+/* iOS standalone mode enhancements */
 @supports (-webkit-touch-callout: none) {
   @media (display-mode: standalone) {
     .mobile-bottom-nav {
-      padding-bottom: max(env(safe-area-inset-bottom), 24px);
+      padding-bottom: max(env(safe-area-inset-bottom), 20px);
+      height: calc(56px + max(env(safe-area-inset-bottom), 20px));
     }
 
-    /* iOS rubber-band effect enhancement */
+    /* iOS rubber-band effect */
     body {
       overscroll-behavior-y: none;
     }
 
-    /* iOS-specific touch feedback */
+    /* iOS haptic-style touch feedback */
     .mobile-nav-item:active {
-      opacity: 0.7;
+      opacity: 0.8;
+    }
+
+    /* iOS status bar area */
+    .page {
+      padding-top: max(env(safe-area-inset-top), 20px);
     }
   }
 }
 
-/* Mobile Chat Page */
+/* Mobile Chat Page - Apple Style */
 .mobile-chat-page {
   display: flex;
   flex-direction: column;
@@ -6973,7 +7067,7 @@ body.pomodoro-immersive .page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 24px;
   padding: 32px;
   text-align: center;
   color: var(--muted);
@@ -6984,73 +7078,83 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  background: var(--nav-bg, var(--glass-bg));
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 0.5px solid var(--glass-border, var(--border));
+  padding: 8px 16px;
+  padding-top: calc(8px + env(safe-area-inset-top));
+  background: var(--nav-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 0.5px solid var(--glass-border);
   position: sticky;
   top: 0;
   z-index: 10;
+  min-height: 52px;
 }
 
 .mobile-chat-header-spacer {
-  width: 52px;
+  width: 44px;
   height: 44px;
   flex-shrink: 0;
 }
 
+/* Apple-style segmented control */
 .mobile-chat-mode-switch {
   display: flex;
-  background: var(--input-bg, var(--glass-bg));
-  border-radius: 10px;
-  padding: 3px;
+  background: var(--text-alpha-08);
+  border-radius: 9px;
+  padding: 2px;
   margin: 0 auto;
-  gap: 2px;
+  gap: 0;
 }
 
 .mobile-chat-mode-switch button {
-  padding: 8px 18px;
+  padding: 7px 16px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 7px;
   font-size: 13px;
   font-weight: var(--weight-medium);
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.1s ease-out, color 0.1s ease-out;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-chat-mode-switch button.active {
   background: var(--card);
-  color: var(--brand-dark);
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08),
+              0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .mobile-chat-history-btn {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
-  background: var(--glass-bg);
+  background: var(--text-alpha-08);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--muted);
+  transition: all 0.2s ease;
+}
+
+.mobile-chat-history-btn:active {
+  transform: scale(0.92);
+  background: var(--text-alpha-12);
 }
 
 .mobile-chat-history-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .history-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -4px;
+  right: -4px;
   min-width: 18px;
   height: 18px;
   background: var(--brand);
@@ -7061,19 +7165,32 @@ body.pomodoro-immersive .page {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 4px;
+  padding: 0 5px;
+  border: 2px solid var(--bg);
 }
 
 .mobile-chat-history-panel {
   position: absolute;
-  top: 60px;
-  left: 0;
-  right: 0;
+  top: calc(60px + env(safe-area-inset-top));
+  left: 12px;
+  right: 12px;
   background: var(--card);
-  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 16px;
   z-index: 20;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
+  animation: slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .history-panel-header {
@@ -7086,13 +7203,15 @@ body.pomodoro-immersive .page {
 .history-panel-header h3 {
   margin: 0;
   font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
 }
 
 .history-panel-header button {
   border: none;
   background: none;
-  color: var(--brand-dark);
+  color: var(--brand);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 
@@ -7102,7 +7221,8 @@ body.pomodoro-immersive .page {
 }
 
 .history-hint a {
-  color: var(--brand-dark);
+  color: var(--brand);
+  font-weight: var(--weight-medium);
 }
 
 .mobile-chat-history-banner {
@@ -7143,7 +7263,7 @@ body.pomodoro-immersive .page {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -7152,17 +7272,17 @@ body.pomodoro-immersive .page {
 .mobile-chat-row {
   display: flex;
   width: 100%;
-  animation: messageSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: messageSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes messageSlideIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -7183,20 +7303,23 @@ body.pomodoro-immersive .page {
   justify-content: center;
   text-align: center;
   color: var(--muted);
-  padding: 32px;
+  padding: 40px;
+  gap: 12px;
 }
 
 .mobile-chat-empty p {
   margin: 4px 0;
   font-size: var(--text-sm);
+  line-height: 1.5;
 }
 
+/* Apple iMessage style bubbles */
 .mobile-chat-bubble {
-  max-width: 82%;
-  padding: 12px 16px;
-  border-radius: 20px;
-  font-size: var(--text-sm);
-  line-height: 1.55;
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.4;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -7205,18 +7328,17 @@ body.pomodoro-immersive .page {
 
 .mobile-chat-bubble.user {
   align-self: flex-end;
-  background: var(--bubble-user, var(--brand));
+  background: var(--bubble-user);
   color: white;
-  border-bottom-right-radius: 6px;
-  box-shadow: 0 2px 12px rgba(212, 96, 60, 0.2);
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .mobile-chat-bubble.assistant {
   align-self: flex-start;
-  background: var(--bubble-assistant, var(--glass-bg));
+  background: var(--bubble-assistant);
   color: var(--text);
-  border-bottom-left-radius: 6px;
-  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0, 0, 0, 0.04));
+  border-bottom-left-radius: 4px;
 }
 
 .mobile-chat-bubble.pending {
@@ -7224,19 +7346,20 @@ body.pomodoro-immersive .page {
 }
 
 .mobile-chat-bubble.failed {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger, #ef4444);
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger);
 }
 
 .typing-indicator {
   color: var(--muted);
   font-style: italic;
+  font-size: 14px;
 }
 
 .mobile-chat-image {
   width: min(240px, 72vw);
   max-width: 100%;
-  border-radius: 12px;
+  border-radius: 14px;
   object-fit: cover;
 }
 
@@ -7249,90 +7372,36 @@ body.pomodoro-immersive .page {
 }
 
 .mobile-chat-bubble pre {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 8px;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 10px 12px;
+  border-radius: 10px;
   overflow-x: auto;
-  font-size: 12px;
+  font-size: 13px;
+  font-family: "SF Mono", "Menlo", monospace;
 }
 
+/* Apple-style input area */
 .mobile-chat-input-area {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 16px;
-  background: var(--nav-bg, var(--glass-bg));
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--glass-border, var(--border));
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: var(--nav-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-top: 0.5px solid var(--glass-border);
 }
 
 .mobile-chat-input-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .mobile-chat-photo-btn {
-  width: 32px;
-  height: 44px;
-  border: none;
-  background: transparent;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--brand-dark);
-  flex-shrink: 0;
-  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.mobile-chat-photo-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.mobile-chat-photo-btn:active:not(:disabled) {
-  transform: scale(0.9);
-  opacity: 0.7;
-}
-
-.mobile-chat-photo-btn svg {
-  width: 28px;
-  height: 28px;
-}
-
-.mobile-chat-input-area textarea {
-  flex: 1;
-  min-height: 44px;
-  max-height: 120px;
-  padding: 11px 16px;
-  border: none;
-  border-radius: 22px;
-  background: var(--input-bg, var(--glass-bg));
-  font-family: inherit;
-  font-size: var(--text-sm);
-  resize: none;
-  line-height: 1.45;
-  color: var(--text);
-  overflow-y: auto;
-  transition: box-shadow 0.15s ease-out;
-}
-
-.mobile-chat-input-area textarea:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--brand-light, rgba(212, 96, 60, 0.2));
-}
-
-.mobile-chat-input-area textarea::placeholder {
-  color: var(--muted);
-}
-
-.mobile-chat-send-btn {
-  width: 32px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   padding: 0;
@@ -7342,23 +7411,87 @@ body.pomodoro-immersive .page {
   cursor: pointer;
   color: var(--brand);
   flex-shrink: 0;
-  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 50%;
+}
+
+.mobile-chat-photo-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mobile-chat-photo-btn:active:not(:disabled) {
+  transform: scale(0.85);
+  background: var(--text-alpha-08);
+}
+
+.mobile-chat-photo-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.mobile-chat-input-area textarea {
+  flex: 1;
+  min-height: 36px;
+  max-height: 120px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 18px;
+  background: var(--input-bg);
+  font-family: inherit;
+  font-size: 16px;
+  resize: none;
+  line-height: 1.35;
+  color: var(--text);
+  overflow-y: auto;
+  transition: box-shadow 0.2s ease;
+}
+
+.mobile-chat-input-area textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--brand-light);
+}
+
+.mobile-chat-input-area textarea::placeholder {
+  color: var(--muted);
+}
+
+/* Send button - Apple style filled circle */
+.mobile-chat-send-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--brand);
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.15s ease,
+              background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-chat-send-btn:active:not(:disabled) {
-  transform: scale(0.9);
-  opacity: 0.7;
+  transform: scale(0.85);
 }
 
 .mobile-chat-send-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: not-allowed;
+  background: var(--muted);
 }
 
 .mobile-chat-send-btn svg {
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
 }
 
 .mobile-chat-image-preview {
@@ -7368,8 +7501,8 @@ body.pomodoro-immersive .page {
   padding: 10px 12px;
   border: none;
   border-radius: 14px;
-  background: var(--input-bg, var(--glass-bg));
-  animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--input-bg);
+  animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slideUp {
@@ -7418,7 +7551,7 @@ body.pomodoro-immersive .page {
   color: var(--danger, var(--brand-dark));
 }
 
-/* Profile More Features */
+/* Profile More Features - Apple Settings Style */
 .profile-more-features {
   max-width: 800px;
   margin: 0 auto;
@@ -7438,16 +7571,17 @@ body.pomodoro-immersive .page {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 16px 18px;
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   border: none;
   color: var(--text);
   cursor: pointer;
   text-align: left;
-  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.15s ease;
   text-decoration: none;
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  box-shadow: var(--shadow-sm);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -7456,7 +7590,7 @@ body.pomodoro-immersive .page {
 }
 
 .profile-more-entry:hover {
-  box-shadow: var(--shadow, 0 4px 16px rgba(0, 0, 0, 0.08));
+  background: var(--glass-bg-strong);
 }
 
 .profile-more-entry:active {
@@ -7469,29 +7603,30 @@ body.pomodoro-immersive .page {
 
 .profile-more-entry-text {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .profile-more-entry-text strong {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
 }
 
 .profile-more-entry-text span {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
 }
 
 .profile-more-entry-chevron {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: var(--muted);
-  transition: transform 0.1s ease-out, color 0.1s ease-out;
+  transition: transform 0.2s ease, color 0.15s ease;
 }
 
 .profile-more-entry.is-open .profile-more-entry-chevron {
-  transform: rotate(180deg);
-  color: var(--brand-dark);
+  transform: rotate(90deg);
+  color: var(--brand);
 }
 
 .profile-more-grid {
@@ -7513,34 +7648,36 @@ body.pomodoro-immersive .page {
   align-items: center;
 }
 
+/* Apple-style feature grid */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 .feature-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 18px 10px;
+  gap: 8px;
+  padding: 16px 8px;
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   border: none;
   text-decoration: none;
   color: var(--text);
-  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out;
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.06));
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.15s ease;
+  box-shadow: var(--shadow-sm);
   -webkit-tap-highlight-color: transparent;
 }
 
 .feature-card:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 .feature-card:hover {
-  box-shadow: var(--shadow, 0 4px 16px rgba(0, 0, 0, 0.08));
+  background: var(--glass-bg-strong);
 }
 
 .feature-icon {
@@ -7566,12 +7703,56 @@ body.pomodoro-immersive .page {
   color: var(--text);
 }
 
+/* PWA Theme Toggle Button - similar to pomodoro-leaderboard-link */
+.pwa-theme-toggle {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 56px;
+  height: 56px;
+  border: none;
+  background: var(--glass-bg);
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 10;
+}
+
+.pwa-theme-toggle:hover {
+  background: var(--glass-bg-strong);
+}
+
+.pwa-theme-toggle:active {
+  transform: scale(0.92);
+  color: var(--brand);
+}
+
+.pwa-theme-toggle svg {
+  width: 50px;
+  height: 50px;
+}
+
+.profile-page-header {
+  position: relative;
+}
+
+@media (display-mode: standalone) {
+  .pwa-theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* PWA 模式下显示更多功能 */
 @media (display-mode: standalone) and (max-width: 768px) {
   :root {
-    --mobile-bottom-nav-height: 72px;
+    --mobile-bottom-nav-height: 56px;
     --mobile-bottom-nav-offset: calc(
-      var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 14px
+      var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 20px
     );
   }
 
@@ -7597,7 +7778,7 @@ body.pomodoro-immersive .page {
   }
 
   .mobile-chat-input-area {
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-bottom: 10px;
   }
 }
 
@@ -7941,15 +8122,15 @@ body.pomodoro-immersive .page {
 /* PWA mode: Fix mobile chat input to account for bottom nav */
 @media (display-mode: standalone) and (max-width: 768px) {
   .mobile-chat-input-area {
-    margin-bottom: 72px;
-    padding-bottom: 12px;
+    margin-bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+    padding-bottom: 10px;
   }
 
   .mobile-chat-history-page {
     min-height: calc(100vh - env(safe-area-inset-top));
     padding-bottom: var(
       --mobile-bottom-nav-offset,
-      calc(72px + env(safe-area-inset-bottom) + 14px)
+      calc(56px + env(safe-area-inset-bottom) + 20px)
     );
   }
 }

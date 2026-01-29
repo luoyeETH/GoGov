@@ -4,14 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+// Apple SF Symbols style icons - thinner strokes, refined shapes
 const NAV_ITEMS = [
   {
     href: "/pomodoro",
-    label: "番茄钟",
+    label: "专注",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
+      <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" strokeWidth="1.5" stroke="currentColor" />
+        <path d="M12 7v5l3 2" strokeWidth="1.5" stroke="currentColor" />
+      </svg>
+    ),
+    activeIcon: (
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="10" opacity="0.15" />
+        <circle cx="12" cy="12" r="9" fill="none" strokeWidth="2" stroke="currentColor" />
+        <path d="M12 7v5l3 2" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" />
       </svg>
     )
   },
@@ -19,9 +27,16 @@ const NAV_ITEMS = [
     href: "/daily-tasks",
     label: "任务",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
+      <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="3" strokeWidth="1.5" stroke="currentColor" />
+        <path d="M9 12l2 2 4-4" strokeWidth="1.5" stroke="currentColor" />
+      </svg>
+    ),
+    activeIcon: (
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <rect x="4" y="4" width="16" height="16" rx="3" opacity="0.15" />
+        <rect x="4" y="4" width="16" height="16" rx="3" fill="none" strokeWidth="2" stroke="currentColor" />
+        <path d="M9 12l2 2 4-4" strokeWidth="2" stroke="currentColor" fill="none" />
       </svg>
     )
   },
@@ -29,8 +44,20 @@ const NAV_ITEMS = [
     href: "/chat",
     label: "AI",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.12.94 4.04 2.47 5.44L4 21l4.89-2.12c.97.32 2.02.5 3.11.5 4.97 0 9-3.58 9-8s-4.03-8-9-8z" strokeWidth="1.5" stroke="currentColor" />
+        <circle cx="8.5" cy="11" r="1" fill="currentColor" />
+        <circle cx="12" cy="11" r="1" fill="currentColor" />
+        <circle cx="15.5" cy="11" r="1" fill="currentColor" />
+      </svg>
+    ),
+    activeIcon: (
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.12.94 4.04 2.47 5.44L4 21l4.89-2.12c.97.32 2.02.5 3.11.5 4.97 0 9-3.58 9-8s-4.03-8-9-8z" opacity="0.15" />
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.12.94 4.04 2.47 5.44L4 21l4.89-2.12c.97.32 2.02.5 3.11.5 4.97 0 9-3.58 9-8s-4.03-8-9-8z" fill="none" strokeWidth="2" stroke="currentColor" />
+        <circle cx="8.5" cy="11" r="1.2" />
+        <circle cx="12" cy="11" r="1.2" />
+        <circle cx="15.5" cy="11" r="1.2" />
       </svg>
     ),
     highlight: true
@@ -39,12 +66,26 @@ const NAV_ITEMS = [
     href: "/practice/quick",
     label: "速算",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="2" width="16" height="20" rx="2" />
-        <line x1="8" y1="6" x2="16" y2="6" />
-        <line x1="8" y1="10" x2="16" y2="10" />
-        <line x1="8" y1="14" x2="12" y2="14" />
-        <line x1="8" y1="18" x2="12" y2="18" />
+      <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="3" width="14" height="18" rx="2" strokeWidth="1.5" stroke="currentColor" />
+        <line x1="9" y1="7" x2="15" y2="7" strokeWidth="1.5" stroke="currentColor" />
+        <circle cx="9" cy="12" r="1" fill="currentColor" />
+        <circle cx="15" cy="12" r="1" fill="currentColor" />
+        <circle cx="9" cy="16" r="1" fill="currentColor" />
+        <circle cx="12" cy="16" r="1" fill="currentColor" />
+        <circle cx="15" cy="16" r="1" fill="currentColor" />
+      </svg>
+    ),
+    activeIcon: (
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <rect x="5" y="3" width="14" height="18" rx="2" opacity="0.15" />
+        <rect x="5" y="3" width="14" height="18" rx="2" fill="none" strokeWidth="2" stroke="currentColor" />
+        <line x1="9" y1="7" x2="15" y2="7" strokeWidth="2" stroke="currentColor" />
+        <circle cx="9" cy="12" r="1.2" />
+        <circle cx="15" cy="12" r="1.2" />
+        <circle cx="9" cy="16" r="1.2" />
+        <circle cx="12" cy="16" r="1.2" />
+        <circle cx="15" cy="16" r="1.2" />
       </svg>
     )
   },
@@ -52,9 +93,17 @@ const NAV_ITEMS = [
     href: "/profile",
     label: "我的",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
+      <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4" strokeWidth="1.5" stroke="currentColor" />
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" strokeWidth="1.5" stroke="currentColor" />
+      </svg>
+    ),
+    activeIcon: (
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="8" r="4" opacity="0.15" />
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" opacity="0.15" />
+        <circle cx="12" cy="8" r="4" fill="none" strokeWidth="2" stroke="currentColor" />
+        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="none" strokeWidth="2" stroke="currentColor" />
       </svg>
     )
   }
@@ -113,7 +162,9 @@ export default function MobileBottomNav() {
             href={item.href}
             className={`mobile-nav-item ${isActive ? "active" : ""} ${item.highlight ? "highlight" : ""}`}
           >
-            <span className="mobile-nav-icon">{item.icon}</span>
+            <span className="mobile-nav-icon">
+              {isActive && item.activeIcon ? item.activeIcon : item.icon}
+            </span>
             <span className="mobile-nav-label">{item.label}</span>
           </Link>
         );
