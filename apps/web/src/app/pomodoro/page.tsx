@@ -206,6 +206,10 @@ export default function PomodoroPage() {
   const [insights, setInsights] = useState<PomodoroInsights | null>(null);
   const [insightsState, setInsightsState] = useState<LoadState>("loading");
   const [heatSubject, setHeatSubject] = useState<string>("全部");
+  const [selectedHeatmapDay, setSelectedHeatmapDay] = useState<{
+    date: string;
+    minutes: number;
+  } | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [customSubjects, setCustomSubjects] = useState<PomodoroCustomSubject[]>(
     []
@@ -1167,6 +1171,9 @@ export default function PomodoroPage() {
                       maxHeatMinutes
                     )}`}
                     title={`${day.date} · ${day.minutes} 分钟`}
+                    onClick={() =>
+                      setSelectedHeatmapDay({ date: day.date, minutes: day.minutes })
+                    }
                   />
                 ))}
               </div>
@@ -1290,6 +1297,35 @@ export default function PomodoroPage() {
           </div>
         ) : null}
       </section>
+
+      {selectedHeatmapDay ? (
+        <div
+          className="heatmap-tooltip-overlay"
+          onClick={() => setSelectedHeatmapDay(null)}
+        >
+          <div
+            className="heatmap-tooltip"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="heatmap-tooltip-header">
+              <h4>{selectedHeatmapDay.date}</h4>
+              <button
+                type="button"
+                onClick={() => setSelectedHeatmapDay(null)}
+                aria-label="关闭"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="heatmap-tooltip-content">
+              <p className="heatmap-tooltip-time">
+                {formatMinutes(selectedHeatmapDay.minutes)}
+              </p>
+              <p className="heatmap-tooltip-label">学习时长</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isImmersive ? (
         <div className="pomodoro-overlay">

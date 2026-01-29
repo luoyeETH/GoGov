@@ -157,6 +157,7 @@ export default function HomeLearningDashboard() {
   const [insightsState, setInsightsState] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [heatSubject, setHeatSubject] = useState<string>("全部");
+  const [selectedDay, setSelectedDay] = useState<{ date: string; minutes: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -512,6 +513,13 @@ export default function HomeLearningDashboard() {
                   maxHeatMinutes
                 )}`}
                 title={`${day.date} · ${day.minutes} 分钟`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedDay({ date: day.date, minutes: day.minutes });
+                }}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                }}
               />
             ))}
           </div>
@@ -649,6 +657,35 @@ export default function HomeLearningDashboard() {
         </div>
         <p className="home-dashboard-ai-text">{aiSuggestion}</p>
       </div>
+
+      {selectedDay && (
+        <div
+          className="heatmap-tooltip-overlay"
+          onClick={() => setSelectedDay(null)}
+        >
+          <div
+            className="heatmap-tooltip"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <div className="heatmap-tooltip-header">
+              <h4>{selectedDay.date}</h4>
+              <button
+                type="button"
+                onClick={() => setSelectedDay(null)}
+                aria-label="关闭"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="heatmap-tooltip-content">
+              <p className="heatmap-tooltip-time">{formatMinutes(selectedDay.minutes)}</p>
+              <p className="heatmap-tooltip-label">学习时长</p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
