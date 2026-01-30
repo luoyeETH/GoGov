@@ -744,7 +744,7 @@ export default function MockReportPage() {
   const buildShareContainer = (
     clone: HTMLElement,
     sourceEl: HTMLElement,
-    options?: { maxWidth?: string }
+    options?: { maxWidth?: string; fixedWidth?: string }
   ) => {
     const sourceStyles = window.getComputedStyle(sourceEl);
     const rootStyles = window.getComputedStyle(document.documentElement);
@@ -766,6 +766,11 @@ export default function MockReportPage() {
       overflow: hidden;
     `;
 
+    if (options?.fixedWidth) {
+      container.style.width = options.fixedWidth;
+      clone.style.width = "100%";
+    }
+
     if (options?.maxWidth) {
       container.style.maxWidth = options.maxWidth;
     }
@@ -775,6 +780,9 @@ export default function MockReportPage() {
       padding: 0;
       background: transparent;
     `;
+    if (options?.fixedWidth) {
+      contentArea.style.width = "100%";
+    }
     contentArea.appendChild(clone);
     container.appendChild(contentArea);
 
@@ -844,8 +852,20 @@ export default function MockReportPage() {
         shareBtn.parentElement.removeChild(shareBtn);
       }
 
+      const trendScroll = clone.querySelector('.mock-trend-scroll') as HTMLElement | null;
+      if (trendScroll) {
+        trendScroll.style.width = "100%";
+        trendScroll.style.marginLeft = "0";
+        trendScroll.style.marginRight = "0";
+      }
+
+      const captureWidth =
+        trendViewportWidth || (typeof window !== "undefined" ? window.innerWidth : 0);
+
       // 创建容器
-      const container = buildShareContainer(clone, trendCardRef.current);
+      const container = buildShareContainer(clone, trendCardRef.current, {
+        fixedWidth: captureWidth ? `${captureWidth}px` : undefined
+      });
 
       // 临时添加到DOM
       container.style.position = 'fixed';
@@ -1299,7 +1319,7 @@ export default function MockReportPage() {
           onClick={() => setFocusColumn('input')}
         >
           <div className="mock-card">
-            <div className="mock-card-header">
+          <div className={`mock-card-header${analysis ? " has-share" : ""}`}>
               <div>
                 <h3>成绩输入</h3>
                 {focusColumn !== 'input' && (
@@ -1678,7 +1698,7 @@ export default function MockReportPage() {
       {/* 历史趋势图（保持不变）*/}
       <section className="mock-grid">
         <div className="mock-card mock-trend" ref={trendCardRef}>
-          <div className="mock-card-header mock-trend-header">
+          <div className="mock-card-header mock-trend-header has-share">
             <div>
               <h3>历史正确率走势</h3>
               <span className="form-message">
