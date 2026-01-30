@@ -115,6 +115,7 @@ type UploadImage = {
 
 type RequestState = "idle" | "loading" | "error";
 type TitlePreset = "provincial" | "national" | "custom";
+type FocusColumn = "input" | "result" | "history";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -534,6 +535,8 @@ function buildAnalysisMarkdown(data: AnalysisResponse) {
   return lines.join("\n");
 }
 
+type InputMethod = "image" | "manual";
+
 export default function MockReportPage() {
   const [title, setTitle] = useState("");
   const [titlePreset, setTitlePreset] = useState<TitlePreset>("provincial");
@@ -546,7 +549,16 @@ export default function MockReportPage() {
   const [trendFilter, setTrendFilter] = useState<string>("all");
   const [trendViewportWidth, setTrendViewportWidth] = useState<number>(0);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
+  const [inputMethod, setInputMethod] = useState<InputMethod>("image");
+  const [focusColumn, setFocusColumn] = useState<FocusColumn>("input");
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareImageUrl, setShareImageUrl] = useState<string | null>(null);
+  const [shareGenerating, setShareGenerating] = useState(false);
+  const [shareAnalysisGenerating, setShareAnalysisGenerating] = useState(false);
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
   const trendScrollRef = useRef<HTMLDivElement | null>(null);
+  const trendCardRef = useRef<HTMLDivElement | null>(null);
+  const analysisCardRef = useRef<HTMLDivElement | null>(null);
 
   const [manualEntries, setManualEntries] = useState<ManualEntry[]>(() =>
     manualSubjects.map((subject) => ({
@@ -729,6 +741,213 @@ export default function MockReportPage() {
     }
   };
 
+  const buildShareContainer = (
+    clone: HTMLElement,
+    sourceEl: HTMLElement,
+    options?: { maxWidth?: string }
+  ) => {
+    const sourceStyles = window.getComputedStyle(sourceEl);
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const cardBackground = sourceStyles.backgroundColor || "#ffffff";
+    const cardRadius = sourceStyles.borderRadius || "16px";
+    const brandColor = rootStyles.getPropertyValue("--brand").trim() || "#ff6b4a";
+    const brandDark = rootStyles.getPropertyValue("--brand-dark").trim() || "#ff5333";
+
+    clone.style.boxShadow = "none";
+    clone.style.border = "none";
+    clone.style.margin = "0";
+
+    const container = document.createElement("div");
+    container.style.cssText = `
+      position: relative;
+      display: inline-block;
+      background: ${cardBackground};
+      border-radius: ${cardRadius};
+      overflow: hidden;
+    `;
+
+    if (options?.maxWidth) {
+      container.style.maxWidth = options.maxWidth;
+    }
+
+    const contentArea = document.createElement("div");
+    contentArea.style.cssText = `
+      padding: 0;
+      background: transparent;
+    `;
+    contentArea.appendChild(clone);
+    container.appendChild(contentArea);
+
+    const watermarkBar = document.createElement("div");
+    watermarkBar.style.cssText = `
+      width: 100%;
+      height: 48px;
+      background: linear-gradient(135deg, ${brandColor} 0%, ${brandDark} 100%);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 18px;
+    `;
+
+    const brandCard = document.createElement("div");
+    brandCard.style.cssText = `
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.9) 100%);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    `;
+
+    const logoImg = document.createElement("img");
+    logoImg.src = "/icon-96.png";
+    logoImg.style.cssText = `
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      object-fit: cover;
+    `;
+
+    const brandDomain = document.createElement("span");
+    brandDomain.style.cssText = `
+      font-size: 11px;
+      font-weight: 600;
+      color: #7b7b80;
+      letter-spacing: 0.04em;
+    `;
+    brandDomain.textContent = "学了么.com";
+
+    brandCard.appendChild(logoImg);
+    brandCard.appendChild(brandDomain);
+    watermarkBar.appendChild(brandCard);
+    container.appendChild(watermarkBar);
+
+    return container;
+  };
+
+  const handleShareTrend = async () => {
+    if (!trendCardRef.current) return;
+
+    setShareGenerating(true);
+    try {
+      // 动态导入 html2canvas
+      const html2canvas = (await import('html2canvas')).default;
+
+      // 克隆趋势图卡片
+      const clone = trendCardRef.current.cloneNode(true) as HTMLElement;
+
+      // 移除克隆中的分享按钮
+      const shareBtn = clone.querySelector('.share-button');
+      if (shareBtn?.parentElement) {
+        shareBtn.parentElement.removeChild(shareBtn);
+      }
+
+      // 创建容器
+      const container = buildShareContainer(clone, trendCardRef.current);
+
+      // 临时添加到DOM
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      // 生成截图
+      const canvas = await html2canvas(container, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true
+      });
+
+      // 清理临时DOM
+      document.body.removeChild(container);
+
+      // 转换为图片URL
+      const imageUrl = canvas.toDataURL('image/png');
+      setShareImageUrl(imageUrl);
+      setShareModalOpen(true);
+    } catch (err) {
+      console.error('生成分享图片失败:', err);
+      setMessage('生成分享图片失败，请重试');
+    } finally {
+      setShareGenerating(false);
+    }
+  };
+
+  const handleShareAnalysis = async () => {
+    if (!analysisCardRef.current) return;
+
+    setShareAnalysisGenerating(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+
+      const clone = analysisCardRef.current.cloneNode(true) as HTMLElement;
+
+      // 移除克隆中的分享按钮
+      const shareBtn = clone.querySelector('.share-button');
+      if (shareBtn?.parentElement) {
+        shareBtn.parentElement.removeChild(shareBtn);
+      }
+
+      const container = buildShareContainer(clone, analysisCardRef.current, {
+        maxWidth: "800px"
+      });
+
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true
+      });
+
+      document.body.removeChild(container);
+
+      const imageUrl = canvas.toDataURL('image/png');
+      setShareImageUrl(imageUrl);
+      setShareModalOpen(true);
+    } catch (err) {
+      console.error('生成分享图片失败:', err);
+      setMessage('生成分享图片失败，请重试');
+    } finally {
+      setShareAnalysisGenerating(false);
+    }
+  };
+
+  const handleCopyImage = async () => {
+    if (!shareImageUrl) return;
+
+    try {
+      const blob = await (await fetch(shareImageUrl)).blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      setCopiedSuccess(true);
+      setMessage('已复制到剪贴板');
+      setTimeout(() => {
+        setCopiedSuccess(false);
+        setMessage(null);
+      }, 2000);
+    } catch (err) {
+      console.error('复制失败:', err);
+      setMessage('复制失败，请使用下载功能');
+      setTimeout(() => setMessage(null), 2000);
+    }
+  };
+
+  const handleDownloadImage = () => {
+    if (!shareImageUrl) return;
+
+    const link = document.createElement('a');
+    link.download = `学了么-模考正确率走势-${new Date().toLocaleDateString('zh-CN')}.png`;
+    link.href = shareImageUrl;
+    link.click();
+  };
+
   const handleAnalyze = async () => {
     if (state === "loading") {
       return;
@@ -778,6 +997,7 @@ export default function MockReportPage() {
       }
       setAnalysis(data);
       setState("idle");
+      setFocusColumn("result"); // 切换焦点到结果列
       const markdown = buildAnalysisMarkdown(data);
       const overallAccuracy =
         typeof data.overall?.accuracy === "number" ? data.overall.accuracy : null;
@@ -1063,175 +1283,401 @@ export default function MockReportPage() {
         </div>
       </section>
 
-      <section className="mock-grid">
-        <div className="mock-card">
-          <div className="mock-card-header">
-            <div>
-              <h3>成绩输入</h3>
-              <p className="form-message">图片与手动数据可同时使用。</p>
+      {/* 三列动态布局 */}
+      <section
+        className={`mock-three-column focus-${focusColumn}`}
+        style={{
+          gridTemplateColumns:
+            focusColumn === 'input' ? '2fr 1fr 1fr' :
+            focusColumn === 'result' ? '0.8fr 2.4fr 0.8fr' :
+            '0.8fr 0.8fr 2.4fr'
+        }}
+      >
+        {/* 第一列：输入区域 */}
+        <div
+          className={`mock-column mock-column-input ${focusColumn === 'input' ? 'is-focused' : ''}`}
+          onClick={() => setFocusColumn('input')}
+        >
+          <div className="mock-card">
+            <div className="mock-card-header">
+              <div>
+                <h3>成绩输入</h3>
+                {focusColumn !== 'input' && (
+                  <p className="form-message">点击展开输入</p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="form-row">
-            <label htmlFor="mock-title">模考名称</label>
-            <select
-              id="mock-title-preset"
-              value={titlePreset}
-              onChange={(event) => {
-                setTitlePreset(event.target.value as TitlePreset);
-              }}
-            >
-              <option value="provincial">{defaultTitles.provincial}</option>
-              <option value="national">{defaultTitles.national}</option>
-              <option value="custom">自定义</option>
-            </select>
-            <input
-              id="mock-title"
-              value={title}
-              placeholder="例如：粉笔 2025 国考模考一"
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setTitlePreset("custom");
-              }}
-            />
-            <span className="form-message">可选择默认名称或自行填写。</span>
-          </div>
+            {/* 只在焦点时显示完整内容 */}
+            {focusColumn === 'input' && (
+              <>
+                <div className="form-row">
+                  <label htmlFor="mock-title-preset">模考名称</label>
+                  <select
+                    id="mock-title-preset"
+                    value={titlePreset}
+                    onChange={(event) => {
+                      const newPreset = event.target.value as TitlePreset;
+                      setTitlePreset(newPreset);
+                      if (newPreset !== "custom") {
+                        setTitle(defaultTitles[newPreset]);
+                      }
+                    }}
+                  >
+                    <option value="provincial">{defaultTitles.provincial}</option>
+                    <option value="national">{defaultTitles.national}</option>
+                    <option value="custom">自定义名称</option>
+                  </select>
+                  {titlePreset === "custom" && (
+                    <input
+                      id="mock-title-custom"
+                      value={title}
+                      placeholder="例如：粉笔 2025 国考模考一"
+                      onChange={(event) => setTitle(event.target.value)}
+                      className="mock-custom-input"
+                    />
+                  )}
+                </div>
 
-          <div className="mock-upload">
-            <label className="upload-button">
-              <input type="file" accept="image/*" multiple onChange={handleImageChange} />
-              上传成绩截图
-            </label>
-            <span className="form-message">单张不超过 8MB。</span>
-          </div>
-
-          {uploads.length ? (
-            <div className="mock-upload-list">
-              {uploads.map((item) => (
-                <div key={item.id} className="mock-upload-item">
-                  <img src={item.previewUrl} alt="模考截图" />
+                {/* Tab Navigation */}
+                <div className="input-method-tabs">
                   <button
                     type="button"
-                    className="ghost danger"
-                    onClick={() => removeUpload(item.id)}
+                    className={`input-method-tab ${inputMethod === "image" ? "active" : ""}`}
+                    onClick={() => setInputMethod("image")}
                   >
-                    删除
+                    <svg
+                      className="input-method-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    图片识别
+                  </button>
+                  <button
+                    type="button"
+                    className={`input-method-tab ${inputMethod === "manual" ? "active" : ""}`}
+                    onClick={() => setInputMethod("manual")}
+                  >
+                    <svg
+                      className="input-method-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    手动填写
                   </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="knowledge-empty">暂无截图，可直接输入数据。</div>
-          )}
 
-          <div className="form-row">
-            <label>手动输入（正确/总题 + 用时）</label>
-            <div className="mock-manual-grid">
-              {manualEntries.map((entry, index) => (
-                <div key={entry.subject} className="mock-manual-row">
-                  <span className="mock-manual-subject">{entry.subject}</span>
-                  <div className="mock-manual-inputs">
-                    <input
-                      type="number"
-                      min="0"
-                      inputMode="numeric"
-                      placeholder="正确"
-                      value={entry.correct}
-                      onChange={(event) =>
-                        updateManualEntry(index, "correct", event.target.value)
-                      }
-                    />
-                    <span>/</span>
-                    <input
-                      type="number"
-                      min="0"
-                      inputMode="numeric"
-                      placeholder="总题"
-                      value={entry.total}
-                      onChange={(event) =>
-                        updateManualEntry(index, "total", event.target.value)
-                      }
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      inputMode="decimal"
-                      placeholder="分钟"
-                      value={entry.timeMinutes}
-                      onChange={(event) =>
-                        updateManualEntry(index, "timeMinutes", event.target.value)
-                      }
-                    />
+                {/* Tab Content - Image Upload */}
+                {inputMethod === "image" && (
+                  <div className="input-method-content">
+                    <div className="mock-upload">
+                      <label className="upload-button">
+                        <input type="file" accept="image/*" multiple onChange={handleImageChange} />
+                        <svg
+                          className="upload-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        选择成绩截图
+                      </label>
+                      <span className="form-message">支持 JPG、PNG 格式，单张不超过 8MB，最多 3 张</span>
+                    </div>
+
+                    {uploads.length ? (
+                      <div className="mock-upload-list">
+                        {uploads.map((item) => (
+                          <div key={item.id} className="mock-upload-item">
+                            <img src={item.previewUrl} alt="模考截图" />
+                            <button
+                              type="button"
+                              className="ghost danger"
+                              onClick={() => removeUpload(item.id)}
+                              aria-label="删除图片"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <svg
+                          className="empty-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        >
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <p>暂无截图</p>
+                        <span>AI 会自动识别图片中的成绩数据</span>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Tab Content - Manual Input */}
+                {inputMethod === "manual" && (
+                  <div className="input-method-content">
+                    <div className="manual-input-header">
+                      <p>请填写各科目的正确题数、总题数和用时（分钟）</p>
+                      <span className="form-message">只需填写正确与总题数，时间可选填</span>
+                    </div>
+
+                    <div className="mock-manual-grid">
+                      {manualEntries.map((entry, index) => (
+                        <div key={entry.subject} className="mock-manual-row">
+                          <span className="mock-manual-subject">{entry.subject}</span>
+                          <div className="mock-manual-inputs">
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              placeholder="正确"
+                              value={entry.correct}
+                              onChange={(event) =>
+                                updateManualEntry(index, "correct", event.target.value)
+                              }
+                              aria-label={`${entry.subject} 正确题数`}
+                            />
+                            <span>/</span>
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              placeholder="总题"
+                              value={entry.total}
+                              onChange={(event) =>
+                                updateManualEntry(index, "total", event.target.value)
+                              }
+                              aria-label={`${entry.subject} 总题数`}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="decimal"
+                              placeholder="分钟"
+                              value={entry.timeMinutes}
+                              onChange={(event) =>
+                                updateManualEntry(index, "timeMinutes", event.target.value)
+                              }
+                              aria-label={`${entry.subject} 用时`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {manualMetrics.length > 0 && (
+                      <div className="manual-summary">
+                        <svg
+                          className="summary-icon"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        已填写 {manualMetrics.length} 个科目
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="form-row">
+                  <label htmlFor="mock-note">补充说明</label>
+                  <textarea
+                    id="mock-note"
+                    rows={3}
+                    placeholder="例如：这次主要练习言语理解与表达，时间偏紧"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                  />
                 </div>
-              ))}
-            </div>
-            {!manualMetrics.length ? (
-              <span className="form-message">
-                只填写正确与总题即可触发解析，时间可选填。
-              </span>
-            ) : null}
-          </div>
 
-          <div className="form-row">
-            <label htmlFor="mock-note">补充说明</label>
-            <textarea
-              id="mock-note"
-              rows={3}
-              placeholder="例如：这次主要练习言语理解与表达，时间偏紧"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
+                <div className="assist-actions">
+                  <LoadingButton
+                    type="button"
+                    className="primary"
+                    loading={state === "loading"}
+                    loadingText="生成中..."
+                    onClick={handleAnalyze}
+                  >
+                    生成模考点评
+                  </LoadingButton>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setAnalysis(null);
+                      setMessage(null);
+                      setState("idle");
+                    }}
+                  >
+                    清空结果
+                  </button>
+                </div>
 
-          <div className="assist-actions">
-            <LoadingButton
-              type="button"
-              className="primary"
-              loading={state === "loading"}
-              loadingText="生成中..."
-              onClick={handleAnalyze}
-            >
-              生成模考点评
-            </LoadingButton>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => {
-                setAnalysis(null);
-                setMessage(null);
-                setState("idle");
-              }}
-            >
-              清空结果
-            </button>
+                {message ? <p className="form-message">{message}</p> : null}
+                {state === "loading" ? (
+                  <p className="form-message">AI 正在生成解析...</p>
+                ) : null}
+              </>
+            )}
           </div>
-
-          {message ? <p className="form-message">{message}</p> : null}
-          {state === "loading" ? (
-            <p className="form-message">AI 正在生成解析...</p>
-          ) : null}
         </div>
 
-        <div className="mock-card">
-          <div className="mock-card-header">
-            <h3>成绩点评</h3>
-            <span className="form-message">支持历史趋势分析</span>
-          </div>
-          {analysis ? (
-            <div className="assist-output">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {analysisMarkdown}
-              </ReactMarkdown>
+        {/* 第二列：分析结果 */}
+        <div
+          className={`mock-column mock-column-result ${focusColumn === 'result' ? 'is-focused' : ''}`}
+          onClick={() => analysis && setFocusColumn('result')}
+        >
+          <div className="mock-card" ref={analysisCardRef}>
+            <div className="mock-card-header">
+              <h3>成绩点评</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {focusColumn !== 'result' && analysis && (
+                  <span className="form-message">点击展开</span>
+                )}
+                {analysis && (
+                  <button
+                    type="button"
+                    className="ghost share-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShareAnalysis();
+                    }}
+                    disabled={shareAnalysisGenerating}
+                    title="分享分析报告"
+                  >
+                    <span className="share-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        width="16"
+                        height="16"
+                      >
+                        <circle cx="18" cy="5" r="3" />
+                        <circle cx="6" cy="12" r="3" />
+                        <circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                    </span>
+                    <span className="share-text">
+                      {shareAnalysisGenerating ? '生成中...' : '分享'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="knowledge-empty">提交数据后显示点评。</div>
-          )}
+            {analysis ? (
+              <div className="assist-output">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {analysisMarkdown}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div className="knowledge-empty">提交数据后显示点评，或查看历史点评</div>
+            )}
+          </div>
+        </div>
+
+        {/* 第三列：历史记录 */}
+        <div
+          className={`mock-column mock-column-history ${focusColumn === 'history' ? 'is-focused' : ''}`}
+        >
+          <div className="mock-card" onClick={() => history.length > 0 && setFocusColumn('history')}>
+            <div className="mock-card-header">
+              <h3>历史记录</h3>
+              {focusColumn !== 'history' && history.length > 0 && (
+                <span className="form-message">点击展开</span>
+              )}
+            </div>
+            <div className="mock-history-list" onClick={(e) => e.stopPropagation()}>
+              {history.length ? (
+                history.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`mock-history-item ${focusColumn === 'history' ? 'expanded' : 'compact'}`}
+                    onClick={() => {
+                      setAnalysis(
+                        item.analysis ?? (item.analysisRaw ? { raw: item.analysisRaw } : null)
+                      );
+                      setFocusColumn('result');
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="mock-history-header">
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>{formatDate(item.createdAt)}</span>
+                      </div>
+                      {focusColumn === 'history' && (
+                        <div className="mock-history-actions">
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAnalysis(
+                                item.analysis ?? (item.analysisRaw ? { raw: item.analysisRaw } : null)
+                              );
+                              setFocusColumn('result');
+                            }}
+                          >
+                            查看
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteHistory(item.id);
+                            }}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {focusColumn === 'history' && <p>{item.summary}</p>}
+                  </div>
+                ))
+              ) : (
+                <div className="knowledge-empty">暂无历史记录</div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
+      {/* 历史趋势图（保持不变）*/}
       <section className="mock-grid">
-        <div className="mock-card mock-trend">
+        <div className="mock-card mock-trend" ref={trendCardRef}>
           <div className="mock-card-header mock-trend-header">
             <div>
               <h3>历史正确率走势</h3>
@@ -1239,9 +1685,38 @@ export default function MockReportPage() {
                 覆盖常识判断、政治理论、言语理解与表达、数量关系、判断推理、资料分析
               </span>
             </div>
-            <div className="mock-trend-meta">
-              <span>记录数：{trendData.records}</span>
-              <span>区间：{trendData.rangeText}</span>
+            <div className="mock-trend-header-actions">
+              <div className="mock-trend-meta">
+                <span>记录数：{trendData.records}</span>
+                <span>区间：{trendData.rangeText}</span>
+              </div>
+              <button
+                type="button"
+                className="ghost share-button"
+                onClick={handleShareTrend}
+                disabled={shareGenerating || !trendData.records}
+                title="分享走势图"
+              >
+                <span className="share-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="16"
+                    height="16"
+                  >
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                </span>
+                <span className="share-text">
+                  {shareGenerating ? '生成中...' : '分享'}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -1438,62 +1913,96 @@ export default function MockReportPage() {
         </div>
       </section>
 
-      <section className="mock-grid">
-        <div className="mock-card mock-history">
-          <div className="mock-card-header">
-            <h3>历史记录</h3>
-            <span className="form-message">最近 30 次</span>
-          </div>
-          <div className="mock-history-list">
-            {history.length ? (
-              history.map((item) => (
-                <div key={item.id} className="mock-history-item">
-                  <div className="mock-history-header">
-                    <div>
-                      <strong>{item.title}</strong>
-                      <span>{formatDate(item.createdAt)}</span>
-                    </div>
-                    <div className="mock-history-actions">
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => {
-                          setAnalysis(
-                            item.analysis ?? (item.analysisRaw ? { raw: item.analysisRaw } : null)
-                          );
-                        }}
-                      >
-                        查看
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost danger"
-                        onClick={() => handleDeleteHistory(item.id)}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </div>
-                  <p>{item.summary}</p>
-                </div>
-              ))
-            ) : (
-              <div className="knowledge-empty">暂无历史记录。</div>
-            )}
+      {/* 分享弹窗 */}
+      {shareModalOpen && (
+        <div className="share-modal-overlay" onClick={() => setShareModalOpen(false)}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="share-modal-header">
+              <h3>分享走势图</h3>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setShareModalOpen(false)}
+                aria-label="关闭"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  width="20"
+                  height="20"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="share-modal-body">
+              {shareImageUrl && (
+                <img src={shareImageUrl} alt="走势图分享" className="share-preview" />
+              )}
+            </div>
+            <div className="share-modal-actions">
+              <button
+                type="button"
+                className={`primary ${copiedSuccess ? 'success' : ''}`}
+                onClick={handleCopyImage}
+              >
+                {copiedSuccess ? (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      width="16"
+                      height="16"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    复制成功
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      width="16"
+                      height="16"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    复制图片
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={handleDownloadImage}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  width="16"
+                  height="16"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                下载保存
+              </button>
+            </div>
           </div>
         </div>
-        <div className="mock-card mock-tips">
-          <div className="mock-card-header">
-            <h3>填写说明</h3>
-            <span className="form-message">快速理解手动输入</span>
-          </div>
-          <div className="mock-sample">
-            <code>正确 / 总题：例如 13 / 20</code>
-            <code>用时：分钟数，可留空</code>
-            <code>图片与手动数据可同时提交</code>
-          </div>
-        </div>
-      </section>
+      )}
     </main>
   );
 }

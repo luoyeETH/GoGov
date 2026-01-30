@@ -8,16 +8,17 @@
   },
   "dependencies": {
     "@gogov/shared": "file:../../packages/shared",
+    "html2canvas": "^1.4.1",
+    "katex": "^0.16.9",
     "mammoth": "^1.6.0",
     "next": "^14.2.5",
     "pdfjs-dist": "^4.4.168",
-    "katex": "^0.16.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
-    "remark-math": "^6.0.0",
     "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
     "tesseract.js": "^5.0.5"
   },
   "devDependencies": {

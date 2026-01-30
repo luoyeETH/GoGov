@@ -2732,6 +2732,200 @@ button {
   gap: 8px;
 }
 
+/* Input Method Tabs */
+.input-method-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 4px;
+  background: var(--bg-accent);
+  border-radius: 14px;
+  margin: 8px 0;
+}
+
+.input-method-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.input-method-tab:hover {
+  background: var(--glass-bg-subtle);
+  color: var(--text);
+}
+
+.input-method-tab.active {
+  background: var(--card);
+  color: var(--brand);
+  box-shadow: var(--shadow-sm);
+}
+
+.input-method-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 200ms ease;
+}
+
+.input-method-tab.active .input-method-icon {
+  transform: scale(1.1);
+}
+
+.input-method-content {
+  display: grid;
+  gap: 16px;
+  animation: fadeIn 300ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced Upload Button */
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-accent);
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  position: relative;
+}
+
+.upload-button:hover {
+  border-color: var(--brand);
+  background: var(--brand-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.upload-button input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  cursor: pointer;
+}
+
+.upload-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--bg-accent);
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Manual Input Header */
+.manual-input-header {
+  padding: 12px 16px;
+  background: var(--bg-accent);
+  border-radius: 10px;
+  border-left: 3px solid var(--brand);
+}
+
+.manual-input-header p {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.manual-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--brand-light);
+  border-radius: 10px;
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.summary-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--brand);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .input-method-tabs {
+    gap: 8px;
+  }
+
+  .input-method-tab {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .input-method-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .upload-button {
+    width: 100%;
+    padding: 16px 20px;
+  }
+}
+
 .mock-trend-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -2929,6 +3123,475 @@ button {
 .mock-trend-legend-value {
   color: var(--muted);
   font-weight: 600;
+}
+
+/* 分享按钮和趋势图头部布局 */
+.mock-trend-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 999px;
+  color: var(--brand-dark);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.share-button .share-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+}
+
+.share-button .share-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+}
+
+.share-button .share-text {
+  letter-spacing: 0.02em;
+}
+
+.share-button:hover {
+  transform: translateY(-1px);
+  background: var(--glass-bg-strong);
+}
+
+.share-button:active {
+  transform: translateY(0);
+}
+
+.share-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.share-button:disabled .share-icon {
+  box-shadow: none;
+  filter: grayscale(0.2);
+}
+
+/* 分享弹窗 */
+.share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.share-modal {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.share-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.share-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.share-modal-header button {
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.share-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.share-preview {
+  max-width: 500px;
+  width: auto;
+  height: auto;
+  max-height: calc(90vh - 180px);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+  object-fit: contain;
+}
+
+.share-modal-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.share-modal-actions button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  transition: all 0.3s ease;
+}
+
+.share-modal-actions button.success {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  animation: successPulse 0.5s ease;
+}
+
+@keyframes successPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.share-modal-actions button svg {
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.share-modal-actions button.success svg {
+  animation: checkmark 0.5s ease;
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(-45deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(0deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@media (max-width: 720px) {
+  .share-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+
+  .share-preview {
+    max-width: 100%;
+    max-height: calc(95vh - 180px);
+  }
+
+  .mock-trend-header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .share-button {
+    font-size: 12px;
+    padding: 4px 10px 4px 6px;
+  }
+
+  .share-button .share-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .share-button .share-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* 三列动态布局 */
+.mock-three-column {
+  display: grid;
+  gap: 22px;
+  align-items: start;
+  transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mock-column {
+  min-height: 400px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.mock-column.is-focused {
+  cursor: default;
+}
+
+.mock-column.is-focused .mock-card {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--brand-light);
+  border-color: var(--brand);
+}
+
+.mock-column:not(.is-focused) .mock-card {
+  opacity: 0.85;
+}
+
+.mock-column:not(.is-focused):hover .mock-card {
+  opacity: 1;
+  border-color: var(--brand-light);
+}
+
+/* 历史记录精简/展开状态 */
+.mock-history-item.compact {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.mock-history-item.compact:hover {
+  background: var(--bg-accent);
+  border-bottom-color: var(--brand-light);
+}
+
+.mock-history-item.compact:last-child {
+  border-bottom: none;
+}
+
+.mock-history-item.compact .mock-history-header {
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.mock-history-item.compact .mock-history-actions {
+  display: none;
+}
+
+.mock-history-item.compact p {
+  display: none;
+}
+
+.mock-history-item.compact strong {
+  font-size: 13px;
+}
+
+.mock-history-item.compact span {
+  font-size: 11px;
+}
+
+.mock-history-item.expanded {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: var(--glass-bg);
+  transition: all 0.2s ease;
+}
+
+.mock-history-item.expanded:hover {
+  border-color: var(--brand-light);
+  background: var(--bg);
+}
+
+/* 列内容显示控制 */
+.mock-column:not(.is-focused) .input-method-tabs,
+.mock-column:not(.is-focused) .input-method-content,
+.mock-column:not(.is-focused) .form-row,
+.mock-column:not(.is-focused) .assist-actions,
+.mock-column:not(.is-focused) .assist-output {
+  display: none;
+}
+
+.mock-column:not(.is-focused) .knowledge-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 20px 0;
+}
+
+/* 移动端响应 */
+@media (max-width: 1200px) {
+  .mock-three-column {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mock-column {
+    min-height: auto;
+  }
+
+  .mock-column .mock-card {
+    opacity: 1 !important;
+  }
+
+  .mock-column:not(.is-focused) .input-method-tabs,
+  .mock-column:not(.is-focused) .input-method-content,
+  .mock-column:not(.is-focused) .form-row,
+  .mock-column:not(.is-focused) .assist-actions,
+  .mock-column:not(.is-focused) .assist-output,
+  .mock-column:not(.is-focused) .knowledge-empty {
+    display: block;
+  }
+
+  .mock-history-item {
+    padding: 14px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .mock-history-item p {
+    display: block !important;
+  }
+
+  .mock-history-item .mock-history-actions {
+    display: flex !important;
+  }
+}
+
+/* 保留旧的布局样式（已废弃，可以移除） */
+.mock-input-section {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 22px;
+  align-items: start;
+}
+
+.mock-tips-sidebar {
+  display: grid;
+  gap: 16px;
+  position: sticky;
+  top: 24px;
+}
+
+.mock-tips-sidebar .mock-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+.mock-tips-content {
+  display: grid;
+  gap: 12px;
+}
+
+.tip-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg-accent);
+  transition: all 0.2s ease;
+}
+
+.tip-item:hover {
+  background: var(--bg);
+  transform: translateX(2px);
+}
+
+.tip-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.tip-example {
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+  font-size: 12px;
+  color: var(--brand);
+  background: var(--bg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+/* 结果区域独立显示 */
+.mock-result-section {
+  margin-top: 22px;
+}
+
+/* 自定义名称输入框 */
+.mock-custom-input {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.mock-custom-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-light);
+}
+
+@media (max-width: 1024px) {
+  .mock-input-section {
+    grid-template-columns: 1fr;
+  }
+
+  .mock-tips-sidebar {
+    position: static;
+  }
 }
 
 @media (max-width: 720px) {
