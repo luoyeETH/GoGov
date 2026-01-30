@@ -12,6 +12,13 @@ export type PromptScenario = {
   system: string;
   fields: PromptField[];
   output: string[];
+  includePomodoroStats?: boolean; // 是否包含番茄钟统计
+};
+
+type PomodoroStats = {
+  date: string;
+  totalMinutes: number;
+  totals: Record<string, number>;
 };
 
 const BASE_SYSTEM = `你是 学了么 公考 AI 答疑助手，服务对象是国考/省考/事业编备考用户。
@@ -64,7 +71,8 @@ export const PROMPT_SCENARIOS: PromptScenario[] = [
       "节奏建议：每日/每周安排",
       "资源建议：刷题/课程/资料类型",
       "复盘机制：阶段检测与纠偏方式"
-    ]
+    ],
+    includePomodoroStats: true // 包含番茄钟统计
   },
   {
     id: "verbal",
@@ -141,27 +149,65 @@ export const PROMPT_SCENARIOS: PromptScenario[] = [
       "日计划：固定学习结构",
       "复盘机制：每周纠偏",
       "补充建议：如何提升效率"
-    ]
+    ],
+    includePomodoroStats: true // 包含番茄钟统计
   }
 ];
 
-export function buildPrompt(
-  scenario: PromptScenario,
-  fields: Record<string, string>,
-  question: string
-) {
+export function getScenario(scenarioId: string): PromptScenario | null {
+  return PROMPT_SCENARIOS.find((s) => s.id === scenarioId) ?? null;
+}
+
+export function buildAssistPrompt(params: {
+  scenario: PromptScenario;
+  fields: Record<string, string>;
+  question: string;
+  pomodoroStats?: PomodoroStats[];
+}) {
+  const { scenario, fields, question, pomodoroStats } = params;
+
   const fieldLines = scenario.fields.map((field) => {
     const value = fields[field.key]?.trim();
     return `- ${field.label}: ${value || "未填写"}`;
   });
-  const user = [
+
+  const userLines = [
     `任务类型: ${scenario.label}`,
     "用户信息:",
     fieldLines.length ? fieldLines.join("\n") : "- 无",
-    `问题/需求: ${question?.trim() || "未填写"}`,
-    "输出结构:",
-    ...scenario.output.map((line) => `- ${line}`)
-  ].join("\n");
+    `问题/需求: ${question?.trim() || "未填写"}`
+  ];
+
+  // 添加番茄钟统计数据（仅对配置了 includePomodoroStats 的场景）
+  if (scenario.includePomodoroStats && pomodoroStats && pomodoroStats.length > 0) {
+    const statsLines = ["", "最近一周学习情况（番茄钟统计）："];
+    pomodoroStats.forEach((dayStat) => {
+      const subjectList = Object.entries(dayStat.totals)
+        .filter(([_, minutes]) => minutes > 0)
+        .map(([subject, minutes]) => `${subject} ${minutes}分钟`)
+        .join("、");
+      statsLines.push(
+        `- ${dayStat.date}: 总计 ${dayStat.totalMinutes} 分钟${subjectList ? `（${subjectList}）` : ""}`
+      );
+    });
+    userLines.push(statsLines.join("\n"));
+  }
+
+  userLines.push("输出结构:");
+  userLines.push(...scenario.output.map((line) => `- ${line}`));
+
+  const user = userLines.join("\n");
 
   return { system: scenario.system, user };
+}
+
+// 导出场景的前端展示信息（不包含system提示词）
+export function getScenarioMetadata() {
+  return PROMPT_SCENARIOS.map((s) => ({
+    id: s.id,
+    label: s.label,
+    description: s.description,
+    fields: s.fields,
+    output: s.output
+  }));
 }

@@ -4,7 +4,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import LoadingButton from "../../../components/loading-button";
-import { PROMPT_SCENARIOS, buildPrompt } from "./prompts";
+
+type PromptField = {
+  key: string;
+  label: string;
+  placeholder: string;
+  multiline?: boolean;
+};
+
+type PromptScenario = {
+  id: string;
+  label: string;
+  description: string;
+  fields: PromptField[];
+  output: string[];
+};
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -37,13 +51,10 @@ type LoadState = "idle" | "loading" | "error";
 type RequestState = "idle" | "loading" | "error";
 
 export default function AiAssistPage() {
-  const [activeId, setActiveId] = useState(PROMPT_SCENARIOS[0].id);
-  const [values, setValues] = useState<ScenarioValues>(() =>
-    Object.fromEntries(PROMPT_SCENARIOS.map((scenario) => [scenario.id, {}]))
-  );
-  const [questions, setQuestions] = useState<Record<string, string>>(() =>
-    Object.fromEntries(PROMPT_SCENARIOS.map((scenario) => [scenario.id, ""]))
-  );
+  const [scenarios, setScenarios] = useState<PromptScenario[]>([]);
+  const [activeId, setActiveId] = useState("");
+  const [values, setValues] = useState<ScenarioValues>({});
+  const [questions, setQuestions] = useState<Record<string, string>>({});
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyState, setHistoryState] = useState<LoadState>("idle");
   const [historyMessage, setHistoryMessage] = useState<string | null>(null);
@@ -53,22 +64,39 @@ export default function AiAssistPage() {
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
 
   const scenario = useMemo(() => {
-    return (
-      PROMPT_SCENARIOS.find((item) => item.id === activeId) ??
-      PROMPT_SCENARIOS[0]
-    );
-  }, [activeId]);
+    return scenarios.find((item) => item.id === activeId) ?? scenarios[0];
+  }, [activeId, scenarios]);
 
-  const scenarioValues = values[scenario.id] ?? {};
-  const questionValue = questions[scenario.id] ?? "";
-
-  const prompt = useMemo(() => {
-    return buildPrompt(scenario, scenarioValues, questionValue);
-  }, [scenario, scenarioValues, questionValue]);
+  const scenarioValues = values[scenario?.id] ?? {};
+  const questionValue = questions[scenario?.id] ?? "";
 
   const scenarioLabels = useMemo(() => {
-    return new Map(PROMPT_SCENARIOS.map((item) => [item.id, item.label]));
-  }, []);
+    return new Map(scenarios.map((item) => [item.id, item.label]));
+  }, [scenarios]);
+
+  const loadScenarios = async () => {
+    try {
+      const res = await fetch(`${apiBase}/ai/assist/scenarios`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.scenarios)) {
+        setScenarios(data.scenarios);
+        if (data.scenarios.length > 0 && !activeId) {
+          setActiveId(data.scenarios[0].id);
+        }
+        // 初始化 values 和 questions
+        const initialValues: ScenarioValues = {};
+        const initialQuestions: Record<string, string> = {};
+        data.scenarios.forEach((s: PromptScenario) => {
+          initialValues[s.id] = {};
+          initialQuestions[s.id] = "";
+        });
+        setValues(initialValues);
+        setQuestions(initialQuestions);
+      }
+    } catch (err) {
+      console.error("Failed to load scenarios:", err);
+    }
+  };
 
   const loadHistory = async () => {
     const token = window.localStorage.getItem(sessionKey);
@@ -96,6 +124,7 @@ export default function AiAssistPage() {
   };
 
   useEffect(() => {
+    void loadScenarios();
     void loadHistory();
   }, []);
 
@@ -108,6 +137,7 @@ export default function AiAssistPage() {
   }, []);
 
   const handleFieldChange = (key: string, value: string) => {
+    if (!scenario) return;
     setValues((prev) => ({
       ...prev,
       [scenario.id]: { ...prev[scenario.id], [key]: value }
@@ -119,6 +149,7 @@ export default function AiAssistPage() {
   };
 
   const handleQuestionChange = (value: string) => {
+    if (!scenario) return;
     setQuestions((prev) => ({ ...prev, [scenario.id]: value }));
     if (requestMessage) {
       setRequestMessage(null);
@@ -127,6 +158,7 @@ export default function AiAssistPage() {
   };
 
   const handleClear = () => {
+    if (!scenario) return;
     setValues((prev) => ({ ...prev, [scenario.id]: {} }));
     setQuestions((prev) => ({ ...prev, [scenario.id]: "" }));
     setAnswer((prev) => {
@@ -139,7 +171,7 @@ export default function AiAssistPage() {
   };
 
   const handleGenerate = async () => {
-    if (requestState === "loading") {
+    if (requestState === "loading" || !scenario) {
       return;
     }
     const hasInput =
@@ -167,8 +199,7 @@ export default function AiAssistPage() {
         },
         body: JSON.stringify({
           scenarioId: scenario.id,
-          system: prompt.system,
-          user: prompt.user,
+          fields: scenarioValues,
           question: questionValue
         })
       });
@@ -190,7 +221,20 @@ export default function AiAssistPage() {
     }
   };
 
-  const displayAnswer = activeHistory?.answer ?? answer[scenario.id];
+  const displayAnswer = activeHistory?.answer ?? (scenario ? answer[scenario.id] : "");
+
+  if (scenarios.length === 0 || !scenario) {
+    return (
+      <main className="main assist-page">
+        <section className="login-hero app-page-header">
+          <div className="app-page-header-main">
+            <p className="eyebrow">AI 答疑</p>
+            <h1 className="app-page-title">加载中...</h1>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="main assist-page">
@@ -209,7 +253,7 @@ export default function AiAssistPage() {
           <div className="assist-card">
             <h3>场景选择</h3>
             <div className="scenario-list">
-              {PROMPT_SCENARIOS.map((item) => {
+              {scenarios.map((item) => {
                 const active = item.id === scenario.id;
                 return (
                   <button

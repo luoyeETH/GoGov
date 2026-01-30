@@ -11,6 +11,7 @@ import { generateVisionAnswer } from "./ai/vision";
 import { buildMockAnalysisPrompt } from "./ai/mock";
 import { buildKnowledgePrompt } from "./ai/knowledge";
 import { buildStudyPlanPrompt } from "./ai/study-plan";
+import { getScenario, buildAssistPrompt } from "./ai/assist-prompts";
 import { buildDailyTaskPrompt, buildTaskBreakdownPrompt } from "./ai/study-plan-daily";
 import { buildChatSystemPrompt, type ChatMode } from "./ai/chat";
 import { buildKlinePrompt } from "./ai/kline";
@@ -3055,14 +3056,96 @@ server.post("/ai/assist", async (request, reply) => {
     const session = await verifySession(token);
     const body = request.body as {
       scenarioId?: string;
-      system?: string;
-      user?: string;
+      fields?: Record<string, string>;
       question?: string;
     };
-    if (!body?.system || !body?.user) {
-      reply.code(400).send({ error: "缺少必要提示词" });
+
+    // 验证场景ID
+    const scenarioId = body?.scenarioId?.trim();
+    if (!scenarioId) {
+      reply.code(400).send({ error: "缺少场景ID" });
       return;
     }
+
+    const scenario = getScenario(scenarioId);
+    if (!scenario) {
+      reply.code(400).send({ error: "无效的场景ID" });
+      return;
+    }
+
+    const fields = body?.fields ?? {};
+    const question = body?.question?.trim() ?? "";
+
+    // 验证字段长度
+    const MAX_FIELD_LENGTH = 2000;
+    const MAX_QUESTION_LENGTH = 1000;
+
+    for (const [key, value] of Object.entries(fields)) {
+      if (typeof value === "string" && value.length > MAX_FIELD_LENGTH) {
+        reply.code(400).send({ error: `字段 ${key} 超过最大长度` });
+        return;
+      }
+    }
+
+    if (question.length > MAX_QUESTION_LENGTH) {
+      reply.code(400).send({ error: "问题描述超过最大长度" });
+      return;
+    }
+
+    // 获取番茄钟统计数据（仅对需要的场景）
+    let pomodoroStats: Array<{
+      date: string;
+      totalMinutes: number;
+      totals: Record<string, number>;
+    }> = [];
+
+    if (scenario.includePomodoroStats) {
+      const days = 7;
+      const dayMs = 24 * 60 * 60 * 1000;
+      const todayLabel = getBeijingDateString();
+      const todayBase = parseOptionalDate(todayLabel) ?? new Date();
+      const start = new Date(todayBase.getTime() - (days - 1) * dayMs);
+      const end = new Date(todayBase.getTime() + dayMs);
+
+      const records = await pomodoroSessionDelegate.findMany({
+        where: {
+          userId: session.user.id,
+          startedAt: { gte: start, lt: end },
+          status: "completed"
+        },
+        orderBy: { startedAt: "asc" }
+      });
+
+      const dayMap = new Map<string, { date: string; totalMinutes: number; totals: Record<string, number> }>();
+
+      for (let i = 0; i < days; i += 1) {
+        const date = new Date(start.getTime() + i * dayMs);
+        const label = getBeijingDateString(date);
+        dayMap.set(label, { date: label, totalMinutes: 0, totals: {} });
+      }
+
+      for (const record of records) {
+        const durationSeconds = typeof record.durationSeconds === "number" ? record.durationSeconds : 0;
+        const minutes = Math.round(durationSeconds / 60);
+        const label = getBeijingDateString(record.startedAt);
+        const day = dayMap.get(label);
+        if (day) {
+          day.totalMinutes += minutes;
+          day.totals[record.subject] = (day.totals[record.subject] ?? 0) + minutes;
+        }
+      }
+
+      pomodoroStats = Array.from(dayMap.values()).filter((day) => day.totalMinutes > 0);
+    }
+
+    // 构建提示词（后端构建，安全可控）
+    const prompt = buildAssistPrompt({
+      scenario,
+      fields,
+      question,
+      pomodoroStats: pomodoroStats.length > 0 ? pomodoroStats : undefined
+    });
+
     const aiConfig = resolveAiConfig(session.user);
     await consumeFreeAiUsage(session.user.id, aiConfig);
     const result = await generateAssistAnswer({
@@ -3071,19 +3154,21 @@ server.post("/ai/assist", async (request, reply) => {
       apiKey: aiConfig.apiKey,
       model: aiConfig.model,
       messages: [
-        { role: "system", content: body.system },
-        { role: "user", content: body.user }
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
       ]
     });
+
     const record = await prisma.aiAssistHistory.create({
       data: {
         userId: session.user.id,
-        scenarioId: body.scenarioId ?? "general",
-        question: body.question?.trim() ?? "",
+        scenarioId: scenario.id,
+        question: question,
         answer: result.answer,
         model: result.model
       }
     });
+
     reply.send({
       answer: result.answer,
       model: result.model,
@@ -4920,6 +5005,16 @@ server.get("/ai/assist/history", async (request, reply) => {
     });
   } catch (error) {
     reply.code(400).send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+// 获取场景元数据（不包含system提示词）
+server.get("/ai/assist/scenarios", async (request, reply) => {
+  try {
+    const { getScenarioMetadata } = await import("./ai/assist-prompts");
+    reply.send({ scenarios: getScenarioMetadata() });
+  } catch (error) {
+    reply.code(500).send({ error: "获取场景列表失败" });
   }
 });
 
