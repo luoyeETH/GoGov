@@ -21,6 +21,10 @@ function buildChatUrl(baseUrl: string) {
   return `${baseUrl}/v1/chat/completions`;
 }
 
+function cleanJson(text: string) {
+  return text.replace(/^```json\s*/, "").replace(/^```/, "").replace(/```$/, "").trim();
+}
+
 async function callAI(params: {
   provider: string;
   baseUrl?: string | null;
@@ -146,5 +150,10 @@ Return a JSON object in this format:
     jsonMode: true,
   });
 
-  return JSON.parse(content);
+  try {
+    return JSON.parse(cleanJson(content));
+  } catch (e) {
+    console.error("Failed to parse AI response:", content);
+    throw new Error("AI 评分解析失败");
+  }
 }

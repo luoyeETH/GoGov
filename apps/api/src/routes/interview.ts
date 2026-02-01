@@ -425,8 +425,7 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
         take: limit,
         skip: offset,
         select: {
-          id: true,
-          type: true,
+          id: true,\n          type: true,
           status: true,
           title: true,
           targetRole: true,
@@ -460,8 +459,7 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
         endedAt: s.endedAt?.toISOString() ?? null,
         durationSeconds: s.durationSeconds,
         createdAt: s.createdAt.toISOString(),
-      })),
-      total,
+      })),\n      total,
       limit,
       offset,
     });
