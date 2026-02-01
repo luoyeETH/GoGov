@@ -72,8 +72,15 @@ export default function InterviewPage() {
       return `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${path}`;
     }
     // Fallback: 使用当前域名的 api 子域名，或本地开发端口 3031
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-      return `https://api.${window.location.hostname}${path}`;
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      // 本地开发环境
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        return `http://localhost:3031${path}`;
+      }
+      // 生产环境：去掉 www. 前缀
+      const cleanHostname = hostname.replace(/^www\./, "");
+      return `https://api.${cleanHostname}${path}`;
     }
     return `http://localhost:3031${path}`;
   };
