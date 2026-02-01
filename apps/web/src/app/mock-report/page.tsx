@@ -959,13 +959,50 @@ export default function MockReportPage() {
     }
   };
 
-  const handleDownloadImage = () => {
+  const handleDownloadImage = async () => {
     if (!shareImageUrl) return;
 
-    const link = document.createElement('a');
-    link.download = `学了么-模考正确率走势-${new Date().toLocaleDateString('zh-CN')}.png`;
-    link.href = shareImageUrl;
-    link.click();
+    const filename = `学了么-模考正确率走势-${new Date().toLocaleDateString('zh-CN')}.png`;
+
+    try {
+      const blob = await (await fetch(shareImageUrl)).blob();
+      const file = new File([blob], filename, { type: blob.type || "image/png" });
+
+      if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
+        let canShareFiles = false;
+        try {
+          canShareFiles = navigator.canShare({ files: [file] });
+        } catch {
+          canShareFiles = false;
+        }
+        if (canShareFiles) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "模考成绩解读",
+              text: "分享模考解读结果"
+            });
+            setMessage("已打开分享");
+            setTimeout(() => setMessage(null), 1500);
+            return;
+          } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") {
+              return;
+            }
+          }
+        }
+      }
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    } catch (err) {
+      console.error("保存失败:", err);
+      setMessage("保存失败，请重试");
+      setTimeout(() => setMessage(null), 2000);
+    }
   };
 
   const handleAnalyze = async () => {

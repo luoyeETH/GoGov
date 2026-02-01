@@ -3203,7 +3203,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1200;
   animation: fadeIn 0.2s ease;
 }
 
@@ -3216,6 +3216,7 @@ button {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   animation: slideUp 0.3s ease;
 }
 
@@ -3253,9 +3254,11 @@ button {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
 }
 
 .share-preview {
@@ -3272,7 +3275,7 @@ button {
 .share-modal-actions {
   display: flex;
   gap: 12px;
-  padding: 16px 24px;
+  padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
 }
 
