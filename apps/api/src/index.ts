@@ -50,6 +50,7 @@ import {
   listComputerCTasks,
   listComputerTopics
 } from "./practice/computer";
+import { registerInterviewRoutes } from "./routes/interview";
 
 const server = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
 const port = Number(process.env.API_PORT ?? 3031);
@@ -64,6 +65,8 @@ server.register(rateLimit, {
   timeWindow: "15 minutes",
   allowList: (request) => request.method === "OPTIONS"
 });
+
+registerInterviewRoutes(server);
 
 function getTokenFromRequest(request: { headers: IncomingHttpHeaders }) {
   const raw = request.headers.authorization;

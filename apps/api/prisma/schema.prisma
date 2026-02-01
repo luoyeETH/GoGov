@@ -61,6 +61,81 @@ model User {
   studyPlanDailyTasks StudyPlanDailyTask[]
   klineReports      KlineReport[]
   expenseLogs       ExpenseLog[]
+  interviewSessions InterviewSession[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI Interview Coach - Schema Extension
+// ─────────────────────────────────────────────────────────────
+
+enum InterviewType {
+  behavioral
+  technical
+  situational
+  competency
+  mixed
+}
+
+enum InterviewStatus {
+  in_progress
+  completed
+  abandoned
+}
+
+model InterviewSession {
+  id              String           @id @default(cuid())
+  userId          String
+  type            InterviewType
+  status          InterviewStatus  @default(in_progress)
+  title           String?          // e.g., "Frontend Developer Mock Interview"
+  targetRole      String?          // Job role being interviewed for
+  difficulty      Int?             @default(2) // 1-5 scale
+  totalQuestions  Int?             // Planned question count
+  overallScore    Float?           // Aggregated score (0-100)
+  feedback        String?          // AI-generated overall feedback (rich text/markdown)
+  feedbackJson    Json?            // Structured feedback breakdown
+  startedAt       DateTime         @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns           InterviewTurn[]
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+  @@index([userId, status])
+}
+
+model InterviewTurn {
+  id                String           @id @default(cuid())
+  sessionId         String
+  turnNumber        Int              // 1-indexed sequence within session
+  
+  // Question (from AI interviewer)
+  questionText      String           // The interview question
+  questionAudioUrl  String?          // TTS-generated audio of question
+  questionContext   String?          // Follow-up context or clarification
+  
+  // Answer (from user)
+  answerText        String?          // Transcribed or typed user response
+  answerAudioUrl    String?          // User's audio recording
+  answerDurationMs  Int?             // How long user spent answering
+  
+  // AI Analysis
+  score             Float?           // Turn-level score (0-100)
+  analysis          String?          // AI feedback (markdown)
+  analysisJson      Json?            // Structured analysis { strengths, improvements, tips }
+  metrics           Json?            // { clarity, relevance, structure, confidence, ... }
+  suggestedAnswer   String?          // AI-generated ideal answer example
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  session           InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, turnNumber])
+  @@index([sessionId])
+  @@index([sessionId, turnNumber])
 }
 
 model Session {
