@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const INTERVIEW_TYPES = [
   { value: "behavioral", label: "行为面试 (综合分析)" },
   { value: "technical", label: "专业能力 (岗位匹配)" },
   { value: "situational", label: "情景模拟 (应急应变)" },
   { value: "competency", label: "通用能力 (人际沟通)" },
-  { value: "mixed", label: "全真模拟 (随机混合)" },
+  { value: "mixed", label: "全真模拟 (随机混合)" }
 ];
 
 const DIFFICULTY_LEVELS = [
@@ -16,13 +17,31 @@ const DIFFICULTY_LEVELS = [
   { value: 2, label: "初级" },
   { value: 3, label: "中级" },
   { value: 4, label: "高级" },
-  { value: 5, label: "专家" },
+  { value: 5, label: "专家" }
 ];
 
+const TIME_PRESETS = [
+  { key: "15-3", label: "15 分钟 / 3 题", minutes: 15, questions: 3 },
+  { key: "20-4", label: "20 分钟 / 4 题", minutes: 20, questions: 4 }
+];
+
+const PHASES = [
+  { key: "setup", label: "准备" },
+  { key: "interview", label: "问答" },
+  { key: "feedback", label: "反馈" },
+  { key: "end", label: "完成" }
+] as const;
+
+type PhaseKey = (typeof PHASES)[number]["key"];
+
 export default function InterviewPage() {
-  const [phase, setPhase] = useState<"setup" | "interview" | "feedback" | "end">("setup");
+  const [phase, setPhase] = useState<PhaseKey>("setup");
   const [type, setType] = useState("behavioral");
   const [difficulty, setDifficulty] = useState(3);
+  const [timedMode, setTimedMode] = useState(false);
+  const [timePresetKey, setTimePresetKey] = useState(TIME_PRESETS[0].key);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [currentTurn, setCurrentTurn] = useState<any>(null);
   const [answerText, setAnswerText] = useState("");
@@ -31,7 +50,6 @@ export default function InterviewPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
 
-  // Speech Recognition Setup
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -67,18 +85,40 @@ export default function InterviewPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!timerActive) {
+      return;
+    }
+    const timerId = window.setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          setTimerActive(false);
+          setPhase("end");
+          setError("时间已到，本次训练结束。");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timerId);
+  }, [timerActive]);
+
+  useEffect(() => {
+    if (phase === "end" || phase === "setup") {
+      setTimerActive(false);
+    }
+  }, [phase]);
+
   const getApiUrl = (path: string) => {
     if (process.env.NEXT_PUBLIC_API_BASE_URL) {
       return `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${path}`;
     }
-    // Fallback: 使用当前域名的 api 子域名，或本地开发端口 3031
     if (typeof window !== "undefined") {
       const hostname = window.location.hostname;
-      // 本地开发环境
       if (hostname === "localhost" || hostname === "127.0.0.1") {
         return `http://localhost:3031${path}`;
       }
-      // 生产环境：去掉 www. 前缀
       const cleanHostname = hostname.replace(/^www\./, "");
       return `https://api.${cleanHostname}${path}`;
     }
@@ -99,22 +139,35 @@ export default function InterviewPage() {
       const token = getToken();
       if (!token) throw new Error("请先登录");
 
+      const selectedPreset = TIME_PRESETS.find((preset) => preset.key === timePresetKey) ?? TIME_PRESETS[0];
+      const timeLimitSeconds = selectedPreset.minutes * 60;
+      const payload: Record<string, unknown> = { type, difficulty };
+      if (timedMode) {
+        payload.totalQuestions = selectedPreset.questions;
+      }
+
       const res = await fetch(getApiUrl("/interview/start"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ type, difficulty }),
+        body: JSON.stringify(payload)
       });
-      
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "启动面试失败，请检查网络");
-      
+
       setSession(data.session);
       setCurrentTurn(data.turn);
       setPhase("interview");
-      // Auto-speak question on start
+      if (timedMode) {
+        setTimeRemaining(timeLimitSeconds);
+        setTimerActive(true);
+      } else {
+        setTimeRemaining(null);
+        setTimerActive(false);
+      }
       setTimeout(() => speak(data.turn.questionText), 500);
     } catch (err: any) {
       setError(err.message);
@@ -137,8 +190,8 @@ export default function InterviewPage() {
         body: JSON.stringify({
           sessionId: session.id,
           turnId: currentTurn.id,
-          answerText,
-        }),
+          answerText
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "提交回答失败，请稍后重试");
@@ -147,7 +200,6 @@ export default function InterviewPage() {
       if (data.sessionComplete) {
         setPhase("end");
       } else {
-        // Save next turn for "Next" button
         setCurrentTurn(data.nextQuestion);
         setPhase("feedback");
       }
@@ -186,7 +238,7 @@ export default function InterviewPage() {
 
   const speak = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel(); // Stop previous
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "zh-CN";
       utterance.rate = 1.0;
@@ -194,214 +246,334 @@ export default function InterviewPage() {
     }
   };
 
-  // UI Components
+  const selectedType = INTERVIEW_TYPES.find((item) => item.value === type);
+  const selectedDifficulty = DIFFICULTY_LEVELS.find((item) => item.value === difficulty);
+  const [typeTitle, typeDesc] = (selectedType?.label ?? "").split(" ");
+  const timePreset = TIME_PRESETS.find((preset) => preset.key === timePresetKey) ?? TIME_PRESETS[0];
+  const timeLimitSeconds = timePreset.minutes * 60;
+  const totalQuestions = session?.totalQuestions ?? "--";
+  const turnNumber = currentTurn?.turnNumber ?? "--";
+  const scoreValue = typeof analysis?.score === "number" ? analysis.score : null;
+  const scoreLabel =
+    scoreValue === null
+      ? "等待评分"
+      : scoreValue >= 80
+        ? "表现优秀"
+        : scoreValue >= 60
+          ? "继续加强"
+          : "需要提升";
+  const timeDisplay = timedMode ? formatTime(timeRemaining ?? timeLimitSeconds) : "未计时";
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 flex flex-col items-center">
-      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        
-        {/* Header */}
-        <div className="bg-blue-600 p-6 text-white text-center">
-          <h1 className="text-2xl font-bold">🤖 AI 面试教练</h1>
-          <p className="text-blue-100 text-sm mt-1">全真模拟 · 实时评分 · 语音交互</p>
-        </div>
-
-        {/* Error Toast */}
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 text-sm text-center border-b border-red-100">
-            {error}
+    <main className="main interview-page">
+      <section className="app-page-header interview-header">
+        <div className="app-page-header-main">
+          <span className="eyebrow">AI Interview Coach</span>
+          <h1 className="app-page-title">让面试像对话一样自然</h1>
+          <p className="app-page-subtitle">
+            模拟真实面试节奏，自动语音提问与结构化反馈，帮助你在关键表达处建立优势。
+          </p>
+          <div className="interview-tags">
+            <span>语音问答</span>
+            <span>结构化评分</span>
+            <span>多类型情境</span>
+            <span>可重复训练</span>
           </div>
-        )}
+        </div>
+        <div className="app-page-metrics interview-metrics">
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">类型</span>
+            <span className="app-page-metric-value">{typeTitle || "-"}</span>
+          </div>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">难度</span>
+            <span className="app-page-metric-value">{selectedDifficulty?.label ?? "-"}</span>
+          </div>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">进度</span>
+            <span className="app-page-metric-value">
+              {turnNumber} / {totalQuestions}
+            </span>
+          </div>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">剩余时间</span>
+            <span className="app-page-metric-value">{timeDisplay}</span>
+          </div>
+        </div>
+      </section>
 
-        <div className="p-6 md:p-8">
-          {/* Setup Phase */}
-          {phase === "setup" && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">选择面试类型</label>
-                <div className="grid grid-cols-1 gap-2">
-                  {INTERVIEW_TYPES.map((t) => (
-                    <button
-                      key={t.value}
-                      onClick={() => setType(t.value)}
-                      className={`p-3 text-left rounded-lg border transition-all ${
-                        type === t.value
-                          ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500"
-                          : "border-gray-200 hover:border-blue-300"
-                      }`}
-                    >
-                      <div className="font-medium">{t.label.split(" ")[0]}</div>
-                      <div className="text-xs text-gray-500">{t.label.split(" ")[1]}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">难度等级</label>
-                <div className="flex justify-between items-center bg-gray-100 p-1 rounded-lg">
-                  {[1, 2, 3, 4, 5].map((val) => (
-                    <button
-                      key={val}
-                      onClick={() => setDifficulty(val)}
-                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                        difficulty === val
-                          ? "bg-white text-blue-600 shadow-sm"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      {DIFFICULTY_LEVELS.find(d => d.value === val)?.label || val}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={startSession}
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:scale-100"
+      <section className="interview-layout">
+        <div className="interview-panel">
+          <div className="interview-steps">
+            {PHASES.map((item) => (
+              <span
+                key={item.key}
+                className={`interview-step${item.key === phase ? " active" : ""}`}
               >
+                {item.label}
+              </span>
+            ))}
+          </div>
+
+          {error && (
+            <div className="status-card error">
+              <span className="status-title">出现问题</span>
+              <span className="status-meta">{error}</span>
+            </div>
+          )}
+
+          {phase === "setup" && (
+            <div className="interview-section">
+              <div className="interview-section">
+                <div className="interview-section-header">
+                  <div>
+                    <h2 className="interview-section-title">选择面试类型</h2>
+                    <p className="interview-section-subtitle">先明确训练方向，再进入问答。</p>
+                  </div>
+                  <span className="interview-badge">{typeDesc || "综合分析"}</span>
+                </div>
+                <div className="interview-type-grid">
+                  {INTERVIEW_TYPES.map((item) => {
+                    const [labelTitle, labelDesc] = item.label.split(" ");
+                    const isActive = item.value === type;
+                    return (
+                      <button
+                        key={item.value}
+                        onClick={() => setType(item.value)}
+                        className={`interview-type-card${isActive ? " active" : ""}`}
+                      >
+                        <div className="interview-type-title">{labelTitle}</div>
+                        <div className="interview-type-desc">{labelDesc || "综合能力训练"}</div>
+                        {isActive && <div className="interview-type-selected">已选择</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="interview-section">
+                <div className="interview-section-header">
+                  <div>
+                    <h2 className="interview-section-title">设置难度</h2>
+                    <p className="interview-section-subtitle">根据目标岗位匹配挑战强度。</p>
+                  </div>
+                  <span className="interview-muted">当前：{selectedDifficulty?.label ?? "-"}</span>
+                </div>
+                <div className="interview-difficulty">
+                  {DIFFICULTY_LEVELS.map((level) => (
+                    <button
+                      key={level.value}
+                      onClick={() => setDifficulty(level.value)}
+                      className={level.value === difficulty ? "active" : ""}
+                    >
+                      {level.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="interview-section">
+                <div className="interview-section-header">
+                  <div>
+                    <h2 className="interview-section-title">计时模式</h2>
+                    <p className="interview-section-subtitle">可选择限定时长，模拟真实面试压力。</p>
+                  </div>
+                  <label className="interview-toggle">
+                    <input
+                      type="checkbox"
+                      checked={timedMode}
+                      onChange={(event) => setTimedMode(event.target.checked)}
+                      disabled={phase !== "setup"}
+                    />
+                    <span className="interview-toggle-track" />
+                  </label>
+                </div>
+                {timedMode ? (
+                  <div className="interview-timer-options">
+                    {TIME_PRESETS.map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => setTimePresetKey(preset.key)}
+                        className={preset.key === timePresetKey ? "active" : ""}
+                      >
+                        <span>{preset.label}</span>
+                        <span className="interview-timer-meta">
+                          共 {preset.questions} 题 · {preset.minutes} 分钟
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="interview-timer-note">不开启计时，将使用默认题量。</div>
+                )}
+              </div>
+
+              <button onClick={startSession} disabled={loading} className="primary interview-start">
                 {loading ? "正在生成题目..." : "开始模拟面试"}
               </button>
             </div>
           )}
 
-          {/* Interview Phase */}
           {phase === "interview" && currentTurn && (
-            <div className="space-y-6">
-              {/* Progress */}
-              <div className="flex justify-between items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <div className="interview-section">
+              <div className="interview-progress">
                 <span>面试进行中</span>
-                <span>第 {currentTurn.turnNumber} / {session.totalQuestions} 题</span>
-              </div>
-              
-              {/* Question Card */}
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 relative">
-                <div className="absolute top-4 right-4">
-                  <button 
-                    onClick={() => speak(currentTurn.questionText)}
-                    className="p-2 rounded-full hover:bg-blue-100 text-blue-600 transition-colors"
-                    title="朗读题目"
-                  >
-                    🔊
-                  </button>
-                </div>
-                <h3 className="text-sm font-bold text-blue-800 mb-2">面试官提问：</h3>
-                <p className="text-lg text-gray-800 leading-relaxed font-medium">
-                  {currentTurn.questionText}
-                </p>
+                <span>
+                  第 {turnNumber} / {totalQuestions} 题
+                </span>
               </div>
 
-              {/* Answer Area */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">你的回答</label>
-                <div className="relative">
+              <div className="interview-question">
+                <div>
+                  <span className="interview-question-label">面试官提问</span>
+                  <p className="interview-question-text">{currentTurn.questionText}</p>
+                </div>
+                <button className="ghost interview-speak" onClick={() => speak(currentTurn.questionText)}>
+                  🔊
+                </button>
+              </div>
+
+              <div className="interview-section">
+                <div className="interview-section-header">
+                  <h3 className="interview-section-title">你的回答</h3>
+                  <span className="interview-muted">语音转写会自动追加</span>
+                </div>
+                <div className="interview-answer">
                   <textarea
                     value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                    className="w-full p-4 border border-gray-300 rounded-xl h-48 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-base"
+                    onChange={(event) => setAnswerText(event.target.value)}
+                    className="interview-textarea"
                     placeholder="请在此输入回答，或点击下方麦克风进行语音输入..."
                   />
                   {isRecording && (
-                    <div className="absolute bottom-4 right-4 flex items-center gap-2 text-red-500 animate-pulse bg-white px-2 py-1 rounded-md shadow-sm border border-red-100">
-                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                      <span className="text-xs font-bold">正在录音...</span>
+                    <div className="interview-recording-badge">
+                      <span className="interview-recording-dot" />
+                      正在录音...
                     </div>
                   )}
                 </div>
-                
-                <div className="mt-4 flex gap-3">
+                <div className="interview-actions">
                   <button
                     onClick={toggleRecording}
-                    className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors ${
-                      isRecording 
-                        ? "bg-red-50 text-red-600 border border-red-200"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
+                    className={`ghost${isRecording ? " interview-recording" : ""}`}
                   >
-                    <span>{isRecording ? "停止录音" : "🎤 语音输入"}</span>
+                    {isRecording ? "停止录音" : "🎤 语音输入"}
                   </button>
-                  
                   <button
                     onClick={submitAnswer}
-                    disabled={loading || !answerText.trim()}
-                    className="flex-[2] bg-green-600 text-white py-3 px-4 rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    disabled={loading || !answerText.trim() || (timedMode && timeRemaining === 0)}
+                    className="interview-submit"
                   >
-                    {loading ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        <span>AI 分析中...</span>
-                      </>
-                    ) : (
-                      "提交回答"
-                    )}
+                    {loading ? "AI 分析中..." : "提交回答"}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Feedback Phase */}
           {(phase === "feedback" || phase === "end") && analysis && (
-            <div className="space-y-8">
-              {/* Score Header */}
-              <div className="text-center pb-6 border-b border-gray-100">
-                <div className="text-sm text-gray-500 mb-1">本题得分</div>
-                <div className={`text-5xl font-black ${
-                  analysis.score >= 80 ? "text-green-600" :
-                  analysis.score >= 60 ? "text-yellow-600" : "text-red-600"
-                }`}>
-                  {analysis.score}
+            <div className="interview-section">
+              <div className="interview-score-card">
+                <div>
+                  <span className="interview-score-label">本题得分</span>
+                  <span className="interview-score-value">{scoreValue ?? "-"}</span>
+                </div>
+                <span
+                  className={`interview-score-badge${
+                    scoreValue === null
+                      ? ""
+                      : scoreValue >= 80
+                        ? " good"
+                        : scoreValue >= 60
+                          ? " mid"
+                          : " low"
+                  }`}
+                >
+                  {scoreLabel}
+                </span>
+              </div>
+
+              <div className="interview-feedback-grid">
+                <div className="interview-feedback-card">
+                  <div className="interview-feedback-title">📝 面试官点评</div>
+                  <div className="interview-feedback-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {analysis.feedback}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+                <div className="interview-feedback-card highlight">
+                  <div className="interview-feedback-title">💡 参考回答</div>
+                  <div className="interview-feedback-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {analysis.suggestedAnswer}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
 
-              {/* Feedback Content */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <span>📝</span> 面试官点评
-                  </h3>
-                  <div className="prose prose-sm prose-blue bg-gray-50 p-5 rounded-xl text-gray-700 leading-relaxed">
-                    <ReactMarkdown>{analysis.feedback}</ReactMarkdown>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <span>💡</span> 参考回答
-                  </h3>
-                  <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-100 text-gray-800 text-sm leading-relaxed">
-                    {analysis.suggestedAnswer}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="pt-4">
-                {phase === "feedback" ? (
-                  <button
-                    onClick={nextQuestion}
-                    className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 active:scale-[0.98] transition-transform"
-                  >
-                    进入下一题 →
+              {phase === "feedback" ? (
+                <button onClick={nextQuestion} className="primary interview-next">
+                  进入下一题 →
+                </button>
+              ) : (
+                <div className="interview-complete">
+                  <div className="interview-complete-title">🎉 面试已完成</div>
+                  <p className="interview-complete-text">你可以再次训练，保持状态持续在线。</p>
+                  <button onClick={() => window.location.reload()} className="ghost interview-restart">
+                    再次挑战
                   </button>
-                ) : (
-                  <div className="text-center space-y-4">
-                    <div className="text-green-600 font-bold text-xl">
-                      🎉 面试已完成！
-                    </div>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="text-blue-600 hover:underline font-medium"
-                    >
-                      再次挑战
-                    </button>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-    </div>
+
+        <aside className="interview-aside">
+          <div className="aside-card">
+            <div className="aside-card-title">面试概览</div>
+            <div className="interview-aside-row">
+              <span>类型</span>
+              <strong>{typeTitle || "-"}</strong>
+            </div>
+            <div className="interview-aside-row">
+              <span>难度</span>
+              <strong>{selectedDifficulty?.label ?? "-"}</strong>
+            </div>
+            <div className="interview-aside-row">
+              <span>进度</span>
+              <strong>
+                {turnNumber} / {totalQuestions}
+              </strong>
+            </div>
+          </div>
+
+          <div className="aside-card soft">
+            <div className="aside-card-title">表达小提示</div>
+            <ul className="aside-list">
+              <li>使用 STAR 结构描述经历。</li>
+              <li>先给结论，再补充细节。</li>
+              <li>语速放慢，表达更有层次。</li>
+            </ul>
+          </div>
+
+          {scoreValue !== null && (
+            <div className="aside-card interview-score-aside">
+              <div className="aside-card-title">最新得分</div>
+              <div className="interview-score-aside-value">{scoreValue}</div>
+              <div className="interview-score-aside-label">{scoreLabel}</div>
+            </div>
+          )}
+        </aside>
+      </section>
+    </main>
   );
+}
+
+function formatTime(seconds: number | null) {
+  if (seconds === null) return "--";
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
