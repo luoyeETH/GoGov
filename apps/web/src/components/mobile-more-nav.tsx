@@ -8,6 +8,7 @@ const MORE_ITEMS = [
   { href: "/knowledge", label: "常识学习" },
   { href: "/computer", label: "计算机专项" },
   { href: "/practice/quick", label: "速算练习" },
+  { href: "/interview", label: "AI 面试教练" },
   { href: "/mock-report", label: "模考解读" },
   { href: "/daily-tasks", label: "今日任务" },
   { href: "/pomodoro", label: "番茄钟" },
