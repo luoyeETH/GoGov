@@ -16,7 +16,7 @@ const DIFFICULTY_LEVELS = [
   { value: 2, label: "初级" },
   { value: 3, label: "中级" },
   { value: 4, label: "高级" },
-  { value: "5", label: "专家" }, // value 5 should be number
+  { value: 5, label: "专家" },
 ];
 
 export default function InterviewPage() {
@@ -68,13 +68,19 @@ export default function InterviewPage() {
   }, []);
 
   const getApiUrl = (path: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
-    return `${baseUrl.replace(/\/$/, "")}${path}`;
+    if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+      return `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}${path}`;
+    }
+    // Fallback: 使用当前域名的 api 子域名，或本地开发端口 3031
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+      return `https://api.${window.location.hostname}${path}`;
+    }
+    return `http://localhost:3031${path}`;
   };
 
   const getToken = () => {
     if (typeof localStorage !== "undefined") {
-      return localStorage.getItem("token");
+      return localStorage.getItem("gogov_session_token");
     }
     return null;
   };
