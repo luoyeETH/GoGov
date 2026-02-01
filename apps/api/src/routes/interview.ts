@@ -266,8 +266,8 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
         answerText,
         score: analysis.score,
         analysis: analysis.feedback,
-        analysisJson: analysis,
-        metrics: analysis.metrics ?? null,
+        analysisJson: analysis as any,
+        metrics: (analysis.metrics ?? undefined) as any,
         suggestedAnswer: analysis.suggestedAnswer,
       },
     });
