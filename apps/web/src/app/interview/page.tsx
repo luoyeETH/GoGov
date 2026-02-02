@@ -25,6 +25,12 @@ const TIME_PRESETS = [
   { key: "20-4", label: "20 分钟 / 4 题", minutes: 20, questions: 4 }
 ];
 
+const INTRO_AUDIO_MAP: Record<string, string> = {
+  default: "/audio/interview-intro.wav",
+  "15": "/audio/interview-intro-15.wav",
+  "20": "/audio/interview-intro-20.wav"
+};
+
 const PHASES = [
   { key: "setup", label: "准备" },
   { key: "interview", label: "问答" },
@@ -57,6 +63,9 @@ export default function InterviewPage() {
   const ttsAbortRef = useRef<AbortController | null>(null);
   const ttsRequestIdRef = useRef(0);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const activeAudioResolveRef = useRef<((completed: boolean) => void) | null>(null);
+  const questionAudioCacheRef = useRef<Map<string, string>>(new Map());
+  const questionAudioPendingRef = useRef<Map<string, Promise<string | null>>>(new Map());
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).webkitSpeechRecognition) {
@@ -94,6 +103,7 @@ export default function InterviewPage() {
   useEffect(() => {
     return () => {
       stopSpeaking();
+      clearQuestionAudioCache();
     };
   }, []);
 
@@ -144,9 +154,32 @@ export default function InterviewPage() {
     return null;
   };
 
+  const getIntroAudioUrl = (minutes: number | null) => {
+    if (!timedMode || !minutes) {
+      return INTRO_AUDIO_MAP.default;
+    }
+    return INTRO_AUDIO_MAP[String(minutes)] ?? INTRO_AUDIO_MAP.default;
+  };
+
+  const clearQuestionAudioCache = () => {
+    questionAudioPendingRef.current.clear();
+    for (const url of questionAudioCacheRef.current.values()) {
+      if (url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
+    }
+    questionAudioCacheRef.current.clear();
+  };
+
+  const prefetchQuestionAudio = (text: string) => {
+    void getQuestionAudioUrl(text).catch(() => null);
+  };
+
   const startSession = async () => {
     setLoading(true);
     setError(null);
+    stopSpeaking();
+    clearQuestionAudioCache();
     try {
       const token = getToken();
       if (!token) throw new Error("请先登录");
@@ -180,7 +213,9 @@ export default function InterviewPage() {
         setTimeRemaining(null);
         setTimerActive(false);
       }
-      setTimeout(() => speak(data.turn.questionText), 500);
+      const introUrl = getIntroAudioUrl(timedMode ? selectedPreset.minutes : null);
+      prefetchQuestionAudio(data.turn.questionText);
+      void playIntroThenQuestion(introUrl, data.turn.questionText);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -214,6 +249,9 @@ export default function InterviewPage() {
       } else {
         setCurrentTurn(data.nextQuestion);
         setPhase("feedback");
+        if (data.nextQuestion?.questionText) {
+          prefetchQuestionAudio(data.nextQuestion.questionText);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -255,13 +293,22 @@ export default function InterviewPage() {
       audioRef.current = null;
     }
     if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
+      if (audioUrlRef.current.startsWith("blob:")) {
+        const cached = Array.from(questionAudioCacheRef.current.values()).includes(audioUrlRef.current);
+        if (!cached) {
+          URL.revokeObjectURL(audioUrlRef.current);
+        }
+      }
       audioUrlRef.current = null;
     }
   };
 
   const stopSpeaking = () => {
     ttsAbortRef.current?.abort();
+    if (activeAudioResolveRef.current) {
+      activeAudioResolveRef.current(false);
+      activeAudioResolveRef.current = null;
+    }
     stopAudioPlayback();
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -294,6 +341,121 @@ export default function InterviewPage() {
     }
   };
 
+  const playAudioUrl = (url: string, fallbackText?: string) =>
+    new Promise<boolean>((resolve) => {
+      if (activeAudioResolveRef.current) {
+        activeAudioResolveRef.current(false);
+      }
+      activeAudioResolveRef.current = resolve;
+      stopAudioPlayback();
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audioUrlRef.current = url;
+      setIsSpeaking(true);
+      audio.onended = () => {
+        if (audioRef.current === audio) {
+          stopAudioPlayback();
+          setIsSpeaking(false);
+        }
+        if (activeAudioResolveRef.current === resolve) {
+          activeAudioResolveRef.current = null;
+        }
+        resolve(true);
+      };
+      audio.onerror = () => {
+        if (audioRef.current === audio) {
+          stopAudioPlayback();
+          setIsSpeaking(false);
+        }
+        if (activeAudioResolveRef.current === resolve) {
+          activeAudioResolveRef.current = null;
+        }
+        if (fallbackText) {
+          speakWithBrowser(fallbackText);
+        }
+        resolve(false);
+      };
+      audio.play().catch(() => {
+        if (audioRef.current === audio) {
+          stopAudioPlayback();
+          setIsSpeaking(false);
+        }
+        if (activeAudioResolveRef.current === resolve) {
+          activeAudioResolveRef.current = null;
+        }
+        if (fallbackText) {
+          speakWithBrowser(fallbackText);
+        }
+        resolve(false);
+      });
+    });
+
+  const getQuestionAudioUrl = async (
+    text: string,
+    signal?: AbortSignal
+  ): Promise<string | null> => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const cached = questionAudioCacheRef.current.get(trimmed);
+    if (cached) {
+      return cached;
+    }
+    const pending = questionAudioPendingRef.current.get(trimmed);
+    if (pending) {
+      return pending;
+    }
+    const token = getToken();
+    const fetchPromise = (async () => {
+      try {
+        const res = await fetch(getApiUrl("/interview/tts"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            text: trimmed,
+            speaker: "中文女",
+            speed: 1.0
+          }),
+          signal
+        });
+        if (!res.ok) {
+          return null;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        questionAudioCacheRef.current.set(trimmed, url);
+        return url;
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") {
+          return null;
+        }
+        return null;
+      } finally {
+        questionAudioPendingRef.current.delete(trimmed);
+      }
+    })();
+    questionAudioPendingRef.current.set(trimmed, fetchPromise);
+    return fetchPromise;
+  };
+
+  const playIntroThenQuestion = async (introUrl: string, questionText: string) => {
+    const questionPromise = getQuestionAudioUrl(questionText);
+    const introPlayed = await playAudioUrl(introUrl);
+    if (!introPlayed) {
+      return;
+    }
+    const questionUrl = await questionPromise;
+    if (questionUrl) {
+      await playAudioUrl(questionUrl, questionText);
+      return;
+    }
+    speakWithBrowser(questionText);
+  };
+
   const speak = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) {
@@ -302,57 +464,19 @@ export default function InterviewPage() {
 
     stopSpeaking();
 
-    const token = getToken();
     const controller = new AbortController();
     ttsAbortRef.current = controller;
     const requestId = ++ttsRequestIdRef.current;
 
     try {
-      const res = await fetch(getApiUrl("/interview/tts"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          text: trimmed,
-          speaker: "中文女",
-          speed: 1.0
-        }),
-        signal: controller.signal
-      });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      const blob = await res.blob();
+      const url = await getQuestionAudioUrl(trimmed, controller.signal);
       if (ttsRequestIdRef.current !== requestId) {
         return;
       }
-
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audioUrlRef.current = url;
-
-      setIsSpeaking(true);
-      audio.onended = () => {
-        if (audioRef.current === audio) {
-          stopAudioPlayback();
-          setIsSpeaking(false);
-        }
-      };
-      audio.onerror = () => {
-        if (audioRef.current === audio) {
-          stopAudioPlayback();
-          setIsSpeaking(false);
-          speakWithBrowser(trimmed);
-        }
-      };
-
-      await audio.play();
-      return;
+      if (url) {
+        await playAudioUrl(url, trimmed);
+        return;
+      }
     } catch (err: any) {
       if (err?.name === "AbortError") {
         return;
