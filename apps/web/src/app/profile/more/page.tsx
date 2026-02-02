@@ -10,8 +10,13 @@ export default function ProfileMorePage() {
           <p className="lead app-page-subtitle">常用工具与服务入口</p>
         </div>
         <div className="profile-more-back">
-          <Link href="/profile" className="ghost">
-            返回资料
+          <Link href="/profile" className="ghost profile-more-back-link">
+            <span className="profile-more-back-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 6 9 12 15 18" />
+              </svg>
+            </span>
+            <span>返回资料</span>
           </Link>
         </div>
       </section>

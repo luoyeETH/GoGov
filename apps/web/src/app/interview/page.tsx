@@ -48,6 +48,7 @@ export default function InterviewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [analysis, setAnalysis] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
@@ -55,6 +56,7 @@ export default function InterviewPage() {
   const audioUrlRef = useRef<string | null>(null);
   const ttsAbortRef = useRef<AbortController | null>(null);
   const ttsRequestIdRef = useRef(0);
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).webkitSpeechRecognition) {
@@ -91,19 +93,7 @@ export default function InterviewPage() {
 
   useEffect(() => {
     return () => {
-      ttsAbortRef.current?.abort();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = null;
-      }
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      stopSpeaking();
     };
   }, []);
 
@@ -270,12 +260,36 @@ export default function InterviewPage() {
     }
   };
 
+  const stopSpeaking = () => {
+    ttsAbortRef.current?.abort();
+    stopAudioPlayback();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    speechUtteranceRef.current = null;
+    setIsSpeaking(false);
+  };
+
   const speakWithBrowser = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "zh-CN";
       utterance.rate = 1.0;
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (speechUtteranceRef.current === utterance) {
+          speechUtteranceRef.current = null;
+        }
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        if (speechUtteranceRef.current === utterance) {
+          speechUtteranceRef.current = null;
+        }
+      };
+      speechUtteranceRef.current = utterance;
+      setIsSpeaking(true);
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -286,11 +300,7 @@ export default function InterviewPage() {
       return;
     }
 
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    stopAudioPlayback();
-    ttsAbortRef.current?.abort();
+    stopSpeaking();
 
     const token = getToken();
     const controller = new AbortController();
@@ -326,14 +336,17 @@ export default function InterviewPage() {
       audioRef.current = audio;
       audioUrlRef.current = url;
 
+      setIsSpeaking(true);
       audio.onended = () => {
         if (audioRef.current === audio) {
           stopAudioPlayback();
+          setIsSpeaking(false);
         }
       };
       audio.onerror = () => {
         if (audioRef.current === audio) {
           stopAudioPlayback();
+          setIsSpeaking(false);
           speakWithBrowser(trimmed);
         }
       };
@@ -345,6 +358,7 @@ export default function InterviewPage() {
         return;
       }
       stopAudioPlayback();
+      setIsSpeaking(false);
     }
 
     speakWithBrowser(trimmed);
@@ -533,8 +547,14 @@ export default function InterviewPage() {
                   <span className="interview-question-label">面试官提问</span>
                   <p className="interview-question-text">{currentTurn.questionText}</p>
                 </div>
-                <button className="ghost interview-speak" onClick={() => speak(currentTurn.questionText)}>
-                  🔊
+                <button
+                  className="ghost interview-speak"
+                  onClick={() =>
+                    isSpeaking ? stopSpeaking() : speak(currentTurn.questionText)
+                  }
+                  aria-label={isSpeaking ? "停止播放" : "播放语音"}
+                >
+                  {isSpeaking ? "⏹" : "🔊"}
                 </button>
               </div>
 
