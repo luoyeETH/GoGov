@@ -191,6 +191,9 @@ export default function InterviewPage() {
         payload.totalQuestions = selectedPreset.questions;
       }
 
+      const introUrl = getIntroAudioUrl(timedMode ? selectedPreset.minutes : null);
+      const introPlayback = playAudioUrl(introUrl);
+
       const res = await fetch(getApiUrl("/interview/start"), {
         method: "POST",
         headers: {
@@ -213,10 +216,17 @@ export default function InterviewPage() {
         setTimeRemaining(null);
         setTimerActive(false);
       }
-      const introUrl = getIntroAudioUrl(timedMode ? selectedPreset.minutes : null);
-      prefetchQuestionAudio(data.turn.questionText);
-      void playIntroThenQuestion(introUrl, data.turn.questionText);
+      const questionText = data.turn.questionText;
+      prefetchQuestionAudio(questionText);
+      const questionUrl = await getQuestionAudioUrl(questionText);
+      const introOk = await introPlayback;
+      if (introOk && questionUrl) {
+        await playAudioUrl(questionUrl, questionText);
+      } else if (introOk) {
+        speakWithBrowser(questionText);
+      }
     } catch (err: any) {
+      stopSpeaking();
       setError(err.message);
     } finally {
       setLoading(false);
@@ -440,20 +450,6 @@ export default function InterviewPage() {
     })();
     questionAudioPendingRef.current.set(trimmed, fetchPromise);
     return fetchPromise;
-  };
-
-  const playIntroThenQuestion = async (introUrl: string, questionText: string) => {
-    const questionPromise = getQuestionAudioUrl(questionText);
-    const introPlayed = await playAudioUrl(introUrl);
-    if (!introPlayed) {
-      return;
-    }
-    const questionUrl = await questionPromise;
-    if (questionUrl) {
-      await playAudioUrl(questionUrl, questionText);
-      return;
-    }
-    speakWithBrowser(questionText);
   };
 
   const speak = async (text: string) => {
