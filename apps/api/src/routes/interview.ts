@@ -1,5 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type { IncomingHttpHeaders } from "http";
+import { createHash } from "crypto";
+import fs from "fs";
+import path from "path";
 import { InterviewType, InterviewStatus } from "@prisma/client";
 import { prisma } from "../db";
 import { verifySession } from "../auth/session";
@@ -7,6 +10,11 @@ import {
   generateInterviewQuestion,
   analyzeInterviewAnswer,
 } from "../ai/interview";
+import {
+  getIntroScript,
+  getPresetQuestions,
+  pickPresetQuestion,
+} from "../interview/presets";
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -52,6 +60,8 @@ function resolveAiConfig(user: {
 
 const DEFAULT_TTS_SPEAKER = "中文女";
 const DEFAULT_TTS_SPEED = 1.0;
+const TTS_CACHE_DIR = path.resolve(process.cwd(), "tts-cache");
+const TTS_CACHE_EXT = "wav";
 
 function normalizeTtsUrl(value?: string | null) {
   if (!value) {
@@ -91,6 +101,66 @@ function resolveInterviewTtsConfig(): InterviewTtsConfig {
 }
 
 const DEFAULT_TOTAL_QUESTIONS = 5;
+const TTS_AUDIO_CONTENT_TYPE = "audio/wav";
+
+function normalizeTtsText(text: string) {
+  return text.trim();
+}
+
+function buildTtsCacheKey(text: string, speaker: string, speed: number) {
+  const normalizedSpeed = Number.isFinite(speed) ? speed.toFixed(2) : DEFAULT_TTS_SPEED.toFixed(2);
+  return createHash("sha1")
+    .update(`${speaker}|${normalizedSpeed}|${text}`)
+    .digest("hex");
+}
+
+function getTtsCachePath(cacheKey: string) {
+  return path.join(TTS_CACHE_DIR, `${cacheKey}.${TTS_CACHE_EXT}`);
+}
+
+async function ensureTtsCacheDir() {
+  await fs.promises.mkdir(TTS_CACHE_DIR, { recursive: true });
+}
+
+async function getCachedTtsPath(text: string, speaker: string, speed: number) {
+  const cacheKey = buildTtsCacheKey(text, speaker, speed);
+  const cachePath = getTtsCachePath(cacheKey);
+  try {
+    await fs.promises.access(cachePath, fs.constants.R_OK);
+    return cachePath;
+  } catch {
+    return null;
+  }
+}
+
+async function generateAndCacheTts(
+  text: string,
+  speaker: string,
+  speed: number,
+  stream: boolean,
+  config: InterviewTtsConfig
+) {
+  const cacheKey = buildTtsCacheKey(text, speaker, speed);
+  const cachePath = getTtsCachePath(cacheKey);
+  const res = await fetch(config.apiUrl as string, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text, speaker, speed, stream }),
+  });
+  if (!res.ok) {
+    return { ok: false as const, res };
+  }
+  const buffer = Buffer.from(await res.arrayBuffer());
+  try {
+    await fs.promises.writeFile(cachePath, buffer);
+  } catch {
+    // ignore cache write failures
+  }
+  return { ok: true as const, buffer, cachePath };
+}
 
 // ─────────────────────────────────────────────────────────────
 // Route Registration
@@ -159,26 +229,29 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
       },
     });
 
-    // Generate the first question
-    let questionText: string;
-    try {
-      questionText = await generateInterviewQuestion(
-        {
-          type: body.type,
-          difficulty,
-          previousQuestions: [],
-        },
-        aiConfig
-      );
-    } catch (err) {
-      // Rollback session creation on AI failure
-      await prisma.interviewSession.delete({
-        where: { id: interviewSession.id },
-      });
-      reply.code(500).send({
-        error: err instanceof Error ? err.message : "生成问题失败，请稍后重试",
-      });
-      return;
+    // Generate the first question (prefer preset pool)
+    const presetPool = getPresetQuestions(body.type, difficulty);
+    let questionText = pickPresetQuestion(presetPool, []);
+    if (!questionText) {
+      try {
+        questionText = await generateInterviewQuestion(
+          {
+            type: body.type,
+            difficulty,
+            previousQuestions: [],
+          },
+          aiConfig
+        );
+      } catch (err) {
+        // Rollback session creation on AI failure
+        await prisma.interviewSession.delete({
+          where: { id: interviewSession.id },
+        });
+        reply.code(500).send({
+          error: err instanceof Error ? err.message : "生成问题失败，请稍后重试",
+        });
+        return;
+      }
     }
 
     // Create the first turn
@@ -332,32 +405,38 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
         (t) => t.questionText
       );
 
-      // Generate next question
-      let nextQuestionText: string;
-      try {
-        nextQuestionText = await generateInterviewQuestion(
-          {
-            type: interviewSession.type,
-            difficulty: interviewSession.difficulty ?? 2,
-            previousQuestions,
-          },
-          aiConfig
-        );
-      } catch (err) {
-        // Don't fail the whole request if next question generation fails
-        // Session can continue later
-        reply.send({
-          analysis: {
-            score: analysis.score,
-            feedback: analysis.feedback,
-            suggestedAnswer: analysis.suggestedAnswer,
-            metrics: analysis.metrics,
-          },
-          nextQuestion: null,
-          sessionComplete: false,
-          error: "生成下一题失败，请稍后继续",
-        });
-        return;
+      const presetPool = getPresetQuestions(
+        interviewSession.type,
+        interviewSession.difficulty ?? 2
+      );
+      let nextQuestionText = pickPresetQuestion(presetPool, previousQuestions);
+      if (!nextQuestionText) {
+        // Generate next question from AI
+        try {
+          nextQuestionText = await generateInterviewQuestion(
+            {
+              type: interviewSession.type,
+              difficulty: interviewSession.difficulty ?? 2,
+              previousQuestions,
+            },
+            aiConfig
+          );
+        } catch (err) {
+          // Don't fail the whole request if next question generation fails
+          // Session can continue later
+          reply.send({
+            analysis: {
+              score: analysis.score,
+              feedback: analysis.feedback,
+              suggestedAnswer: analysis.suggestedAnswer,
+              metrics: analysis.metrics,
+            },
+            nextQuestion: null,
+            sessionComplete: false,
+            error: "生成下一题失败，请稍后继续",
+          });
+          return;
+        }
       }
 
       // Create the next turn
@@ -436,29 +515,123 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
       },
     },
     async (request, reply) => {
-    const token = getTokenFromRequest(request);
-    if (!token) {
-      reply.code(401).send({ error: "未登录" });
-      return;
+      const token = getTokenFromRequest(request);
+      if (!token) {
+        reply.code(401).send({ error: "未登录" });
+        return;
+      }
+
+      try {
+        await verifySession(token);
+      } catch {
+        reply.code(401).send({ error: "登录已过期，请重新登录" });
+        return;
+      }
+
+      const body = request.body as {
+        text?: string;
+        speaker?: string;
+        speed?: number;
+        stream?: boolean;
+      };
+
+      const text = typeof body?.text === "string" ? normalizeTtsText(body.text) : "";
+      if (!text) {
+        reply.code(400).send({ error: "缺少文本内容" });
+        return;
+      }
+
+      const ttsConfig = resolveInterviewTtsConfig();
+      if (!ttsConfig.apiUrl || !ttsConfig.apiKey) {
+        reply.code(503).send({ error: "语音服务未配置" });
+        return;
+      }
+
+      const speaker =
+        typeof body?.speaker === "string" && body.speaker.trim()
+          ? body.speaker.trim()
+          : ttsConfig.speaker;
+      const speed = clampTtsSpeed(
+        typeof body?.speed === "number" ? body.speed : ttsConfig.speed
+      );
+      const stream = Boolean(body?.stream);
+
+      await ensureTtsCacheDir();
+
+      const cachedPath = await getCachedTtsPath(text, speaker, speed);
+      if (cachedPath) {
+        reply.header("Content-Type", TTS_AUDIO_CONTENT_TYPE);
+        reply.header("Cache-Control", "private, max-age=86400");
+        reply.send(fs.createReadStream(cachedPath));
+        return;
+      }
+
+      let upstreamResponse: Response;
+      try {
+        upstreamResponse = await fetch(ttsConfig.apiUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ttsConfig.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ text, speaker, speed, stream }),
+        });
+      } catch (err) {
+        reply.code(502).send({ error: "语音服务连接失败" });
+        return;
+      }
+
+      if (!upstreamResponse.ok) {
+        let detail = "";
+        const contentType = upstreamResponse.headers.get("content-type") ?? "";
+        if (contentType.includes("application/json")) {
+          try {
+            const data = await upstreamResponse.json();
+            if (typeof data?.detail === "string") {
+              detail = data.detail;
+            } else if (typeof data?.error === "string") {
+              detail = data.error;
+            }
+          } catch {
+            detail = "";
+          }
+        } else {
+          try {
+            detail = await upstreamResponse.text();
+          } catch {
+            detail = "";
+          }
+        }
+        reply
+          .code(upstreamResponse.status)
+          .send({ error: detail || "语音合成失败" });
+        return;
+      }
+
+      const audioBuffer = Buffer.from(await upstreamResponse.arrayBuffer());
+      try {
+        const cacheKey = buildTtsCacheKey(text, speaker, speed);
+        const cachePath = getTtsCachePath(cacheKey);
+        await fs.promises.writeFile(cachePath, audioBuffer);
+      } catch {
+        // ignore cache write failures
+      }
+      reply.header("Content-Type", TTS_AUDIO_CONTENT_TYPE);
+      reply.header("Cache-Control", "private, max-age=86400");
+      reply.send(audioBuffer);
     }
+  );
 
-    try {
-      await verifySession(token);
-    } catch {
-      reply.code(401).send({ error: "登录已过期，请重新登录" });
-      return;
-    }
-
-    const body = request.body as {
-      text?: string;
-      speaker?: string;
-      speed?: number;
-      stream?: boolean;
-    };
-
-    const text = typeof body?.text === "string" ? body.text.trim() : "";
-    if (!text) {
-      reply.code(400).send({ error: "缺少文本内容" });
+  // ─────────────────────────────────────────────────────────────
+  // GET /interview/intro
+  // Returns fixed intro audio (public)
+  // ─────────────────────────────────────────────────────────────
+  server.get("/interview/intro", async (request, reply) => {
+    const query = request.query as { minutes?: string };
+    const minutes = query.minutes ? Number.parseInt(query.minutes, 10) : null;
+    const script = getIntroScript(Number.isFinite(minutes as number) ? minutes : null);
+    if (!script) {
+      reply.code(404).send({ error: "未找到开场白" });
       return;
     }
 
@@ -468,64 +641,30 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
       return;
     }
 
-    const speaker =
-      typeof body?.speaker === "string" && body.speaker.trim()
-        ? body.speaker.trim()
-        : ttsConfig.speaker;
-    const speed = clampTtsSpeed(
-      typeof body?.speed === "number" ? body.speed : ttsConfig.speed
+    await ensureTtsCacheDir();
+    const cachedPath = await getCachedTtsPath(script, ttsConfig.speaker, ttsConfig.speed);
+    if (cachedPath) {
+      reply.header("Content-Type", TTS_AUDIO_CONTENT_TYPE);
+      reply.header("Cache-Control", "public, max-age=31536000, immutable");
+      reply.send(fs.createReadStream(cachedPath));
+      return;
+    }
+
+    const result = await generateAndCacheTts(
+      script,
+      ttsConfig.speaker,
+      ttsConfig.speed,
+      false,
+      ttsConfig
     );
-    const stream = Boolean(body?.stream);
-
-    let upstreamResponse: Response;
-    try {
-      upstreamResponse = await fetch(ttsConfig.apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${ttsConfig.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text, speaker, speed, stream }),
-      });
-    } catch (err) {
-      reply.code(502).send({ error: "语音服务连接失败" });
+    if (!result.ok) {
+      reply.code(502).send({ error: "语音合成失败" });
       return;
     }
-
-    if (!upstreamResponse.ok) {
-      let detail = "";
-      const contentType = upstreamResponse.headers.get("content-type") ?? "";
-      if (contentType.includes("application/json")) {
-        try {
-          const data = await upstreamResponse.json();
-          if (typeof data?.detail === "string") {
-            detail = data.detail;
-          } else if (typeof data?.error === "string") {
-            detail = data.error;
-          }
-        } catch {
-          detail = "";
-        }
-      } else {
-        try {
-          detail = await upstreamResponse.text();
-        } catch {
-          detail = "";
-        }
-      }
-      reply
-        .code(upstreamResponse.status)
-        .send({ error: detail || "语音合成失败" });
-      return;
-    }
-
-    const audioBuffer = Buffer.from(await upstreamResponse.arrayBuffer());
-    const contentType = upstreamResponse.headers.get("content-type") ?? "audio/wav";
-    reply.header("Content-Type", contentType);
-    reply.header("Cache-Control", "no-store");
-    reply.send(audioBuffer);
-    }
-  );
+    reply.header("Content-Type", TTS_AUDIO_CONTENT_TYPE);
+    reply.header("Cache-Control", "public, max-age=31536000, immutable");
+    reply.send(result.buffer);
+  });
 
   // ─────────────────────────────────────────────────────────────
   // GET /interview/history

@@ -25,10 +25,10 @@ const TIME_PRESETS = [
   { key: "20-4", label: "20 分钟 / 4 题", minutes: 20, questions: 4 }
 ];
 
-const INTRO_AUDIO_MAP: Record<string, string> = {
-  default: "/audio/interview-intro.wav",
-  "15": "/audio/interview-intro-15.wav",
-  "20": "/audio/interview-intro-20.wav"
+const INTRO_AUDIO_PATHS: Record<string, string> = {
+  default: "/interview/intro",
+  "15": "/interview/intro?minutes=15",
+  "20": "/interview/intro?minutes=20"
 };
 
 const PHASES = [
@@ -155,10 +155,9 @@ export default function InterviewPage() {
   };
 
   const getIntroAudioUrl = (minutes: number | null) => {
-    if (!minutes) {
-      return INTRO_AUDIO_MAP.default;
-    }
-    return INTRO_AUDIO_MAP[String(minutes)] ?? INTRO_AUDIO_MAP.default;
+    const key = minutes ? String(minutes) : "default";
+    const path = INTRO_AUDIO_PATHS[key] ?? INTRO_AUDIO_PATHS.default;
+    return getApiUrl(path);
   };
 
   const clearQuestionAudioCache = () => {

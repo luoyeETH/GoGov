@@ -13,6 +13,7 @@ apps/android/build/
 apps/android/app/build/
 apps/android/local.properties
 apps/android-project.zip
+apps/api/tts-cache/
 # Ignore all markdown files except README
 *.md
 !README.md
