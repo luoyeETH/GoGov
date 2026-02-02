@@ -28,6 +28,13 @@ type ResolvedAiConfig = {
   model?: string | null;
 };
 
+type InterviewTtsConfig = {
+  apiUrl: string | null;
+  apiKey: string;
+  speaker: string;
+  speed: number;
+};
+
 function resolveAiConfig(user: {
   aiProvider?: string | null;
   aiBaseUrl?: string | null;
@@ -40,6 +47,46 @@ function resolveAiConfig(user: {
     baseUrl: user.aiBaseUrl ?? null,
     apiKey: user.aiApiKey ?? null,
     model: user.aiModel ?? null,
+  };
+}
+
+const DEFAULT_TTS_SPEAKER = "中文女";
+const DEFAULT_TTS_SPEED = 1.0;
+
+function normalizeTtsUrl(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim().replace(/\/$/, "");
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.endsWith("/synthesize")) {
+    return trimmed;
+  }
+  return `${trimmed}/synthesize`;
+}
+
+function clampTtsSpeed(value: number) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_TTS_SPEED;
+  }
+  return Math.min(2, Math.max(0.5, value));
+}
+
+function resolveInterviewTtsConfig(): InterviewTtsConfig {
+  const apiUrl = normalizeTtsUrl(
+    process.env.INTERVIEW_TTS_API_URL ?? process.env.INTERVIEW_TTS_BASE_URL
+  );
+  const apiKey = process.env.INTERVIEW_TTS_API_KEY?.trim() ?? "";
+  const speaker = process.env.INTERVIEW_TTS_SPEAKER?.trim() || DEFAULT_TTS_SPEAKER;
+  const rawSpeed = Number.parseFloat(process.env.INTERVIEW_TTS_SPEED ?? "");
+  const speed = clampTtsSpeed(Number.isFinite(rawSpeed) ? rawSpeed : DEFAULT_TTS_SPEED);
+  return {
+    apiUrl,
+    apiKey,
+    speaker,
+    speed,
   };
 }
 
@@ -369,6 +416,116 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
       sessionComplete: isSessionComplete,
     });
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // POST /interview/tts
+  // Generate interview question speech audio via external TTS
+  // ─────────────────────────────────────────────────────────────
+  server.post(
+    "/interview/tts",
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+          keyGenerator: (request) => {
+            const token = getTokenFromRequest(request);
+            return token ? `token:${token}` : request.ip;
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+
+    try {
+      await verifySession(token);
+    } catch {
+      reply.code(401).send({ error: "登录已过期，请重新登录" });
+      return;
+    }
+
+    const body = request.body as {
+      text?: string;
+      speaker?: string;
+      speed?: number;
+      stream?: boolean;
+    };
+
+    const text = typeof body?.text === "string" ? body.text.trim() : "";
+    if (!text) {
+      reply.code(400).send({ error: "缺少文本内容" });
+      return;
+    }
+
+    const ttsConfig = resolveInterviewTtsConfig();
+    if (!ttsConfig.apiUrl || !ttsConfig.apiKey) {
+      reply.code(503).send({ error: "语音服务未配置" });
+      return;
+    }
+
+    const speaker =
+      typeof body?.speaker === "string" && body.speaker.trim()
+        ? body.speaker.trim()
+        : ttsConfig.speaker;
+    const speed = clampTtsSpeed(
+      typeof body?.speed === "number" ? body.speed : ttsConfig.speed
+    );
+    const stream = Boolean(body?.stream);
+
+    let upstreamResponse: Response;
+    try {
+      upstreamResponse = await fetch(ttsConfig.apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ttsConfig.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text, speaker, speed, stream }),
+      });
+    } catch (err) {
+      reply.code(502).send({ error: "语音服务连接失败" });
+      return;
+    }
+
+    if (!upstreamResponse.ok) {
+      let detail = "";
+      const contentType = upstreamResponse.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        try {
+          const data = await upstreamResponse.json();
+          if (typeof data?.detail === "string") {
+            detail = data.detail;
+          } else if (typeof data?.error === "string") {
+            detail = data.error;
+          }
+        } catch {
+          detail = "";
+        }
+      } else {
+        try {
+          detail = await upstreamResponse.text();
+        } catch {
+          detail = "";
+        }
+      }
+      reply
+        .code(upstreamResponse.status)
+        .send({ error: detail || "语音合成失败" });
+      return;
+    }
+
+    const audioBuffer = Buffer.from(await upstreamResponse.arrayBuffer());
+    const contentType = upstreamResponse.headers.get("content-type") ?? "audio/wav";
+    reply.header("Content-Type", contentType);
+    reply.header("Cache-Control", "no-store");
+    reply.send(audioBuffer);
+    }
+  );
 
   // ─────────────────────────────────────────────────────────────
   // GET /interview/history

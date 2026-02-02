@@ -51,6 +51,10 @@ export default function InterviewPage() {
   const [analysis, setAnalysis] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const ttsAbortRef = useRef<AbortController | null>(null);
+  const ttsRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).webkitSpeechRecognition) {
@@ -83,6 +87,24 @@ export default function InterviewPage() {
 
       recognitionRef.current = recognition;
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      ttsAbortRef.current?.abort();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -236,7 +258,19 @@ export default function InterviewPage() {
     }
   };
 
-  const speak = (text: string) => {
+  const stopAudioPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+  };
+
+  const speakWithBrowser = (text: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -244,6 +278,76 @@ export default function InterviewPage() {
       utterance.rate = 1.0;
       window.speechSynthesis.speak(utterance);
     }
+  };
+
+  const speak = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    stopAudioPlayback();
+    ttsAbortRef.current?.abort();
+
+    const token = getToken();
+    const controller = new AbortController();
+    ttsAbortRef.current = controller;
+    const requestId = ++ttsRequestIdRef.current;
+
+    try {
+      const res = await fetch(getApiUrl("/interview/tts"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          text: trimmed,
+          speaker: "中文女",
+          speed: 1.0
+        }),
+        signal: controller.signal
+      });
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      const blob = await res.blob();
+      if (ttsRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audioUrlRef.current = url;
+
+      audio.onended = () => {
+        if (audioRef.current === audio) {
+          stopAudioPlayback();
+        }
+      };
+      audio.onerror = () => {
+        if (audioRef.current === audio) {
+          stopAudioPlayback();
+          speakWithBrowser(trimmed);
+        }
+      };
+
+      await audio.play();
+      return;
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        return;
+      }
+      stopAudioPlayback();
+    }
+
+    speakWithBrowser(trimmed);
   };
 
   const selectedType = INTERVIEW_TYPES.find((item) => item.value === type);
