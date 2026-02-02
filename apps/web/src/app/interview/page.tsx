@@ -155,7 +155,7 @@ export default function InterviewPage() {
   };
 
   const getIntroAudioUrl = (minutes: number | null) => {
-    if (!timedMode || !minutes) {
+    if (!minutes) {
       return INTRO_AUDIO_MAP.default;
     }
     return INTRO_AUDIO_MAP[String(minutes)] ?? INTRO_AUDIO_MAP.default;
