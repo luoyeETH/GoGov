@@ -220,7 +220,10 @@ export default function InterviewPage() {
       const questionUrl = await getQuestionAudioUrl(questionText);
       const introOk = await introPlayback;
       if (introOk && questionUrl) {
-        await playAudioUrl(questionUrl, questionText);
+        const questionOk = await playAudioUrl(questionUrl);
+        if (!questionOk) {
+          speakWithBrowser(questionText);
+        }
       } else if (introOk) {
         speakWithBrowser(questionText);
       }
@@ -350,13 +353,16 @@ export default function InterviewPage() {
     }
   };
 
-  const playAudioUrl = (url: string, fallbackText?: string) =>
+  const playAudioUrl = (url: string) =>
     new Promise<boolean>((resolve) => {
       if (activeAudioResolveRef.current) {
         activeAudioResolveRef.current(false);
       }
       activeAudioResolveRef.current = resolve;
       stopAudioPlayback();
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
       const audio = new Audio(url);
       audioRef.current = audio;
       audioUrlRef.current = url;
@@ -379,9 +385,6 @@ export default function InterviewPage() {
         if (activeAudioResolveRef.current === resolve) {
           activeAudioResolveRef.current = null;
         }
-        if (fallbackText) {
-          speakWithBrowser(fallbackText);
-        }
         resolve(false);
       };
       audio.play().catch(() => {
@@ -391,9 +394,6 @@ export default function InterviewPage() {
         }
         if (activeAudioResolveRef.current === resolve) {
           activeAudioResolveRef.current = null;
-        }
-        if (fallbackText) {
-          speakWithBrowser(fallbackText);
         }
         resolve(false);
       });
@@ -469,7 +469,10 @@ export default function InterviewPage() {
         return;
       }
       if (url) {
-        await playAudioUrl(url, trimmed);
+        const ok = await playAudioUrl(url);
+        if (!ok) {
+          speakWithBrowser(trimmed);
+        }
         return;
       }
     } catch (err: any) {
