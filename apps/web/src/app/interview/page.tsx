@@ -30,6 +30,8 @@ const INTRO_AUDIO_PATHS: Record<string, string> = {
   "15": "/interview/intro?minutes=15",
   "20": "/interview/intro?minutes=20"
 };
+const INTRO_FALLBACK_TEXT =
+  "考生你好，恭喜你通过笔试进入面试。本场结构化面试请认真听题，条理作答。面试现在开始，请听第一题。";
 
 const PHASES = [
   { key: "setup", label: "准备" },
@@ -218,7 +220,10 @@ export default function InterviewPage() {
       const questionText = data.turn.questionText;
       prefetchQuestionAudio(questionText);
       const questionUrl = await getQuestionAudioUrl(questionText);
-      const introOk = await introPlayback;
+      let introOk = await introPlayback;
+      if (!introOk) {
+        introOk = await speakWithBrowser(INTRO_FALLBACK_TEXT);
+      }
       if (introOk && questionUrl) {
         const questionOk = await playAudioUrl(questionUrl);
         if (!questionOk) {
@@ -329,8 +334,12 @@ export default function InterviewPage() {
     setIsSpeaking(false);
   };
 
-  const speakWithBrowser = (text: string) => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
+  const speakWithBrowser = (text: string) =>
+    new Promise<boolean>((resolve) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        resolve(false);
+        return;
+      }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "zh-CN";
@@ -340,18 +349,19 @@ export default function InterviewPage() {
         if (speechUtteranceRef.current === utterance) {
           speechUtteranceRef.current = null;
         }
+        resolve(true);
       };
       utterance.onerror = () => {
         setIsSpeaking(false);
         if (speechUtteranceRef.current === utterance) {
           speechUtteranceRef.current = null;
         }
+        resolve(false);
       };
       speechUtteranceRef.current = utterance;
       setIsSpeaking(true);
       window.speechSynthesis.speak(utterance);
-    }
-  };
+    });
 
   const playAudioUrl = (url: string) =>
     new Promise<boolean>((resolve) => {
@@ -363,7 +373,10 @@ export default function InterviewPage() {
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
-      const audio = new Audio(url);
+      const audio = new Audio();
+      audio.preload = "auto";
+      audio.crossOrigin = "anonymous";
+      audio.src = url;
       audioRef.current = audio;
       audioUrlRef.current = url;
       setIsSpeaking(true);
