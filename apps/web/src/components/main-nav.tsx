@@ -29,6 +29,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/study-plan", label: "备考规划" },
       { href: "/daily-tasks", label: "今日任务" },
+      { href: "/study-plan/custom-tasks", label: "待办清单" },
     ],
   },
   {
@@ -51,6 +52,23 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+function matchNavItem(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/";
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function getActiveHref(pathname: string, items: NavItem[]) {
+  let active = "";
+  for (const item of items) {
+    if (matchNavItem(pathname, item.href) && item.href.length > active.length) {
+      active = item.href;
+    }
+  }
+  return active;
+}
+
 function NavDropdown({
   group,
   pathname,
@@ -62,11 +80,8 @@ function NavDropdown({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isActive = group.items.some(
-    (item) =>
-      pathname === item.href ||
-      (pathname.startsWith(item.href) && item.href !== "/")
-  );
+  const activeHref = getActiveHref(pathname, group.items);
+  const isActive = Boolean(activeHref);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) {
@@ -127,10 +142,7 @@ function NavDropdown({
               key={item.href}
               href={item.href}
               className={`nav-dropdown-item ${
-                pathname === item.href ||
-                (pathname.startsWith(item.href) && item.href !== "/")
-                  ? "active"
-                  : ""
+                item.href === activeHref ? "active" : ""
               }`}
               onClick={() => setIsOpen(false)}
             >

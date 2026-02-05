@@ -26,42 +26,51 @@ enum PomodoroStatus {
   abandoned
 }
 
+enum CustomTaskRecurrenceType {
+  once
+  daily
+  weekly
+  interval
+}
+
 model User {
-  id              String   @id @default(cuid())
-  email           String?  @unique
-  emailVerifiedAt DateTime?
-  passwordHash    String?
-  username        String?  @unique
-  gender          Gender?  @default(hidden)
-  age             Int?
-  examStartDate   DateTime?
-  aiProvider      String?
-  aiModel         String?
-  aiBaseUrl       String?
-  aiApiKey        String?
-  reminderHour    Int?
-  reminderMinute  Int?
-  walletAddress   String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  sessions        Session[]
-  aiAssistHistory AiAssistHistory[]
-  aiChatMessages  AiChatMessage[]
-  freeAiUsages    FreeAiUsage[]
-  practiceSessions PracticeSession[]
-  practiceRecords  PracticeRecord[]
-  mistakes         Mistake[]
-  studyTimeLogs    StudyTimeLog[]
-  pomodoroSessions PomodoroSession[]
-  pomodoroSubjects PomodoroSubject[]
-  mockExamReports  MockExamReport[]
-  knowledgeImports KnowledgeImport[]
-  studyPlanProfile StudyPlanProfile?
-  studyPlanHistories StudyPlanHistory[]
-  studyPlanDailyTasks StudyPlanDailyTask[]
-  klineReports      KlineReport[]
-  expenseLogs       ExpenseLog[]
-  interviewSessions InterviewSession[]
+  id                    String                 @id @default(cuid())
+  email                 String?                @unique
+  emailVerifiedAt       DateTime?
+  passwordHash          String?
+  username              String?                @unique
+  gender                Gender?                @default(hidden)
+  age                   Int?
+  examStartDate         DateTime?
+  aiProvider            String?
+  aiModel               String?
+  aiBaseUrl             String?
+  aiApiKey              String?
+  reminderHour          Int?
+  reminderMinute        Int?
+  walletAddress         String?                @unique
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  aiAssistHistory       AiAssistHistory[]
+  aiChatMessages        AiChatMessage[]
+  freeAiUsages          FreeAiUsage[]
+  practiceSessions      PracticeSession[]
+  practiceRecords       PracticeRecord[]
+  mistakes              Mistake[]
+  studyTimeLogs         StudyTimeLog[]
+  pomodoroSessions      PomodoroSession[]
+  pomodoroSubjects      PomodoroSubject[]
+  mockExamReports       MockExamReport[]
+  knowledgeImports      KnowledgeImport[]
+  studyPlanProfile      StudyPlanProfile?
+  studyPlanHistories    StudyPlanHistory[]
+  studyPlanDailyTasks   StudyPlanDailyTask[]
+  customTasks           CustomTask[]
+  customTaskCompletions CustomTaskCompletion[]
+  klineReports          KlineReport[]
+  expenseLogs           ExpenseLog[]
+  interviewSessions     InterviewSession[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -83,23 +92,23 @@ enum InterviewStatus {
 }
 
 model InterviewSession {
-  id              String           @id @default(cuid())
+  id              String          @id @default(cuid())
   userId          String
   type            InterviewType
-  status          InterviewStatus  @default(in_progress)
-  title           String?          // e.g., "Frontend Developer Mock Interview"
-  targetRole      String?          // Job role being interviewed for
-  difficulty      Int?             @default(2) // 1-5 scale
-  totalQuestions  Int?             // Planned question count
-  overallScore    Float?           // Aggregated score (0-100)
-  feedback        String?          // AI-generated overall feedback (rich text/markdown)
-  feedbackJson    Json?            // Structured feedback breakdown
-  startedAt       DateTime         @default(now())
+  status          InterviewStatus @default(in_progress)
+  title           String? // e.g., "Frontend Developer Mock Interview"
+  targetRole      String? // Job role being interviewed for
+  difficulty      Int?            @default(2) // 1-5 scale
+  totalQuestions  Int? // Planned question count
+  overallScore    Float? // Aggregated score (0-100)
+  feedback        String? // AI-generated overall feedback (rich text/markdown)
+  feedbackJson    Json? // Structured feedback breakdown
+  startedAt       DateTime        @default(now())
   endedAt         DateTime?
   durationSeconds Int?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   turns           InterviewTurn[]
 
   @@index([userId, createdAt])
@@ -108,30 +117,30 @@ model InterviewSession {
 }
 
 model InterviewTurn {
-  id                String           @id @default(cuid())
-  sessionId         String
-  turnNumber        Int              // 1-indexed sequence within session
-  
+  id         String @id @default(cuid())
+  sessionId  String
+  turnNumber Int // 1-indexed sequence within session
+
   // Question (from AI interviewer)
-  questionText      String           // The interview question
-  questionAudioUrl  String?          // TTS-generated audio of question
-  questionContext   String?          // Follow-up context or clarification
-  
+  questionText     String // The interview question
+  questionAudioUrl String? // TTS-generated audio of question
+  questionContext  String? // Follow-up context or clarification
+
   // Answer (from user)
-  answerText        String?          // Transcribed or typed user response
-  answerAudioUrl    String?          // User's audio recording
-  answerDurationMs  Int?             // How long user spent answering
-  
+  answerText       String? // Transcribed or typed user response
+  answerAudioUrl   String? // User's audio recording
+  answerDurationMs Int? // How long user spent answering
+
   // AI Analysis
-  score             Float?           // Turn-level score (0-100)
-  analysis          String?          // AI feedback (markdown)
-  analysisJson      Json?            // Structured analysis { strengths, improvements, tips }
-  metrics           Json?            // { clarity, relevance, structure, confidence, ... }
-  suggestedAnswer   String?          // AI-generated ideal answer example
-  
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  session           InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  score           Float? // Turn-level score (0-100)
+  analysis        String? // AI feedback (markdown)
+  analysisJson    Json? // Structured analysis { strengths, improvements, tips }
+  metrics         Json? // { clarity, relevance, structure, confidence, ... }
+  suggestedAnswer String? // AI-generated ideal answer example
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, turnNumber])
   @@index([sessionId])
@@ -139,24 +148,24 @@ model InterviewTurn {
 }
 
 model Session {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
-  createdAt DateTime @default(now())
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
   expiresAt DateTime
   revokedAt DateTime?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   email     String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model AiAssistHistory {
@@ -209,7 +218,7 @@ model GlobalFreeAiUsage {
 }
 
 model PracticeSession {
-  id              String       @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
   practiceType    String
   categoryId      String?
@@ -220,8 +229,8 @@ model PracticeSession {
   startedAt       DateTime
   endedAt         DateTime
   durationSeconds Int
-  createdAt       DateTime     @default(now())
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   records         PracticeRecord[]
   mistakes        Mistake[]
   studyTimeLog    StudyTimeLog?
@@ -231,7 +240,7 @@ model PracticeSession {
 }
 
 model PracticeRecord {
-  id           String   @id @default(cuid())
+  id           String          @id @default(cuid())
   sessionId    String
   userId       String
   practiceType String
@@ -243,16 +252,16 @@ model PracticeRecord {
   correct      Boolean
   choices      Json?
   explanation  String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
   session      PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([sessionId])
 }
 
 model Mistake {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   sessionId    String?
   userId       String
   practiceType String
@@ -262,23 +271,23 @@ model Mistake {
   answer       String
   userAnswer   String
   explanation  String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime         @default(now())
   session      PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, categoryId])
 }
 
 model StudyTimeLog {
-  id              String   @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
-  sessionId       String?  @unique
+  sessionId       String?          @unique
   startedAt       DateTime
   endedAt         DateTime?
   durationSeconds Int?
-  createdAt       DateTime @default(now())
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   session         PracticeSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([userId, startedAt])
@@ -318,17 +327,17 @@ model PomodoroSubject {
 }
 
 model MockExamReport {
-  id              String   @id @default(cuid())
-  userId          String
-  title           String?
-  note            String?
-  metrics         Json?
-  analysis        Json?
-  analysisRaw     String?
-  overallAccuracy Float?
+  id               String   @id @default(cuid())
+  userId           String
+  title            String?
+  note             String?
+  metrics          Json?
+  analysis         Json?
+  analysisRaw      String?
+  overallAccuracy  Float?
   timeTotalMinutes Float?
-  createdAt       DateTime @default(now())
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -349,27 +358,27 @@ model KnowledgeImport {
 }
 
 model StudyPlanProfile {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  prepStartDate       DateTime?
-  totalStudyHours     Float?
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  prepStartDate          DateTime?
+  totalStudyHours        Float?
   totalStudyDurationText String?
-  currentProgress     String?
-  targetExam          String?
-  targetExamDate      DateTime?
-  plannedMaterials    String?
-  interviewExperience Boolean?
-  learningGoals       String?
-  notes               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentProgress        String?
+  targetExam             String?
+  targetExamDate         DateTime?
+  plannedMaterials       String?
+  interviewExperience    Boolean?
+  learningGoals          String?
+  notes                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, updatedAt])
 }
 
 model StudyPlanHistory {
-  id              String   @id @default(cuid())
+  id              String               @id @default(cuid())
   userId          String
   summary         String?
   progressUpdate  String?
@@ -378,28 +387,60 @@ model StudyPlanHistory {
   preferences     Json?
   planData        Json?
   planRaw         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   dailyTasks      StudyPlanDailyTask[]
 
   @@index([userId, createdAt])
 }
 
 model StudyPlanDailyTask {
-  id            String   @id @default(cuid())
+  id            String            @id @default(cuid())
   userId        String
   planHistoryId String?
   date          DateTime
   summary       String?
   adjustNote    String?
   tasks         Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   planHistory   StudyPlanHistory? @relation(fields: [planHistoryId], references: [id], onDelete: SetNull)
 
   @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model CustomTask {
+  id             String                   @id @default(cuid())
+  userId         String
+  title          String
+  notes          String?
+  startDate      DateTime
+  recurrenceType CustomTaskRecurrenceType
+  intervalDays   Int?
+  weekdays       Int[]
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions    CustomTaskCompletion[]
+
+  @@index([userId, createdAt])
+  @@index([userId, isActive])
+}
+
+model CustomTaskCompletion {
+  id          String     @id @default(cuid())
+  taskId      String
+  userId      String
+  date        DateTime
+  completedAt DateTime   @default(now())
+  task        CustomTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, date])
   @@index([userId, date])
 }
 

@@ -1054,6 +1054,151 @@ function formatWeeklyTaskProgress(
   });
 }
 
+type CustomTaskRecurrence = "once" | "daily" | "weekly" | "interval";
+
+type CustomTaskOccurrence = {
+  taskId: string;
+  title: string;
+  notes?: string | null;
+  occurrenceDate: string;
+  recurrenceType: CustomTaskRecurrence;
+  intervalDays?: number | null;
+  weekdays?: number[];
+};
+
+type CustomTaskRow = {
+  id: string;
+  userId: string;
+  title: string;
+  notes: string | null;
+  startDate: Date;
+  recurrenceType: CustomTaskRecurrence;
+  intervalDays: number | null;
+  weekdays: number[] | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type CustomTaskCompletionRow = {
+  id: string;
+  taskId: string;
+  userId: string;
+  date: Date;
+  completedAt: Date;
+};
+
+function normalizeCustomTaskRecurrence(value: unknown): CustomTaskRecurrence | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "once" ||
+    normalized === "daily" ||
+    normalized === "weekly" ||
+    normalized === "interval"
+  ) {
+    return normalized as CustomTaskRecurrence;
+  }
+  return null;
+}
+
+function normalizeWeekdays(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const set = new Set<number>();
+  for (const item of value) {
+    const parsed =
+      typeof item === "number"
+        ? item
+        : typeof item === "string" && item.trim()
+          ? Number.parseInt(item, 10)
+          : NaN;
+    if (Number.isFinite(parsed)) {
+      const normalized = Math.floor(parsed);
+      const mapped = normalized === 7 ? 0 : normalized;
+      if (mapped >= 0 && mapped <= 6) {
+        set.add(mapped);
+      }
+    }
+  }
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+function parseDateLabel(label: string) {
+  const [year, month, day] = label.split("-").map((value) => Number(value));
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  return Date.UTC(year, month - 1, day);
+}
+
+function shiftDateLabel(label: string, offsetDays: number) {
+  const baseUtc = parseDateLabel(label);
+  if (baseUtc === null) {
+    return label;
+  }
+  const next = new Date(baseUtc + offsetDays * 24 * 60 * 60 * 1000);
+  return next.toISOString().slice(0, 10);
+}
+
+function getWeekdayIndex(label: string) {
+  const baseUtc = parseDateLabel(label);
+  if (baseUtc === null) {
+    return 0;
+  }
+  return new Date(baseUtc).getUTCDay();
+}
+
+function findNextCustomTaskDate(
+  task: {
+    recurrenceType: CustomTaskRecurrence;
+    startDate: Date;
+    intervalDays?: number | null;
+    weekdays?: number[] | null;
+  },
+  completed: Set<string>,
+  todayLabel: string
+) {
+  const startLabel = getBeijingDateString(task.startDate);
+  if (startLabel > todayLabel) {
+    return null;
+  }
+  if (task.recurrenceType === "once") {
+    return completed.has(startLabel) ? null : startLabel;
+  }
+  const maxIterations = 3660;
+  let guard = 0;
+  let cursor = startLabel;
+  if (task.recurrenceType === "interval") {
+    const interval =
+      typeof task.intervalDays === "number" && task.intervalDays > 0
+        ? Math.floor(task.intervalDays)
+        : 1;
+    while (cursor <= todayLabel && guard < maxIterations) {
+      if (!completed.has(cursor)) {
+        return cursor;
+      }
+      cursor = shiftDateLabel(cursor, interval);
+      guard += 1;
+    }
+    return null;
+  }
+  const weekdays = new Set(Array.isArray(task.weekdays) ? task.weekdays : []);
+  while (cursor <= todayLabel && guard < maxIterations) {
+    const matchesWeekday =
+      task.recurrenceType !== "weekly" || weekdays.has(getWeekdayIndex(cursor));
+    if (matchesWeekday && !completed.has(cursor)) {
+      return cursor;
+    }
+    cursor = shiftDateLabel(cursor, 1);
+    guard += 1;
+  }
+  return null;
+}
+
 function normalizeOptionalText(value: unknown) {
   if (value === undefined) {
     return undefined;
@@ -4237,6 +4382,382 @@ server.patch("/study-plan/daily/:id", async (request, reply) => {
     reply
       .code(400)
       .send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.get("/custom-tasks", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const query = request.query as { date?: string };
+    const { start, end } = getDayRange(query.date ?? null);
+    const todayLabel = getBeijingDateString(start);
+    const tasks = await prisma.$queryRaw<CustomTaskRow[]>`
+      SELECT
+        id,
+        "userId",
+        title,
+        notes,
+        "startDate",
+        "recurrenceType",
+        "intervalDays",
+        weekdays,
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      FROM "CustomTask"
+      WHERE "userId" = ${session.user.id}
+        AND "isActive" = true
+      ORDER BY "createdAt" DESC
+    `;
+    if (!tasks.length) {
+      reply.send({ date: todayLabel, today: [], overdue: [], tasks: [] });
+      return;
+    }
+    const taskIds = tasks.map((task) => task.id);
+    const completions = taskIds.length
+      ? await prisma.$queryRaw<CustomTaskCompletionRow[]>`
+          SELECT id, "taskId", "userId", date, "completedAt"
+          FROM "CustomTaskCompletion"
+          WHERE "userId" = ${session.user.id}
+            AND "taskId" IN (${Prisma.join(taskIds)})
+            AND date < ${end}
+        `
+      : [];
+    const completionMap = new Map<string, Set<string>>();
+    for (const record of completions) {
+      const label = getBeijingDateString(record.date);
+      const set = completionMap.get(record.taskId) ?? new Set<string>();
+      set.add(label);
+      completionMap.set(record.taskId, set);
+    }
+    const today: CustomTaskOccurrence[] = [];
+    const overdue: CustomTaskOccurrence[] = [];
+    const taskPayloads = tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      startDate: getBeijingDateString(task.startDate),
+      recurrenceType: task.recurrenceType,
+      intervalDays: task.intervalDays,
+      weekdays: Array.isArray(task.weekdays) ? task.weekdays : [],
+      isActive: task.isActive,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString()
+    }));
+    for (const task of tasks) {
+      const completed = completionMap.get(task.id) ?? new Set<string>();
+      const pendingLabel = findNextCustomTaskDate(
+        {
+          recurrenceType: task.recurrenceType as CustomTaskRecurrence,
+          startDate: task.startDate,
+          intervalDays: task.intervalDays,
+          weekdays: Array.isArray(task.weekdays) ? task.weekdays : []
+        },
+        completed,
+        todayLabel
+      );
+      if (!pendingLabel) {
+        continue;
+      }
+      const payload: CustomTaskOccurrence = {
+        taskId: task.id,
+        title: task.title,
+        notes: task.notes,
+        occurrenceDate: pendingLabel,
+        recurrenceType: task.recurrenceType as CustomTaskRecurrence,
+        intervalDays: task.intervalDays,
+        weekdays: Array.isArray(task.weekdays) ? task.weekdays : []
+      };
+      if (pendingLabel < todayLabel) {
+        overdue.push(payload);
+      } else {
+        today.push(payload);
+      }
+    }
+    overdue.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
+    today.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
+    reply.send({ date: todayLabel, today, overdue, tasks: taskPayloads });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "获取失败" });
+  }
+});
+
+server.post("/custom-tasks", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const body = (request.body ?? {}) as {
+      title?: string;
+      notes?: string | null;
+      recurrenceType?: string;
+      startDate?: string | null;
+      intervalDays?: number | string | null;
+      weekdays?: unknown;
+    };
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    if (!title) {
+      reply.code(400).send({ error: "缺少任务名称" });
+      return;
+    }
+    const recurrenceType = normalizeCustomTaskRecurrence(body.recurrenceType) ?? "once";
+    const startDate =
+      parseOptionalDate(body.startDate ?? null) ??
+      parseOptionalDate(getBeijingDateString()) ??
+      new Date();
+    if (!startDate) {
+      reply.code(400).send({ error: "缺少任务日期" });
+      return;
+    }
+    const intervalInput = parseOptionalNumber(body.intervalDays);
+    if (recurrenceType === "interval") {
+      if (typeof intervalInput !== "number" || intervalInput < 1) {
+        reply.code(400).send({ error: "间隔天数至少为 1 天" });
+        return;
+      }
+    }
+    const weekdays = recurrenceType === "weekly" ? normalizeWeekdays(body.weekdays) : [];
+    if (recurrenceType === "weekly" && !weekdays.length) {
+      reply.code(400).send({ error: "请选择每周重复的日期" });
+      return;
+    }
+    const taskId = makeTaskId();
+    const notes = normalizeOptionalText(body.notes) ?? null;
+    const intervalDays =
+      recurrenceType === "interval" && typeof intervalInput === "number"
+        ? Math.floor(intervalInput)
+        : null;
+    const recurrenceSql = Prisma.sql`${recurrenceType}::"CustomTaskRecurrenceType"`;
+    const weekdaysSql =
+      weekdays.length > 0
+        ? Prisma.sql`ARRAY[${Prisma.join(weekdays)}]::INTEGER[]`
+        : Prisma.sql`ARRAY[]::INTEGER[]`;
+    const createdRows = await prisma.$queryRaw<CustomTaskRow[]>`
+      INSERT INTO "CustomTask" (
+        "id",
+        "userId",
+        "title",
+        "notes",
+        "startDate",
+        "recurrenceType",
+        "intervalDays",
+        "weekdays",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (
+        ${taskId},
+        ${session.user.id},
+        ${title},
+        ${notes},
+        ${startDate},
+        ${recurrenceSql},
+        ${intervalDays},
+        ${weekdaysSql},
+        true,
+        NOW(),
+        NOW()
+      )
+      RETURNING id,
+        "userId",
+        title,
+        notes,
+        "startDate",
+        "recurrenceType",
+        "intervalDays",
+        weekdays,
+        "isActive",
+        "createdAt",
+        "updatedAt"
+    `;
+    const created = createdRows[0];
+    if (!created) {
+      reply.code(400).send({ error: "创建失败" });
+      return;
+    }
+    reply.send({
+      task: {
+        id: created.id,
+        title: created.title,
+        notes: created.notes,
+        startDate: getBeijingDateString(created.startDate),
+        recurrenceType: created.recurrenceType,
+        intervalDays: created.intervalDays,
+        weekdays: Array.isArray(created.weekdays) ? created.weekdays : [],
+        isActive: created.isActive,
+        createdAt: created.createdAt.toISOString(),
+        updatedAt: created.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "创建失败" });
+  }
+});
+
+server.post("/custom-tasks/:id/complete", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少任务 ID" });
+      return;
+    }
+    const body = (request.body ?? {}) as { date?: string | null };
+    const dateValue = parseOptionalDate(body.date ?? null);
+    if (!dateValue) {
+      reply.code(400).send({ error: "缺少完成日期" });
+      return;
+    }
+    const targetLabel = getBeijingDateString(dateValue);
+    const todayLabel = getBeijingDateString();
+    if (targetLabel > todayLabel) {
+      reply.code(400).send({ error: "不能完成未来的任务" });
+      return;
+    }
+    const taskRows = await prisma.$queryRaw<CustomTaskRow[]>`
+      SELECT
+        id,
+        "userId",
+        title,
+        notes,
+        "startDate",
+        "recurrenceType",
+        "intervalDays",
+        weekdays,
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      FROM "CustomTask"
+      WHERE id = ${id}
+        AND "userId" = ${session.user.id}
+        AND "isActive" = true
+      LIMIT 1
+    `;
+    const task = taskRows[0];
+    if (!task) {
+      reply.code(404).send({ error: "任务不存在" });
+      return;
+    }
+    const { end } = getDayRange(todayLabel);
+    const completions = await prisma.$queryRaw<CustomTaskCompletionRow[]>`
+      SELECT id, "taskId", "userId", date, "completedAt"
+      FROM "CustomTaskCompletion"
+      WHERE "userId" = ${session.user.id}
+        AND "taskId" = ${id}
+        AND date < ${end}
+    `;
+    const completed = new Set(completions.map((record) => getBeijingDateString(record.date)));
+    const expectedLabel = findNextCustomTaskDate(
+      {
+        recurrenceType: task.recurrenceType as CustomTaskRecurrence,
+        startDate: task.startDate,
+        intervalDays: task.intervalDays,
+        weekdays: Array.isArray(task.weekdays) ? task.weekdays : []
+      },
+      completed,
+      todayLabel
+    );
+    if (!expectedLabel) {
+      reply.code(400).send({ error: "任务尚未到期或已全部完成" });
+      return;
+    }
+    if (expectedLabel !== targetLabel) {
+      reply.code(400).send({ error: "请先完成更早的未完成任务" });
+      return;
+    }
+    const completionDate = parseOptionalDate(targetLabel);
+    if (!completionDate) {
+      reply.code(400).send({ error: "完成日期无效" });
+      return;
+    }
+    const completionId = makeTaskId();
+    await prisma.$queryRaw`
+      INSERT INTO "CustomTaskCompletion" (
+        "id",
+        "taskId",
+        "userId",
+        "date",
+        "completedAt"
+      )
+      VALUES (
+        ${completionId},
+        ${id},
+        ${session.user.id},
+        ${completionDate},
+        NOW()
+      )
+      ON CONFLICT ("taskId", "date")
+      DO UPDATE SET "completedAt" = NOW()
+    `;
+    if (task.recurrenceType === "once") {
+      await prisma.$executeRaw`
+        UPDATE "CustomTask"
+        SET "isActive" = false,
+            "updatedAt" = NOW()
+        WHERE id = ${id}
+          AND "userId" = ${session.user.id}
+      `;
+    }
+    reply.send({ ok: true });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.delete("/custom-tasks/:id", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少任务 ID" });
+      return;
+    }
+    const existingRows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id
+      FROM "CustomTask"
+      WHERE id = ${id}
+        AND "userId" = ${session.user.id}
+      LIMIT 1
+    `;
+    if (!existingRows.length) {
+      reply.code(404).send({ error: "任务不存在" });
+      return;
+    }
+    await prisma.$executeRaw`
+      DELETE FROM "CustomTask"
+      WHERE id = ${id}
+        AND "userId" = ${session.user.id}
+    `;
+    reply.send({ ok: true });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "删除失败" });
   }
 });
 

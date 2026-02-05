@@ -4723,6 +4723,239 @@ button {
   color: var(--muted);
 }
 
+.daily-switch-top {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 0;
+}
+
+.daily-mode-switch {
+  display: flex;
+  background: var(--text-alpha-08);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 0;
+}
+
+.daily-mode-switch button {
+  padding: 7px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.daily-mode-switch button.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08),
+              0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.daily-view-stack {
+  position: relative;
+}
+
+.daily-view-panel {
+  width: 100%;
+}
+
+.daily-view-panel.is-hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.daily-view-panel.is-active {
+  position: relative;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.custom-task-card {
+  display: grid;
+  gap: 16px;
+}
+
+.custom-task-card-embedded {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.custom-task-block {
+  display: grid;
+  gap: 12px;
+}
+
+.custom-task-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.custom-task-block-header h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.custom-task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.custom-task-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.custom-task-item.is-overdue {
+  border-color: rgba(255, 59, 48, 0.45);
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.custom-task-content {
+  display: grid;
+  gap: 6px;
+}
+
+.custom-task-title {
+  font-weight: 600;
+}
+
+.custom-task-title.is-overdue {
+  color: var(--danger);
+}
+
+.custom-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.custom-task-check {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  box-sizing: border-box;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.custom-task-check span {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.custom-task-check:hover {
+  border-color: rgba(181, 82, 43, 0.6);
+  transform: translateY(-1px);
+}
+
+.custom-task-check:hover span {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.custom-task-check:active span,
+.custom-task-check:focus-visible span {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.custom-task-check:focus-visible {
+  outline: 2px solid rgba(181, 82, 43, 0.4);
+  outline-offset: 2px;
+}
+
+.custom-task-item.is-overdue .custom-task-check {
+  border-color: rgba(255, 59, 48, 0.7);
+}
+
+.custom-task-check:disabled {
+  cursor: wait;
+  opacity: 0.6;
+  transform: none;
+}
+
+.custom-task-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.custom-task-weekday {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.custom-task-weekday.active {
+  border-color: rgba(181, 82, 43, 0.65);
+  background: rgba(181, 82, 43, 0.16);
+  font-weight: 600;
+}
+
+.custom-task-library {
+  display: grid;
+  gap: 10px;
+}
+
+.custom-task-library-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+@media (max-width: 720px) {
+  .daily-mode-switch {
+    width: 100%;
+  }
+
+  .daily-mode-switch button {
+    flex: 1;
+  }
+}
+
 .loading-button {
   display: inline-flex;
   align-items: center;
@@ -7716,6 +7949,10 @@ body.pomodoro-immersive .page {
   }
 
   .footer {
+    display: none;
+  }
+
+  .daily-hero {
     display: none;
   }
 

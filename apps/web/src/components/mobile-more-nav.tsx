@@ -11,6 +11,7 @@ const MORE_ITEMS = [
   { href: "/interview", label: "AI 面试教练" },
   { href: "/mock-report", label: "模考解读" },
   { href: "/daily-tasks", label: "今日任务" },
+  { href: "/study-plan/custom-tasks", label: "待办清单" },
   { href: "/pomodoro", label: "番茄钟" },
   { href: "/leaderboard", label: "学习排行榜" },
   { href: "/ledger", label: "记账本" },
