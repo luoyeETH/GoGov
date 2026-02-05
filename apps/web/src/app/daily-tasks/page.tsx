@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import DailyTasksModule from "../../components/daily-tasks";
 import CustomTasksModule from "../../components/custom-tasks";
 
@@ -17,13 +17,28 @@ function detectPwaMode() {
 }
 
 export default function DailyTasksPage() {
-  const [isPwa, setIsPwa] = useState(false);
-  const [view, setView] = useState<"daily" | "custom">("daily");
+  const [isPwa, setIsPwa] = useState(() => detectPwaMode());
+  const [view, setView] = useState<"daily" | "custom">(() => {
+    if (typeof window === "undefined") {
+      return "daily";
+    }
+    try {
+      const saved = window.localStorage.getItem(pwaViewKey);
+      if (saved === "daily" || saved === "custom") {
+        return saved;
+      }
+    } catch {
+      // Ignore storage errors.
+    }
+    return "daily";
+  });
   const [maxSectionHeight, setMaxSectionHeight] = useState<number | null>(null);
+  const [hasSwitched, setHasSwitched] = useState(false);
   const dailyRef = useRef<HTMLDivElement>(null);
   const customRef = useRef<HTMLDivElement>(null);
+  const showCustom = isPwa && view === "custom";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -51,13 +66,13 @@ export default function DailyTasksPage() {
     }
     try {
       const saved = window.localStorage.getItem(pwaViewKey);
-      if (saved === "daily" || saved === "custom") {
+      if ((saved === "daily" || saved === "custom") && saved !== view) {
         setView(saved);
       }
     } catch {
       // Ignore storage errors.
     }
-  }, [isPwa]);
+  }, [isPwa, view]);
 
   useEffect(() => {
     if (!isPwa || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
@@ -69,7 +84,12 @@ export default function DailyTasksPage() {
       return;
     }
     const updateHeight = () => {
-      const next = Math.max(dailyNode.offsetHeight, customNode.offsetHeight);
+      const activeNode = showCustom ? customNode : dailyNode;
+      const inactiveNode = showCustom ? dailyNode : customNode;
+      const activeHeight = activeNode.offsetHeight;
+      const next = hasSwitched
+        ? Math.max(activeHeight, inactiveNode.offsetHeight)
+        : activeHeight;
       if (Number.isFinite(next) && next > 0) {
         setMaxSectionHeight(next);
       }
@@ -79,9 +99,12 @@ export default function DailyTasksPage() {
     observer.observe(dailyNode);
     observer.observe(customNode);
     return () => observer.disconnect();
-  }, [isPwa]);
+  }, [isPwa, showCustom, hasSwitched]);
 
   const switchView = (next: "daily" | "custom") => {
+    if (next !== view) {
+      setHasSwitched(true);
+    }
     setView(next);
     if (!isPwa) {
       return;
@@ -93,7 +116,6 @@ export default function DailyTasksPage() {
     }
   };
 
-  const showCustom = isPwa && view === "custom";
   const heroEyebrow = showCustom ? "待办清单" : "每日任务";
   const heroTitle = showCustom ? "待办清单" : "今日学习清单";
   const heroLead = showCustom

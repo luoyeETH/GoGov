@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import LoadingButton from "./loading-button";
 
@@ -119,6 +119,16 @@ function formatRecurrence(task: {
   return "单次";
 }
 
+function detectPwaMode() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true
+  );
+}
+
 export default function CustomTasksModule({ variant = "standalone" }: CustomTasksModuleProps) {
   const [token, setToken] = useState<string | null>(null);
   const [tasks, setTasks] = useState<CustomTask[]>([]);
@@ -135,6 +145,10 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [completingKey, setCompletingKey] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isPwa, setIsPwa] = useState(() => detectPwaMode());
+  const [openPanel, setOpenPanel] = useState<
+    "overdue" | "today" | "create" | "library" | null
+  >("today");
 
   const today = useMemo(() => getBeijingDateString(), []);
 
@@ -231,12 +245,28 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     if (typeof window === "undefined") {
       return;
     }
+    const updatePwa = () => setIsPwa(detectPwaMode());
+    updatePwa();
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const handleChange = () => updatePwa();
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+    } else if (mediaQuery.addListener) {
+      mediaQuery.addListener(handleChange);
+    }
     setToken(window.localStorage.getItem(sessionKey));
     const handleAuthChange = () => {
       setToken(window.localStorage.getItem(sessionKey));
     };
     window.addEventListener("auth-change", handleAuthChange);
-    return () => window.removeEventListener("auth-change", handleAuthChange);
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleChange);
+      } else if (mediaQuery.removeListener) {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -380,6 +410,63 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     );
   }
 
+  const renderBlock = ({
+    id,
+    title,
+    description,
+    content
+  }: {
+    id: "overdue" | "today" | "create" | "library";
+    title: string;
+    description?: string;
+    content: ReactNode;
+  }) => {
+    const expanded = !isPwa || openPanel === id;
+    const contentId = `custom-task-panel-${id}`;
+    const headerContent = (
+      <div>
+        <h4>{title}</h4>
+        {description ? <p className="form-message">{description}</p> : null}
+      </div>
+    );
+
+    return (
+      <div
+        className={[
+          "custom-task-block",
+          isPwa ? "custom-task-block-accordion" : "",
+          expanded ? "is-open" : "is-collapsed"
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {isPwa ? (
+          <button
+            type="button"
+            className="custom-task-block-header custom-task-block-toggle"
+            onClick={() =>
+              setOpenPanel((prev) => (prev === id ? null : id))
+            }
+            aria-expanded={expanded}
+            aria-controls={contentId}
+          >
+            {headerContent}
+            <span className="custom-task-chevron" aria-hidden="true" />
+          </button>
+        ) : (
+          <div className="custom-task-block-header">{headerContent}</div>
+        )}
+        <div
+          id={contentId}
+          className="custom-task-block-body"
+          aria-hidden={!expanded}
+        >
+          <div className="custom-task-block-content">{content}</div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className={wrapperClass}>
       <div className="daily-card-header">
@@ -393,14 +480,11 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         </div>
       </div>
 
-      <div className="custom-task-block">
-        <div className="custom-task-block-header">
-          <div>
-            <h4>未完成列表</h4>
-            <p className="form-message">按日期依次补齐，完成后才会刷新下一次。</p>
-          </div>
-        </div>
-        {overdueTasks.length ? (
+      {renderBlock({
+        id: "overdue",
+        title: "未完成列表",
+        description: "按日期依次补齐，完成后才会刷新下一次。",
+        content: overdueTasks.length ? (
           <div className="custom-task-list">
             {overdueTasks.map((item) => {
               const key = `${item.taskId}-${item.occurrenceDate}`;
@@ -430,17 +514,14 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
           </div>
         ) : (
           <div className="knowledge-empty">暂无未完成任务。</div>
-        )}
-      </div>
+        )
+      })}
 
-      <div className="custom-task-block">
-        <div className="custom-task-block-header">
-          <div>
-            <h4>今日任务</h4>
-            <p className="form-message">完成后会进入下一次周期。</p>
-          </div>
-        </div>
-        {todayTasks.length ? (
+      {renderBlock({
+        id: "today",
+        title: "今日任务",
+        description: "完成后会进入下一次周期。",
+        content: todayTasks.length ? (
           <div className="custom-task-list">
             {todayTasks.map((item) => {
               const key = `${item.taskId}-${item.occurrenceDate}`;
@@ -469,117 +550,115 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
           </div>
         ) : (
           <div className="knowledge-empty">今日暂无待办任务。</div>
-        )}
-      </div>
+        )
+      })}
 
-      <div className="custom-task-block">
-        <div className="custom-task-block-header">
-          <div>
-            <h4>创建待办任务</h4>
-            <p className="form-message">可设置单次、每天、每周或间隔任务。</p>
-          </div>
-        </div>
-        <div className="plan-form-grid">
-          <div className="form-row">
-            <label htmlFor="custom-task-title">任务名称</label>
-            <input
-              id="custom-task-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="例如：整理错题"
-            />
-          </div>
-          <div className="form-row">
-            <label htmlFor="custom-task-notes">备注</label>
-            <input
-              id="custom-task-notes"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="可选：资料/课程/时长"
-            />
-          </div>
-          <div className="form-row">
-            <label htmlFor="custom-task-recurrence">重复规则</label>
-            <select
-              id="custom-task-recurrence"
-              value={recurrenceType}
-              onChange={(event) =>
-                setRecurrenceType(event.target.value as CustomTaskRecurrence)
-              }
-            >
-              <option value="once">单次任务</option>
-              <option value="daily">每天重复</option>
-              <option value="weekly">每周指定</option>
-              <option value="interval">间隔天数</option>
-            </select>
-          </div>
-          <div className="form-row">
-            <label htmlFor="custom-task-date">
-              {recurrenceType === "once" ? "任务日期" : "开始日期"}
-            </label>
-            <input
-              id="custom-task-date"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </div>
-          {recurrenceType === "weekly" ? (
-            <div className="form-row">
-              <label>每周重复</label>
-              <div className="custom-task-weekdays">
-                {weekdayOptions.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={
-                      weekdays.includes(item.value)
-                        ? "custom-task-weekday active"
-                        : "custom-task-weekday"
-                    }
-                    onClick={() => toggleWeekday(item.value)}
-                  >
-                    周{item.label}
-                  </button>
-                ))}
+      {renderBlock({
+        id: "create",
+        title: "创建待办任务",
+        description: "可设置单次、每天、每周或间隔任务。",
+        content: (
+          <>
+            <div className="plan-form-grid">
+              <div className="form-row">
+                <label htmlFor="custom-task-title">任务名称</label>
+                <input
+                  id="custom-task-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="例如：整理错题"
+                />
               </div>
+              <div className="form-row">
+                <label htmlFor="custom-task-notes">备注</label>
+                <input
+                  id="custom-task-notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder="可选：资料/课程/时长"
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="custom-task-recurrence">重复规则</label>
+                <select
+                  id="custom-task-recurrence"
+                  value={recurrenceType}
+                  onChange={(event) =>
+                    setRecurrenceType(event.target.value as CustomTaskRecurrence)
+                  }
+                >
+                  <option value="once">单次任务</option>
+                  <option value="daily">每天重复</option>
+                  <option value="weekly">每周指定</option>
+                  <option value="interval">间隔天数</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label htmlFor="custom-task-date">
+                  {recurrenceType === "once" ? "任务日期" : "开始日期"}
+                </label>
+                <input
+                  id="custom-task-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                />
+              </div>
+              {recurrenceType === "weekly" ? (
+                <div className="form-row">
+                  <label>每周重复</label>
+                  <div className="custom-task-weekdays">
+                    {weekdayOptions.map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        className={
+                          weekdays.includes(item.value)
+                            ? "custom-task-weekday active"
+                            : "custom-task-weekday"
+                        }
+                        onClick={() => toggleWeekday(item.value)}
+                      >
+                        周{item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {recurrenceType === "interval" ? (
+                <div className="form-row">
+                  <label htmlFor="custom-task-interval">间隔天数</label>
+                  <input
+                    id="custom-task-interval"
+                    type="number"
+                    min={1}
+                    value={intervalDays}
+                    onChange={(event) => setIntervalDays(event.target.value)}
+                  />
+                </div>
+              ) : null}
             </div>
-          ) : null}
-          {recurrenceType === "interval" ? (
-            <div className="form-row">
-              <label htmlFor="custom-task-interval">间隔天数</label>
-              <input
-                id="custom-task-interval"
-                type="number"
-                min={1}
-                value={intervalDays}
-                onChange={(event) => setIntervalDays(event.target.value)}
-              />
+            <div className="assist-actions">
+              <LoadingButton
+                type="button"
+                className="primary"
+                loading={state === "loading"}
+                loadingText="添加中..."
+                onClick={handleCreate}
+              >
+                添加任务
+              </LoadingButton>
+              {message ? <span className="form-message">{message}</span> : null}
             </div>
-          ) : null}
-        </div>
-        <div className="assist-actions">
-          <LoadingButton
-            type="button"
-            className="primary"
-            loading={state === "loading"}
-            loadingText="添加中..."
-            onClick={handleCreate}
-          >
-            添加任务
-          </LoadingButton>
-          {message ? <span className="form-message">{message}</span> : null}
-        </div>
-      </div>
+          </>
+        )
+      })}
 
-      <div className="custom-task-block">
-        <div className="custom-task-block-header">
-          <div>
-            <h4>已创建任务</h4>
-            <p className="form-message">管理正在生效的待办任务。</p>
-          </div>
-        </div>
-        {tasks.length ? (
+      {renderBlock({
+        id: "library",
+        title: "已创建任务",
+        description: "管理正在生效的待办任务。",
+        content: tasks.length ? (
           <div className="custom-task-library">
             {tasks.map((task) => (
               <div key={task.id} className="custom-task-library-item">
@@ -608,8 +687,8 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
           </div>
         ) : (
           <div className="knowledge-empty">暂无已创建任务。</div>
-        )}
-      </div>
+        )
+      })}
     </section>
   );
 }

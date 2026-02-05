@@ -4521,6 +4521,7 @@ button {
 .daily-page {
   display: grid;
   gap: 32px;
+  align-content: start;
 }
 
 .daily-hero {
@@ -4726,7 +4727,9 @@ button {
 .daily-switch-top {
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 10px 0 0;
+  min-height: 44px;
 }
 
 .daily-mode-switch {
@@ -4735,10 +4738,12 @@ button {
   border-radius: 9px;
   padding: 2px;
   gap: 0;
+  height: 36px;
+  align-items: center;
 }
 
 .daily-mode-switch button {
-  padding: 7px 16px;
+  padding: 0 16px;
   border: none;
   background: transparent;
   border-radius: 7px;
@@ -4748,6 +4753,11 @@ button {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .daily-mode-switch button.active {
@@ -4797,11 +4807,86 @@ button {
   gap: 12px;
 }
 
+.custom-task-block-accordion {
+  gap: 0;
+}
+
+.custom-task-block-accordion.is-open {
+  gap: 12px;
+}
+
+.custom-task-block-body {
+  display: grid;
+}
+
+.custom-task-block-content {
+  display: grid;
+  gap: 12px;
+}
+
 .custom-task-block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.custom-task-block-toggle {
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.custom-task-block-toggle:focus-visible {
+  outline: 2px solid rgba(181, 82, 43, 0.4);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.custom-task-block-accordion .custom-task-block-body {
+  overflow: hidden;
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    max-height 0.28s ease,
+    opacity 0.22s ease,
+    transform 0.28s ease,
+    grid-template-rows 0.28s ease;
+}
+
+.custom-task-block-accordion .custom-task-block-content {
+  overflow: hidden;
+}
+
+.custom-task-block-accordion.is-open .custom-task-block-body {
+  opacity: 1;
+  max-height: 2000px;
+  transform: translateY(0);
+  pointer-events: auto;
+  grid-template-rows: 1fr;
+}
+
+.custom-task-chevron {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-task-block-toggle[aria-expanded="true"] .custom-task-chevron {
+  transform: rotate(-135deg);
 }
 
 .custom-task-block-header h4 {
@@ -4907,6 +4992,17 @@ button {
   cursor: wait;
   opacity: 0.6;
   transform: none;
+}
+
+@media (display-mode: standalone) {
+  .custom-task-check {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    font-size: 13px;
+    align-self: center;
+  }
 }
 
 .custom-task-weekdays {
@@ -7954,6 +8050,14 @@ body.pomodoro-immersive .page {
 
   .daily-hero {
     display: none;
+  }
+
+  .daily-page {
+    gap: 16px;
+  }
+
+  .daily-switch-top {
+    padding: 6px 0 0;
   }
 
   /* Hide page subtitles for cleaner look */
