@@ -253,6 +253,13 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
         return;
       }
     }
+    if (!questionText) {
+      await prisma.interviewSession.delete({
+        where: { id: interviewSession.id },
+      });
+      reply.code(500).send({ error: "生成问题失败，请稍后重试" });
+      return;
+    }
 
     // Create the first turn
     const turn = await prisma.interviewTurn.create({
@@ -437,6 +444,20 @@ export async function registerInterviewRoutes(server: FastifyInstance) {
           });
           return;
         }
+      }
+      if (!nextQuestionText) {
+        reply.send({
+          analysis: {
+            score: analysis.score,
+            feedback: analysis.feedback,
+            suggestedAnswer: analysis.suggestedAnswer,
+            metrics: analysis.metrics,
+          },
+          nextQuestion: null,
+          sessionComplete: false,
+          error: "生成下一题失败，请稍后继续",
+        });
+        return;
       }
 
       // Create the next turn
