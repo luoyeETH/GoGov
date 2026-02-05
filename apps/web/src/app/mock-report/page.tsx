@@ -1279,21 +1279,6 @@ export default function MockReportPage() {
     return trendData.entries[activeTrendIndex] ?? null;
   }, [activeTrendIndex, trendData.entries]);
 
-  const trendDelta = useMemo(() => {
-    if (activeTrendIndex === null) {
-      return { text: "—", direction: "none" as const };
-    }
-    const current = trendData.entries[activeTrendIndex]?.overallAccuracy ?? null;
-    let previous: number | null = null;
-    for (let index = activeTrendIndex - 1; index >= 0; index -= 1) {
-      const value = trendData.entries[index]?.overallAccuracy ?? null;
-      if (typeof value === "number") {
-        previous = value;
-        break;
-      }
-    }
-    return formatAccuracyDelta(current, previous, 1);
-  }, [activeTrendIndex, trendData.entries]);
 
   useEffect(() => {
     if (!trendData.entries.length) {
@@ -1970,20 +1955,28 @@ export default function MockReportPage() {
           {activeTrendEntry ? (
             <div className="mock-trend-detail">
               <div className="mock-trend-detail-header">
-                <div className="mock-trend-detail-title">
-                  <strong>当日正确率</strong>
-                  <span
-                    className={`mock-trend-detail-delta is-${trendDelta.direction}`}
-                  >
-                    （{trendDelta.text}）
-                  </span>
-                </div>
+                <strong>当日正确率</strong>
                 <span>{formatTrendDate(activeTrendEntry.createdAt)}</span>
               </div>
               <div className="mock-trend-detail-grid">
                 {chartLayout.seriesWithPoints.map((series) => {
                   const value =
                     activeTrendIndex === null ? null : series.values[activeTrendIndex];
+                  let previous: number | null = null;
+                  if (activeTrendIndex !== null) {
+                    for (let index = activeTrendIndex - 1; index >= 0; index -= 1) {
+                      const prevValue = series.values[index];
+                      if (typeof prevValue === "number") {
+                        previous = prevValue;
+                        break;
+                      }
+                    }
+                  }
+                  const delta = formatAccuracyDelta(
+                    typeof value === "number" ? value : null,
+                    previous,
+                    1
+                  );
                   return (
                     <div key={`detail-${series.key}`} className="mock-trend-detail-item">
                       <span className="mock-trend-detail-label">
@@ -1994,7 +1987,18 @@ export default function MockReportPage() {
                         {series.label}
                       </span>
                       <span className="mock-trend-detail-value">
-                        {typeof value === "number" ? formatAccuracy(value, 1) : "暂无"}
+                        {typeof value === "number" ? (
+                          <>
+                            {formatAccuracy(value, 1)}
+                            <span
+                              className={`mock-trend-detail-delta is-${delta.direction}`}
+                            >
+                              （{delta.text}）
+                            </span>
+                          </>
+                        ) : (
+                          "暂无"
+                        )}
                       </span>
                     </div>
                   );

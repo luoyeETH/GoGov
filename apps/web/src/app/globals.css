@@ -3046,13 +3046,6 @@ button {
   color: var(--muted);
 }
 
-.mock-trend-detail-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
 .mock-trend-detail-header strong {
   color: var(--text);
   font-size: 13px;
@@ -3101,6 +3094,9 @@ button {
 }
 
 .mock-trend-detail-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--muted);
   font-weight: 600;
 }
