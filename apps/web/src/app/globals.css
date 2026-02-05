@@ -3046,9 +3046,30 @@ button {
   color: var(--muted);
 }
 
+.mock-trend-detail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .mock-trend-detail-header strong {
   color: var(--text);
   font-size: 13px;
+}
+
+.mock-trend-detail-delta {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mock-trend-detail-delta.is-up {
+  color: var(--success);
+}
+
+.mock-trend-detail-delta.is-down {
+  color: var(--danger);
 }
 
 .mock-trend-detail-grid {

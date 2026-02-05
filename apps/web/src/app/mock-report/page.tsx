@@ -266,6 +266,19 @@ function formatAccuracy(value: number | null | undefined, digits = 1) {
   return `${(normalized * 100).toFixed(digits)}%`;
 }
 
+function formatAccuracyDelta(current: number | null, previous: number | null, digits = 1) {
+  if (typeof current !== "number" || typeof previous !== "number") {
+    return { text: "—", direction: "none" as const };
+  }
+  const diff = current - previous;
+  if (!Number.isFinite(diff)) {
+    return { text: "—", direction: "none" as const };
+  }
+  const text = `${diff > 0 ? "+" : ""}${(diff * 100).toFixed(digits)}%`;
+  const direction = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+  return { text, direction };
+}
+
 function formatMinutes(value: number | null | undefined, digits = 1) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "未知";
@@ -1266,6 +1279,22 @@ export default function MockReportPage() {
     return trendData.entries[activeTrendIndex] ?? null;
   }, [activeTrendIndex, trendData.entries]);
 
+  const trendDelta = useMemo(() => {
+    if (activeTrendIndex === null) {
+      return { text: "—", direction: "none" as const };
+    }
+    const current = trendData.entries[activeTrendIndex]?.overallAccuracy ?? null;
+    let previous: number | null = null;
+    for (let index = activeTrendIndex - 1; index >= 0; index -= 1) {
+      const value = trendData.entries[index]?.overallAccuracy ?? null;
+      if (typeof value === "number") {
+        previous = value;
+        break;
+      }
+    }
+    return formatAccuracyDelta(current, previous, 1);
+  }, [activeTrendIndex, trendData.entries]);
+
   useEffect(() => {
     if (!trendData.entries.length) {
       setSelectedTrendIndex(null);
@@ -1941,7 +1970,14 @@ export default function MockReportPage() {
           {activeTrendEntry ? (
             <div className="mock-trend-detail">
               <div className="mock-trend-detail-header">
-                <strong>当日正确率</strong>
+                <div className="mock-trend-detail-title">
+                  <strong>当日正确率</strong>
+                  <span
+                    className={`mock-trend-detail-delta is-${trendDelta.direction}`}
+                  >
+                    （{trendDelta.text}）
+                  </span>
+                </div>
                 <span>{formatTrendDate(activeTrendEntry.createdAt)}</span>
               </div>
               <div className="mock-trend-detail-grid">
