@@ -42,17 +42,6 @@ export default function ProfileMorePage() {
             </span>
             <span className="feature-title">计算机专项</span>
           </Link>
-          <Link href="/mock-report" className="feature-card">
-            <span className="feature-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-            </span>
-            <span className="feature-title">模考解读</span>
-          </Link>
           <Link href="/interview" className="feature-card">
             <span className="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -102,13 +91,16 @@ export default function ProfileMorePage() {
             </span>
             <span className="feature-title">排行榜</span>
           </Link>
-          <Link href="/kline" className="feature-card">
+          <Link href="/mock-report" className="feature-card">
             <span className="feature-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
               </svg>
             </span>
-            <span className="feature-title">上岸K线</span>
+            <span className="feature-title">模考解读</span>
           </Link>
           <Link href="/ledger" className="feature-card">
             <span className="feature-icon">

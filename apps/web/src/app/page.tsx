@@ -17,8 +17,8 @@ export default function Home() {
             <Link href="/ai/assist" className="ghost button-link">
               探索 AI 答疑
             </Link>
-            <Link href="/kline" className="ghost button-link">
-              上岸 K 线
+            <Link href="/mock-report" className="ghost button-link">
+              模考解读
             </Link>
             <MobileMoreNav />
           </div>
