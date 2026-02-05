@@ -25,7 +25,12 @@ const TIME_PRESETS = [
   { key: "20-4", label: "20 分钟 / 4 题", minutes: 20, questions: 4 }
 ];
 
-const INTRO_AUDIO_PATHS: Record<string, string> = {
+const INTRO_LOCAL_AUDIO_PATHS: Record<string, string> = {
+  default: "/audio/interview-intro.wav",
+  "15": "/audio/interview-intro-15.wav",
+  "20": "/audio/interview-intro-20.wav"
+};
+const INTRO_API_AUDIO_PATHS: Record<string, string> = {
   default: "/interview/intro",
   "15": "/interview/intro?minutes=15",
   "20": "/interview/intro?minutes=20"
@@ -156,10 +161,11 @@ export default function InterviewPage() {
     return null;
   };
 
-  const getIntroAudioUrl = (minutes: number | null) => {
+  const getIntroAudioCandidates = (minutes: number | null) => {
     const key = minutes ? String(minutes) : "default";
-    const path = INTRO_AUDIO_PATHS[key] ?? INTRO_AUDIO_PATHS.default;
-    return getApiUrl(path);
+    const localPath = INTRO_LOCAL_AUDIO_PATHS[key] ?? INTRO_LOCAL_AUDIO_PATHS.default;
+    const apiPath = INTRO_API_AUDIO_PATHS[key] ?? INTRO_API_AUDIO_PATHS.default;
+    return [localPath, getApiUrl(apiPath)];
   };
 
   const clearQuestionAudioCache = () => {
@@ -192,8 +198,9 @@ export default function InterviewPage() {
         payload.totalQuestions = selectedPreset.questions;
       }
 
-      const introUrl = getIntroAudioUrl(timedMode ? selectedPreset.minutes : null);
-      const introPlayback = playAudioUrl(introUrl);
+      const introCandidates = getIntroAudioCandidates(
+        timedMode ? selectedPreset.minutes : null
+      );
 
       const res = await fetch(getApiUrl("/interview/start"), {
         method: "POST",
@@ -220,7 +227,14 @@ export default function InterviewPage() {
       const questionText = data.turn.questionText;
       prefetchQuestionAudio(questionText);
       const questionUrl = await getQuestionAudioUrl(questionText);
-      let introOk = await introPlayback;
+      let introOk = false;
+      for (const introUrl of introCandidates) {
+        // Try local audio first, then backend audio.
+        introOk = await playAudioUrl(introUrl);
+        if (introOk) {
+          break;
+        }
+      }
       if (!introOk) {
         introOk = await speakWithBrowser(INTRO_FALLBACK_TEXT);
       }
