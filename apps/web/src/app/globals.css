@@ -4907,6 +4907,13 @@ button {
   border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--glass-bg-subtle);
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 0.9, 0.2, 1),
+    border-color 0.2s ease, background 0.2s ease;
+}
+
+.custom-task-item.is-exiting {
+  opacity: 0;
+  transform: translateY(6px) scale(0.985);
 }
 
 .custom-task-item.is-overdue {
@@ -4943,10 +4950,14 @@ button {
   border-radius: 50%;
   border: 2px solid var(--border);
   background: transparent;
+  position: relative;
+  overflow: hidden;
+  --custom-task-check-inset: 0px;
+  --custom-task-check-fill: var(--muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text);
+  color: var(--muted);
   font-size: 12px;
   line-height: 1;
   padding: 0;
@@ -4957,10 +4968,34 @@ button {
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-.custom-task-check span {
+.custom-task-check::before {
+  content: "";
+  position: absolute;
+  inset: var(--custom-task-check-inset);
+  border-radius: 50%;
+  background: var(--custom-task-check-fill);
   opacity: 0;
-  transform: scale(0.9);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: scale(0.4);
+  transition: transform 0.42s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.2s ease;
+}
+
+.custom-task-check.is-completing::before,
+.custom-task-check.is-completed::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.custom-task-check .custom-task-check-icon {
+  width: 12px;
+  height: 12px;
+  display: block;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 0.16s ease, transform 0.22s cubic-bezier(0.2, 0.9, 0.2, 1),
+    color 0.2s ease;
 }
 
 .custom-task-check:hover {
@@ -4968,15 +5003,33 @@ button {
   transform: translateY(-1px);
 }
 
-.custom-task-check:hover span {
+.custom-task-check:hover .custom-task-check-icon {
   opacity: 1;
   transform: scale(1);
 }
 
-.custom-task-check:active span,
-.custom-task-check:focus-visible span {
+.custom-task-check:active .custom-task-check-icon,
+.custom-task-check:focus-visible .custom-task-check-icon {
   opacity: 1;
   transform: scale(1);
+}
+
+.custom-task-check.is-completing .custom-task-check-icon,
+.custom-task-check.is-completed .custom-task-check-icon {
+  opacity: 1;
+  transform: scale(1);
+  transition-delay: 0.12s;
+}
+
+.custom-task-check.is-completing,
+.custom-task-check.is-completed {
+  border-color: var(--muted);
+  color: #ffffff;
+}
+
+.custom-task-check.is-completing:hover,
+.custom-task-check.is-completed:hover {
+  border-color: var(--muted);
 }
 
 .custom-task-check:focus-visible {
@@ -4989,9 +5042,14 @@ button {
 }
 
 .custom-task-check:disabled {
-  cursor: wait;
+  cursor: default;
   opacity: 0.6;
   transform: none;
+}
+
+.custom-task-check.is-completing:disabled,
+.custom-task-check.is-completed:disabled {
+  opacity: 1;
 }
 
 @media (display-mode: standalone) {
@@ -5002,6 +5060,42 @@ button {
     min-height: 26px;
     font-size: 13px;
     align-self: center;
+    --custom-task-check-inset: 0px;
+  }
+
+  .custom-task-check .custom-task-check-icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.custom-task-subtitle {
+  margin-top: 14px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.custom-task-item.is-completed {
+  border-color: rgba(142, 142, 147, 0.24);
+  background: rgba(142, 142, 147, 0.12);
+}
+
+.custom-task-title.is-completed {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-task-item {
+    transition: none;
+  }
+
+  .custom-task-check,
+  .custom-task-check::before,
+  .custom-task-check .custom-task-check-icon {
+    transition: none;
   }
 }
 

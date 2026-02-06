@@ -1088,6 +1088,17 @@ type CustomTaskCompletionRow = {
   completedAt: Date;
 };
 
+type CustomTaskCompletedOccurrenceRow = {
+  taskId: string;
+  title: string;
+  notes: string | null;
+  date: Date;
+  completedAt: Date;
+  recurrenceType: CustomTaskRecurrence;
+  intervalDays: number | null;
+  weekdays: number[] | null;
+};
+
 function normalizeCustomTaskRecurrence(value: unknown): CustomTaskRecurrence | null {
   if (typeof value !== "string") {
     return null;
@@ -4414,8 +4425,37 @@ server.get("/custom-tasks", async (request, reply) => {
         AND "isActive" = true
       ORDER BY "createdAt" DESC
     `;
+
+    const completedRows = await prisma.$queryRaw<CustomTaskCompletedOccurrenceRow[]>`
+      SELECT
+        task.id as "taskId",
+        task.title as title,
+        task.notes as notes,
+        completion.date as date,
+        completion."completedAt" as "completedAt",
+        task."recurrenceType" as "recurrenceType",
+        task."intervalDays" as "intervalDays",
+        task.weekdays as weekdays
+      FROM "CustomTaskCompletion" completion
+      JOIN "CustomTask" task
+        ON task.id = completion."taskId"
+      WHERE completion."userId" = ${session.user.id}
+        AND completion.date >= ${start}
+        AND completion.date < ${end}
+      ORDER BY completion."completedAt" DESC
+    `;
+    const completed: CustomTaskOccurrence[] = completedRows.map((record) => ({
+      taskId: record.taskId,
+      title: record.title,
+      notes: record.notes,
+      occurrenceDate: getBeijingDateString(record.date),
+      recurrenceType: record.recurrenceType,
+      intervalDays: record.intervalDays,
+      weekdays: Array.isArray(record.weekdays) ? record.weekdays : []
+    }));
+
     if (!tasks.length) {
-      reply.send({ date: todayLabel, today: [], overdue: [], tasks: [] });
+      reply.send({ date: todayLabel, today: [], overdue: [], tasks: [], completed });
       return;
     }
     const taskIds = tasks.map((task) => task.id);
@@ -4481,7 +4521,7 @@ server.get("/custom-tasks", async (request, reply) => {
     }
     overdue.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
     today.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
-    reply.send({ date: todayLabel, today, overdue, tasks: taskPayloads });
+    reply.send({ date: todayLabel, today, overdue, tasks: taskPayloads, completed });
   } catch (error) {
     reply
       .code(400)
@@ -4711,6 +4751,82 @@ server.post("/custom-tasks/:id/complete", async (request, reply) => {
       await prisma.$executeRaw`
         UPDATE "CustomTask"
         SET "isActive" = false,
+            "updatedAt" = NOW()
+        WHERE id = ${id}
+          AND "userId" = ${session.user.id}
+      `;
+    }
+    reply.send({ ok: true });
+  } catch (error) {
+    reply
+      .code(400)
+      .send({ error: error instanceof Error ? error.message : "更新失败" });
+  }
+});
+
+server.post("/custom-tasks/:id/uncomplete", async (request, reply) => {
+  try {
+    const token = getTokenFromRequest(request);
+    if (!token) {
+      reply.code(401).send({ error: "未登录" });
+      return;
+    }
+    const session = await verifySession(token);
+    const { id } = request.params as { id?: string };
+    if (!id) {
+      reply.code(400).send({ error: "缺少任务 ID" });
+      return;
+    }
+    const body = (request.body ?? {}) as { date?: string | null };
+    const dateValue = parseOptionalDate(body.date ?? null);
+    if (!dateValue) {
+      reply.code(400).send({ error: "缺少完成日期" });
+      return;
+    }
+    const targetLabel = getBeijingDateString(dateValue);
+    const todayLabel = getBeijingDateString();
+    if (targetLabel > todayLabel) {
+      reply.code(400).send({ error: "不能取消未来的任务完成状态" });
+      return;
+    }
+    const taskRows = await prisma.$queryRaw<CustomTaskRow[]>`
+      SELECT
+        id,
+        "userId",
+        title,
+        notes,
+        "startDate",
+        "recurrenceType",
+        "intervalDays",
+        weekdays,
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      FROM "CustomTask"
+      WHERE id = ${id}
+        AND "userId" = ${session.user.id}
+      LIMIT 1
+    `;
+    const task = taskRows[0];
+    if (!task) {
+      reply.code(404).send({ error: "任务不存在" });
+      return;
+    }
+    const completionDate = parseOptionalDate(targetLabel);
+    if (!completionDate) {
+      reply.code(400).send({ error: "完成日期无效" });
+      return;
+    }
+    await prisma.$executeRaw`
+      DELETE FROM "CustomTaskCompletion"
+      WHERE "taskId" = ${id}
+        AND "userId" = ${session.user.id}
+        AND date = ${completionDate}
+    `;
+    if (task.recurrenceType === "once") {
+      await prisma.$executeRaw`
+        UPDATE "CustomTask"
+        SET "isActive" = true,
             "updatedAt" = NOW()
         WHERE id = ${id}
           AND "userId" = ${session.user.id}

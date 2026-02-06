@@ -20,6 +20,12 @@ const apiBase = (() => {
 
 const sessionKey = "gogov_session_token";
 
+const COMPLETE_ANIMATION_MS = 520;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 type CustomTaskRecurrence = "once" | "daily" | "weekly" | "interval";
 
 type CustomTask = {
@@ -133,6 +139,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
   const [token, setToken] = useState<string | null>(null);
   const [tasks, setTasks] = useState<CustomTask[]>([]);
   const [todayTasks, setTodayTasks] = useState<CustomTaskOccurrence[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<CustomTaskOccurrence[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<CustomTaskOccurrence[]>([]);
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<RequestState>("idle");
@@ -143,7 +150,8 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
   const [startDate, setStartDate] = useState(getBeijingDateString());
   const [intervalDays, setIntervalDays] = useState("1");
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [completingKey, setCompletingKey] = useState<string | null>(null);
+  const [completingKeys, setCompletingKeys] = useState<string[]>([]);
+  const [uncompletingKeys, setUncompletingKeys] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPwa, setIsPwa] = useState(() => detectPwaMode());
   const [openPanel, setOpenPanel] = useState<
@@ -228,9 +236,13 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         } as CustomTaskOccurrence;
       };
       const rawToday = Array.isArray(data.today) ? data.today : [];
+      const rawCompleted = Array.isArray(data.completed) ? data.completed : [];
       const rawOverdue = Array.isArray(data.overdue) ? data.overdue : [];
       setTasks(parsedTasks);
       setTodayTasks(rawToday.map(parseOccurrence).filter(Boolean) as CustomTaskOccurrence[]);
+      setCompletedTasks(
+        rawCompleted.map(parseOccurrence).filter(Boolean) as CustomTaskOccurrence[]
+      );
       setOverdueTasks(
         rawOverdue.map(parseOccurrence).filter(Boolean) as CustomTaskOccurrence[]
       );
@@ -273,7 +285,10 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     if (!token) {
       setTasks([]);
       setTodayTasks([]);
+      setCompletedTasks([]);
       setOverdueTasks([]);
+      setCompletingKeys([]);
+      setUncompletingKeys([]);
       return;
     }
     void loadTasks();
@@ -336,10 +351,44 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
       return;
     }
     const key = `${item.taskId}-${item.occurrenceDate}`;
-    setCompletingKey(key);
+    setCompletingKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
     setMessage(null);
     try {
-      const res = await fetch(`${apiBase}/custom-tasks/${item.taskId}/complete`, {
+      await Promise.all([
+        (async () => {
+          const res = await fetch(`${apiBase}/custom-tasks/${item.taskId}/complete`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ date: item.occurrenceDate })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error((data as { error?: string }).error ?? "更新失败");
+          }
+        })(),
+        sleep(COMPLETE_ANIMATION_MS)
+      ]);
+      await loadTasks();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "更新失败");
+    } finally {
+      setCompletingKeys((prev) => prev.filter((itemKey) => itemKey !== key));
+    }
+  };
+
+  const handleUncomplete = async (item: CustomTaskOccurrence) => {
+    if (!token) {
+      setMessage("请先登录后取消完成任务。");
+      return;
+    }
+    const key = `${item.taskId}-${item.occurrenceDate}`;
+    setUncompletingKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    setMessage(null);
+    try {
+      const res = await fetch(`${apiBase}/custom-tasks/${item.taskId}/uncomplete`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -351,11 +400,11 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
       if (!res.ok) {
         throw new Error((data as { error?: string }).error ?? "更新失败");
       }
-      void loadTasks();
+      await loadTasks();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "更新失败");
     } finally {
-      setCompletingKey(null);
+      setUncompletingKeys((prev) => prev.filter((itemKey) => itemKey !== key));
     }
   };
 
@@ -488,17 +537,42 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
           <div className="custom-task-list">
             {overdueTasks.map((item) => {
               const key = `${item.taskId}-${item.occurrenceDate}`;
-              const isCompleting = completingKey === key;
+              const isCompleting = completingKeys.includes(key);
               return (
-                <div key={key} className="custom-task-item is-overdue">
+                <div
+                  key={key}
+                  className={[
+                    "custom-task-item",
+                    "is-overdue",
+                    isCompleting ? "is-exiting" : ""
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   <button
                     type="button"
-                    className="custom-task-check"
+                    className={
+                      isCompleting ? "custom-task-check is-completing" : "custom-task-check"
+                    }
                     onClick={() => handleComplete(item)}
-                    disabled={Boolean(isCompleting)}
+                    disabled={isCompleting}
                     aria-label="完成任务"
                   >
-                    <span>{isCompleting ? "…" : "✓"}</span>
+                    <svg
+                      className="custom-task-check-icon"
+                      viewBox="0 0 16 16"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M3.5 8.5L6.8 11.8L12.5 6.1"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="square"
+                        strokeLinejoin="miter"
+                      />
+                    </svg>
                   </button>
                   <div className="custom-task-content">
                     <div className="custom-task-title is-overdue">{item.title}</div>
@@ -521,32 +595,112 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         id: "today",
         title: "今日任务",
         description: "完成后会进入下一次周期。",
-        content: todayTasks.length ? (
-          <div className="custom-task-list">
-            {todayTasks.map((item) => {
-              const key = `${item.taskId}-${item.occurrenceDate}`;
-              const isCompleting = completingKey === key;
-              return (
-                <div key={key} className="custom-task-item">
-                  <button
-                    type="button"
-                    className="custom-task-check"
-                    onClick={() => handleComplete(item)}
-                    disabled={Boolean(isCompleting)}
-                    aria-label="完成任务"
-                  >
-                    <span>{isCompleting ? "…" : "✓"}</span>
-                  </button>
-                  <div className="custom-task-content">
-                    <div className="custom-task-title">{item.title}</div>
-                    <div className="custom-task-meta">
-                      <span>{formatRecurrence(item)}</span>
-                      {item.notes ? <span>{item.notes}</span> : null}
+        content: todayTasks.length || completedTasks.length ? (
+          <div className="custom-task-today">
+            {todayTasks.length ? (
+              <div className="custom-task-list">
+                {todayTasks.map((item) => {
+                  const key = `${item.taskId}-${item.occurrenceDate}`;
+                  const isCompleting = completingKeys.includes(key);
+                  return (
+                    <div
+                      key={key}
+                      className={isCompleting ? "custom-task-item is-exiting" : "custom-task-item"}
+                    >
+                      <button
+                        type="button"
+                        className={
+                          isCompleting
+                            ? "custom-task-check is-completing"
+                            : "custom-task-check"
+                        }
+                        onClick={() => handleComplete(item)}
+                        disabled={isCompleting}
+                        aria-label="完成任务"
+                      >
+                        <svg
+                          className="custom-task-check-icon"
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M3.5 8.5L6.8 11.8L12.5 6.1"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="square"
+                            strokeLinejoin="miter"
+                          />
+                        </svg>
+                      </button>
+                      <div className="custom-task-content">
+                        <div className="custom-task-title">{item.title}</div>
+                        <div className="custom-task-meta">
+                          <span>{formatRecurrence(item)}</span>
+                          {item.notes ? <span>{item.notes}</span> : null}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {completedTasks.length ? (
+              <>
+                <div className="custom-task-subtitle">已完成</div>
+                <div className="custom-task-list">
+                  {completedTasks.map((item) => {
+                    const key = `${item.taskId}-${item.occurrenceDate}`;
+                    const isUncompleting = uncompletingKeys.includes(key);
+                    return (
+                      <div
+                        key={key}
+                        className={[
+                          "custom-task-item",
+                          "is-completed",
+                          isUncompleting ? "is-exiting" : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <button
+                          type="button"
+                          className="custom-task-check is-completed"
+                          onClick={() => handleUncomplete(item)}
+                          disabled={isUncompleting}
+                          aria-label="取消完成"
+                        >
+                          <svg
+                            className="custom-task-check-icon"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                            focusable="false"
+                          >
+                            <path
+                              d="M3.5 8.5L6.8 11.8L12.5 6.1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="square"
+                              strokeLinejoin="miter"
+                            />
+                          </svg>
+                        </button>
+                        <div className="custom-task-content">
+                          <div className="custom-task-title is-completed">{item.title}</div>
+                          <div className="custom-task-meta">
+                            <span>{formatRecurrence(item)}</span>
+                            {item.notes ? <span>{item.notes}</span> : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </>
+            ) : null}
           </div>
         ) : (
           <div className="knowledge-empty">今日暂无待办任务。</div>
