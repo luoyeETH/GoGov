@@ -111,6 +111,28 @@ interface GoGovApi {
         @Query("date") date: String
     ): Call<DailyTaskHistoryResponse>
 
+    // Custom Tasks
+    @GET("custom-tasks")
+    fun getCustomTasks(@Query("date") date: String): Call<CustomTasksResponse>
+
+    @POST("custom-tasks")
+    fun createCustomTask(@Body request: CustomTaskCreateRequest): Call<CustomTaskCreateResponse>
+
+    @POST("custom-tasks/{id}/complete")
+    fun completeCustomTask(
+        @Path("id") id: String,
+        @Body request: CustomTaskOccurrenceRequest
+    ): Call<SimpleOkResponse>
+
+    @POST("custom-tasks/{id}/uncomplete")
+    fun uncompleteCustomTask(
+        @Path("id") id: String,
+        @Body request: CustomTaskOccurrenceRequest
+    ): Call<SimpleOkResponse>
+
+    @DELETE("custom-tasks/{id}")
+    fun deleteCustomTask(@Path("id") id: String): Call<SimpleOkResponse>
+
     // Quick Practice
     @GET("practice/quick/categories")
     fun getQuickCategories(): Call<QuickPracticeCategoriesResponse>

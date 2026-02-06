@@ -34,6 +34,7 @@ import com.gogov.android.data.local.PomodoroStorage
 import com.gogov.android.data.local.TokenManager
 import com.gogov.android.data.repository.AuthRepository
 import com.gogov.android.data.repository.ChatRepository
+import com.gogov.android.data.repository.CustomTaskRepository
 import com.gogov.android.data.repository.DailyTaskRepository
 import com.gogov.android.data.repository.ExpenseRepository
 import com.gogov.android.data.repository.LeaderboardRepository
@@ -61,6 +62,7 @@ import com.gogov.android.ui.settings.SettingsScreen
 import com.gogov.android.ui.settings.SettingsViewModel
 import com.gogov.android.ui.studyplan.StudyPlanScreen
 import com.gogov.android.ui.studyplan.StudyPlanViewModel
+import com.gogov.android.ui.tasks.CustomTasksViewModel
 import com.gogov.android.ui.tasks.DailyTasksScreen
 import com.gogov.android.ui.tasks.DailyTasksViewModel
 import com.gogov.android.ui.splash.SplashScreen
@@ -100,6 +102,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var pomodoroRepository: PomodoroRepository
     private lateinit var chatRepository: ChatRepository
     private lateinit var dailyTaskRepository: DailyTaskRepository
+    private lateinit var customTaskRepository: CustomTaskRepository
     private lateinit var quickPracticeRepository: QuickPracticeRepository
     private lateinit var mockRepository: MockRepository
     private lateinit var expenseRepository: ExpenseRepository
@@ -117,6 +120,7 @@ class MainActivity : ComponentActivity() {
         pomodoroRepository = PomodoroRepository()
         chatRepository = ChatRepository()
         dailyTaskRepository = DailyTaskRepository()
+        customTaskRepository = CustomTaskRepository()
         quickPracticeRepository = QuickPracticeRepository()
         mockRepository = MockRepository()
         expenseRepository = ExpenseRepository()
@@ -149,6 +153,7 @@ class MainActivity : ComponentActivity() {
         val chatViewModel = remember { ChatViewModel(chatRepository) }
         val chatHistoryViewModel = remember { ChatHistoryViewModel(chatRepository) }
         val dailyTasksViewModel = remember { DailyTasksViewModel(dailyTaskRepository, authRepository) }
+        val customTasksViewModel = remember { CustomTasksViewModel(customTaskRepository) }
         val settingsViewModel = remember { SettingsViewModel(authRepository) }
         val studyPlanViewModel = remember { StudyPlanViewModel(authRepository) }
         val quickPracticeViewModel = remember { QuickPracticeViewModel(quickPracticeRepository) }
@@ -176,6 +181,7 @@ class MainActivity : ComponentActivity() {
             pomodoroViewModel.loadData()
             chatViewModel.loadHistory()
             dailyTasksViewModel.loadTasks()
+            customTasksViewModel.loadTasks()
             settingsViewModel.loadUser()
             ledgerViewModel.loadOverview()
             mockAnalysisViewModel.loadHistory()
@@ -332,6 +338,7 @@ class MainActivity : ComponentActivity() {
                 composable(Screen.Tasks.route) {
                     DailyTasksScreen(
                         viewModel = dailyTasksViewModel,
+                        customTasksViewModel = customTasksViewModel,
                         onNavigateToStudyPlan = {
                             navController.navigate(Screen.StudyPlan.route)
                         }

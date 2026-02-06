@@ -7907,6 +7907,9 @@ body.pomodoro-immersive .page {
   border-radius: 12px;
   border: 1px solid var(--border);
   transition: transform 0.15s ease;
+  --leaderboard-rank-color: var(--muted);
+  --leaderboard-user-color: var(--text);
+  --leaderboard-duration-color: var(--brand-dark);
 }
 
 .leaderboard-row:hover {
@@ -7916,16 +7919,25 @@ body.pomodoro-immersive .page {
 .leaderboard-row.rank-gold {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   border-color: #f59e0b;
+  --leaderboard-rank-color: #92400e;
+  --leaderboard-user-color: #78350f;
+  --leaderboard-duration-color: #7c2d12;
 }
 
 .leaderboard-row.rank-silver {
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   border-color: #94a3b8;
+  --leaderboard-rank-color: #475569;
+  --leaderboard-user-color: #334155;
+  --leaderboard-duration-color: #1e293b;
 }
 
 .leaderboard-row.rank-bronze {
   background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
   border-color: #ea580c;
+  --leaderboard-rank-color: #9a3412;
+  --leaderboard-user-color: #7c2d12;
+  --leaderboard-duration-color: #7c2d12;
 }
 
 .leaderboard-rank {
@@ -7964,14 +7976,14 @@ body.pomodoro-immersive .page {
 .rank-number {
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
-  color: var(--muted);
+  color: var(--leaderboard-rank-color);
 }
 
 .leaderboard-user {
   flex: 1;
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
-  color: var(--text);
+  color: var(--leaderboard-user-color);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7980,7 +7992,7 @@ body.pomodoro-immersive .page {
 .leaderboard-duration {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  color: var(--brand-dark);
+  color: var(--leaderboard-duration-color);
   white-space: nowrap;
 }
 

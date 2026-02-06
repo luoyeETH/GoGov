@@ -210,6 +210,24 @@ private fun RankingRow(ranking: LeaderboardRanking) {
     )
 
     val background = rankColors[ranking.rank]
+    val rankNumberColor = when (ranking.rank) {
+        1 -> Color(0xFF92400E)
+        2 -> Color(0xFF475569)
+        3 -> Color(0xFF9A3412)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val usernameColor = when (ranking.rank) {
+        1 -> Color(0xFF78350F)
+        2 -> Color(0xFF334155)
+        3 -> Color(0xFF7C2D12)
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val durationColor = when (ranking.rank) {
+        1 -> Color(0xFF7C2D12)
+        2 -> Color(0xFF1E293B)
+        3 -> Color(0xFF7C2D12)
+        else -> MaterialTheme.colorScheme.primary
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -256,7 +274,7 @@ private fun RankingRow(ranking: LeaderboardRanking) {
                         text = ranking.rank.toString(),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = rankNumberColor
                     )
                 }
             }
@@ -269,6 +287,7 @@ private fun RankingRow(ranking: LeaderboardRanking) {
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
+                color = usernameColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -278,7 +297,7 @@ private fun RankingRow(ranking: LeaderboardRanking) {
                 text = ranking.formattedDuration,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = durationColor
             )
         }
     }
