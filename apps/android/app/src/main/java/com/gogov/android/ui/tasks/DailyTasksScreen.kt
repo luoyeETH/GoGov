@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -158,33 +157,37 @@ fun DailyTasksScreen(
         }
 
         if (selectedPage == TaskPage.Daily) {
-            DailyTaskContent(
-                state = state,
-                showSetupPrompt = showSetupPrompt,
-                onNavigateToStudyPlan = onNavigateToStudyPlan,
-                onClearError = { viewModel.clearError() },
-                onSetAdjustNote = { viewModel.setAdjustNote(it) },
-                onGenerate = { viewModel.generateTasks(auto = false) },
-                onToggleTask = { viewModel.toggleTask(it) },
-                onToggleSubtask = { taskId, subtaskId -> viewModel.toggleSubtask(taskId, subtaskId) },
-                onBreakdown = { viewModel.breakdownTask(it) }
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                DailyTaskContent(
+                    state = state,
+                    showSetupPrompt = showSetupPrompt,
+                    onNavigateToStudyPlan = onNavigateToStudyPlan,
+                    onClearError = { viewModel.clearError() },
+                    onSetAdjustNote = { viewModel.setAdjustNote(it) },
+                    onGenerate = { viewModel.generateTasks(auto = false) },
+                    onToggleTask = { viewModel.toggleTask(it) },
+                    onToggleSubtask = { taskId, subtaskId -> viewModel.toggleSubtask(taskId, subtaskId) },
+                    onBreakdown = { viewModel.breakdownTask(it) }
+                )
+            }
         } else {
-            CustomTaskContent(
-                state = customState,
-                onReload = { customTasksViewModel.loadTasks() },
-                onClearError = { customTasksViewModel.clearError() },
-                onTitleChange = { customTasksViewModel.setTitle(it) },
-                onNotesChange = { customTasksViewModel.setNotes(it) },
-                onRecurrenceChange = { customTasksViewModel.setRecurrenceType(it) },
-                onStartDateChange = { customTasksViewModel.setStartDate(it) },
-                onIntervalDaysChange = { customTasksViewModel.setIntervalDays(it) },
-                onToggleWeekday = { customTasksViewModel.toggleWeekday(it) },
-                onCreate = { customTasksViewModel.createTask() },
-                onComplete = { customTasksViewModel.completeTask(it) },
-                onUncomplete = { customTasksViewModel.uncompleteTask(it) },
-                onDelete = { customTasksViewModel.deleteTask(it) }
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                CustomTaskContent(
+                    state = customState,
+                    onReload = { customTasksViewModel.loadTasks() },
+                    onClearError = { customTasksViewModel.clearError() },
+                    onTitleChange = { customTasksViewModel.setTitle(it) },
+                    onNotesChange = { customTasksViewModel.setNotes(it) },
+                    onRecurrenceChange = { customTasksViewModel.setRecurrenceType(it) },
+                    onStartDateChange = { customTasksViewModel.setStartDate(it) },
+                    onIntervalDaysChange = { customTasksViewModel.setIntervalDays(it) },
+                    onToggleWeekday = { customTasksViewModel.toggleWeekday(it) },
+                    onCreate = { customTasksViewModel.createTask() },
+                    onComplete = { customTasksViewModel.completeTask(it) },
+                    onUncomplete = { customTasksViewModel.uncompleteTask(it) },
+                    onDelete = { customTasksViewModel.deleteTask(it) }
+                )
+            }
         }
     }
 }
@@ -234,8 +237,7 @@ private fun DailyTaskContent(
 ) {
     LazyColumn(
         modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -428,8 +430,7 @@ private fun CustomTaskContent(
 ) {
     LazyColumn(
         modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
