@@ -162,6 +162,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
 
   const wrapperClass = [
     "custom-task-card",
+    isPwa ? "custom-task-card-pwa" : "",
     variant === "embedded" ? "custom-task-card-embedded" : "daily-card"
   ]
     .filter(Boolean)

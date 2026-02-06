@@ -4795,6 +4795,38 @@ button {
   gap: 16px;
 }
 
+.custom-task-card-pwa {
+  gap: 0;
+}
+
+.custom-task-card-pwa .daily-card-header {
+  padding-bottom: 12px;
+}
+
+.custom-task-card-pwa .daily-card-header + .custom-task-block-accordion {
+  border-top: 1px solid var(--border);
+}
+
+.custom-task-card-pwa .custom-task-block-accordion + .custom-task-block-accordion {
+  border-top: 1px solid var(--border);
+}
+
+.custom-task-card-pwa .custom-task-block-accordion .custom-task-block-toggle {
+  padding: 14px 0;
+}
+
+.custom-task-card-pwa .custom-task-block-accordion .custom-task-block-toggle:active {
+  background: var(--text-alpha-08);
+}
+
+.custom-task-card-pwa .custom-task-block-accordion .custom-task-block-body {
+  padding: 0;
+}
+
+.custom-task-card-pwa .custom-task-block-accordion.is-open .custom-task-block-body {
+  padding-bottom: 16px;
+}
+
 .custom-task-card-embedded {
   background: transparent;
   border: none;
@@ -4860,6 +4892,7 @@ button {
     max-height 0.28s ease,
     opacity 0.22s ease,
     transform 0.28s ease,
+    padding 0.28s ease,
     grid-template-rows 0.28s ease;
 }
 
