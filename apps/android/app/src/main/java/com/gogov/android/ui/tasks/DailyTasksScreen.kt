@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,7 @@ fun DailyTasksScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 PageTitle(title = "今日任务")
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -119,40 +121,20 @@ fun DailyTasksScreen(
                     }
                 }
 
-                if (selectedPage == TaskPage.Daily) {
-                    val greetingText = state.greetingText
-                    val countdownText = state.countdownText
-                    if (greetingText != null && countdownText != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = greetingText,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = countdownText,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(12.dp))
-                TaskPageSwitch(
-                    selectedPage = selectedPage,
-                    onSelect = { selectedPage = it }
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    TaskPageSwitch(
+                        selectedPage = selectedPage,
+                        onSelect = { selectedPage = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(6.dp)
+                    )
+                }
             }
         }
 
@@ -161,6 +143,8 @@ fun DailyTasksScreen(
                 DailyTaskContent(
                     state = state,
                     showSetupPrompt = showSetupPrompt,
+                    greetingText = state.greetingText,
+                    countdownText = state.countdownText,
                     onNavigateToStudyPlan = onNavigateToStudyPlan,
                     onClearError = { viewModel.clearError() },
                     onSetAdjustNote = { viewModel.setAdjustNote(it) },
@@ -195,7 +179,8 @@ fun DailyTasksScreen(
 @Composable
 private fun TaskPageSwitch(
     selectedPage: TaskPage,
-    onSelect: (TaskPage) -> Unit
+    onSelect: (TaskPage) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val chipColors = FilterChipDefaults.filterChipColors(
         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -203,18 +188,18 @@ private fun TaskPageSwitch(
     )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
+            modifier = Modifier.weight(1f),
             selected = selectedPage == TaskPage.Daily,
             onClick = { onSelect(TaskPage.Daily) },
             label = { Text("每日任务") },
             colors = chipColors
         )
         FilterChip(
+            modifier = Modifier.weight(1f),
             selected = selectedPage == TaskPage.Custom,
             onClick = { onSelect(TaskPage.Custom) },
             label = { Text("待办清单") },
@@ -227,6 +212,8 @@ private fun TaskPageSwitch(
 private fun DailyTaskContent(
     state: DailyTasksUiState,
     showSetupPrompt: Boolean,
+    greetingText: String?,
+    countdownText: String?,
     onNavigateToStudyPlan: () -> Unit,
     onClearError: () -> Unit,
     onSetAdjustNote: (String) -> Unit,
@@ -241,6 +228,32 @@ private fun DailyTaskContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        if (!greetingText.isNullOrBlank() && !countdownText.isNullOrBlank()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = greetingText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = countdownText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
         state.error?.let { error ->
             item {
                 Surface(
