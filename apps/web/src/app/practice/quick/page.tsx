@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import type {
   QuickPracticeCategory,
   QuickPracticeQuestion
@@ -23,9 +26,370 @@ const apiBase = (() => {
 const sessionKey = "gogov_session_token";
 const repeatableCategories = new Set(["percent-decimal", "percent-precision"]);
 const analysisTolerance = 0.02;
+const formulaCategoryId = "formula-memory";
 
 type PracticeMode = "drill" | "quiz";
 type PracticeStatus = "idle" | "loading" | "active" | "done";
+
+const FORMULA_TEX_MAP: Array<{ plain: string; tex: string }> = [
+  {
+    plain: "(A/B) × ((a-b)/(1+a))",
+    tex: "\\frac{A}{B}\\times\\frac{a-b}{1+a}"
+  },
+  {
+    plain: "(A/B) × ((b-a)/(1+b))",
+    tex: "\\frac{A}{B}\\times\\frac{b-a}{1+b}"
+  },
+  {
+    plain: "(A/B) × ((a-b)/(1+b))",
+    tex: "\\frac{A}{B}\\times\\frac{a-b}{1+b}"
+  },
+  {
+    plain: "(A/B) × ((1+b)/(1+a))",
+    tex: "\\frac{A}{B}\\times\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "(A/B) × ((1+a)/(1+b))",
+    tex: "\\frac{A}{B}\\times\\frac{1+a}{1+b}"
+  },
+  {
+    plain: "(B/A) × ((1+b)/(1+a))",
+    tex: "\\frac{B}{A}\\times\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "(B/A) × ((a-b)/(1+a))",
+    tex: "\\frac{B}{A}\\times\\frac{a-b}{1+a}"
+  },
+  {
+    plain: "现期倍数 × ((1+b)/(1+a))",
+    tex: "\\text{现期倍数}\\times\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "现期倍数 × ((1+a)/(1+b))",
+    tex: "\\text{现期倍数}\\times\\frac{1+a}{1+b}"
+  },
+  {
+    plain: "现期倍数 × ((a-b)/(1+a))",
+    tex: "\\text{现期倍数}\\times\\frac{a-b}{1+a}"
+  },
+  {
+    plain: "现期倍数 ÷ ((1+b)/(1+a))",
+    tex: "\\text{现期倍数}\\div\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "现期-基期 = 现期 × r/(1+r)",
+    tex: "\\text{现期}-\\text{基期}=\\text{现期}\\times\\frac{r}{1+r}"
+  },
+  {
+    plain: "现期-基期 = 基期 × r/(1+r)",
+    tex: "\\text{现期}-\\text{基期}=\\text{基期}\\times\\frac{r}{1+r}"
+  },
+  {
+    plain: "现期-基期 = 现期 × r",
+    tex: "\\text{现期}-\\text{基期}=\\text{现期}\\times r"
+  },
+  {
+    plain: "增长量 = 基期-现期",
+    tex: "\\text{增长量}=\\text{基期}-\\text{现期}"
+  },
+  {
+    plain: "(现期/基期)^(1/n)-1",
+    tex: "\\left(\\frac{\\text{现期}}{\\text{基期}}\\right)^{1/n}-1"
+  },
+  {
+    plain: "(基期/现期)^(1/n)-1",
+    tex: "\\left(\\frac{\\text{基期}}{\\text{现期}}\\right)^{1/n}-1"
+  },
+  {
+    plain: "((现期-基期)/基期) ÷ n",
+    tex: "\\frac{\\text{现期}-\\text{基期}}{\\text{基期}}\\div n"
+  },
+  {
+    plain: "(现期/基期)-1/n",
+    tex: "\\frac{\\text{现期}}{\\text{基期}}-\\frac{1}{n}"
+  },
+  {
+    plain: "(现期-基期)/现期",
+    tex: "\\frac{\\text{现期}-\\text{基期}}{\\text{现期}}"
+  },
+  {
+    plain: "(现期-基期)/基期",
+    tex: "\\frac{\\text{现期}-\\text{基期}}{\\text{基期}}"
+  },
+  {
+    plain: "(基期-现期)/基期",
+    tex: "\\frac{\\text{基期}-\\text{现期}}{\\text{基期}}"
+  },
+  {
+    plain: "基期 × (1+r)",
+    tex: "\\text{基期}\\times(1+r)"
+  },
+  {
+    plain: "基期 × (1-r)",
+    tex: "\\text{基期}\\times(1-r)"
+  },
+  {
+    plain: "现期 × (1+r)",
+    tex: "\\text{现期}\\times(1+r)"
+  },
+  {
+    plain: "基期 ÷ (1+r)",
+    tex: "\\frac{\\text{基期}}{1+r}"
+  },
+  {
+    plain: "现期 ÷ (1+r)",
+    tex: "\\frac{\\text{现期}}{1+r}"
+  },
+  {
+    plain: "现期 ÷ (1-r)",
+    tex: "\\frac{\\text{现期}}{1-r}"
+  },
+  {
+    plain: "A/(A+B)",
+    tex: "\\frac{A}{A+B}"
+  },
+  {
+    plain: "(A-B)/B",
+    tex: "\\frac{A-B}{B}"
+  },
+  {
+    plain: "A/B",
+    tex: "\\frac{A}{B}"
+  },
+  {
+    plain: "B/A",
+    tex: "\\frac{B}{A}"
+  },
+  {
+    plain: "r1 + r2 + r1×r2",
+    tex: "r_1+r_2+r_1\\times r_2"
+  },
+  {
+    plain: "r1 + r2 - r1×r2",
+    tex: "r_1+r_2-r_1\\times r_2"
+  },
+  {
+    plain: "(r1 + r2)/2",
+    tex: "\\frac{r_1+r_2}{2}"
+  },
+  {
+    plain: "r1×r2",
+    tex: "r_1\\times r_2"
+  },
+  {
+    plain: "部分增长量/整体增长量",
+    tex: "\\frac{\\text{部分增长量}}{\\text{整体增长量}}"
+  },
+  {
+    plain: "部分现期量/整体现期量",
+    tex: "\\frac{\\text{部分现期量}}{\\text{整体现期量}}"
+  },
+  {
+    plain: "部分基期量/整体基期量",
+    tex: "\\frac{\\text{部分基期量}}{\\text{整体基期量}}"
+  },
+  {
+    plain: "整体增长量/部分增长量",
+    tex: "\\frac{\\text{整体增长量}}{\\text{部分增长量}}"
+  },
+  {
+    plain: "部分增长量/总体基期量",
+    tex: "\\frac{\\text{部分增长量}}{\\text{总体基期量}}"
+  },
+  {
+    plain: "总体增长量/部分基期量",
+    tex: "\\frac{\\text{总体增长量}}{\\text{部分基期量}}"
+  },
+  {
+    plain: "总量/总份数",
+    tex: "\\frac{\\text{总量}}{\\text{总份数}}"
+  },
+  {
+    plain: "总份数/总量",
+    tex: "\\frac{\\text{总份数}}{\\text{总量}}"
+  },
+  {
+    plain: "(总量-总份数)/总份数",
+    tex: "\\frac{\\text{总量}-\\text{总份数}}{\\text{总份数}}"
+  },
+  {
+    plain: "总量/(总量+总份数)",
+    tex: "\\frac{\\text{总量}}{\\text{总量}+\\text{总份数}}"
+  },
+  {
+    plain: "(1+a)/(1+b)-1",
+    tex: "\\frac{1+a}{1+b}-1"
+  },
+  {
+    plain: "(1+a)/(1+b)",
+    tex: "\\frac{1+a}{1+b}"
+  },
+  {
+    plain: "(1+b)/(1+a)-1",
+    tex: "\\frac{1+b}{1+a}-1"
+  },
+  {
+    plain: "(a-b)/(1+b)",
+    tex: "\\frac{a-b}{1+b}"
+  },
+  {
+    plain: "(b-a)/(1+b)",
+    tex: "\\frac{b-a}{1+b}"
+  },
+  {
+    plain: "(a+b)/(1+b)",
+    tex: "\\frac{a+b}{1+b}"
+  },
+  {
+    plain: "现期平均数 ÷ (1+r)",
+    tex: "\\frac{\\text{现期平均数}}{1+r}"
+  },
+  {
+    plain: "现期平均数 × (1+r)",
+    tex: "\\text{现期平均数}\\times(1+r)"
+  },
+  {
+    plain: "现期平均数 ÷ (1-r)",
+    tex: "\\frac{\\text{现期平均数}}{1-r}"
+  },
+  {
+    plain: "基期平均数 × (1+r)",
+    tex: "\\text{基期平均数}\\times(1+r)"
+  },
+  {
+    plain: "现期/基期 = 1+r",
+    tex: "\\frac{\\text{现期}}{\\text{基期}}=1+r"
+  },
+  {
+    plain: "基期/现期 = 1+r",
+    tex: "\\frac{\\text{基期}}{\\text{现期}}=1+r"
+  },
+  {
+    plain: "现期/基期 = r",
+    tex: "\\frac{\\text{现期}}{\\text{基期}}=r"
+  },
+  {
+    plain: "1+r = 基期/现期",
+    tex: "1+r=\\frac{\\text{基期}}{\\text{现期}}"
+  },
+  {
+    plain: "(基期-现期)/基期",
+    tex: "\\frac{\\text{基期}-\\text{现期}}{\\text{基期}}"
+  },
+  {
+    plain: "(基期-现期)/现期",
+    tex: "\\frac{\\text{基期}-\\text{现期}}{\\text{现期}}"
+  },
+  {
+    plain: "((现期/基期)-1)/n",
+    tex: "\\frac{\\frac{\\text{现期}}{\\text{基期}}-1}{n}"
+  },
+  {
+    plain: "((基期/现期)-1)/n",
+    tex: "\\frac{\\frac{\\text{基期}}{\\text{现期}}-1}{n}"
+  },
+  {
+    plain: "a-b",
+    tex: "a-b"
+  },
+  {
+    plain: "b-a",
+    tex: "b-a"
+  },
+  {
+    plain: "a+b",
+    tex: "a+b"
+  },
+  {
+    plain: "a/b",
+    tex: "\\frac{a}{b}"
+  },
+  {
+    plain: "r = w1×r1 + w2×r2 (w1+w2=1)",
+    tex: "r=w_1\\times r_1+w_2\\times r_2\\quad (w_1+w_2=1)"
+  },
+  {
+    plain: "r = w1×r1 - w2×r2",
+    tex: "r=w_1\\times r_1-w_2\\times r_2"
+  },
+  {
+    plain: "r = r1 + r2",
+    tex: "r=r_1+r_2"
+  },
+  {
+    plain: "r = (r1+r2)/2",
+    tex: "r=\\frac{r_1+r_2}{2}"
+  },
+  {
+    plain: "基期比重 = 现期比重 × ((1+b)/(1+a))",
+    tex: "\\text{基期比重}=\\text{现期比重}\\times\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "基期比重 = 现期比重 × ((1+a)/(1+b))",
+    tex: "\\text{基期比重}=\\text{现期比重}\\times\\frac{1+a}{1+b}"
+  },
+  {
+    plain: "基期比重 = 现期比重 × ((a-b)/(1+a))",
+    tex: "\\text{基期比重}=\\text{现期比重}\\times\\frac{a-b}{1+a}"
+  },
+  {
+    plain: "基期比重 = 现期比重 ÷ ((1+b)/(1+a))",
+    tex: "\\text{基期比重}=\\text{现期比重}\\div\\frac{1+b}{1+a}"
+  },
+  {
+    plain: "现期/基期",
+    tex: "\\frac{\\text{现期}}{\\text{基期}}"
+  }
+]
+  .slice()
+  .sort((left, right) => right.plain.length - left.plain.length);
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toFormulaMarkdown(text: string) {
+  let output = text;
+  const tokens: string[] = [];
+  FORMULA_TEX_MAP.forEach((entry) => {
+    const pattern = new RegExp(escapeRegExp(entry.plain), "g");
+    output = output.replace(pattern, () => {
+      const token = `__FORMULA_TOKEN_${tokens.length}__`;
+      tokens.push(entry.tex);
+      return token;
+    });
+  });
+  tokens.forEach((tex, index) => {
+    const token = `__FORMULA_TOKEN_${index}__`;
+    output = output.split(token).join(`$${tex}$`);
+  });
+  return output;
+}
+
+function FormulaText({
+  text,
+  enabled
+}: {
+  text: string;
+  enabled: boolean;
+}) {
+  if (!enabled) {
+    return <>{text}</>;
+  }
+  return (
+    <span className="practice-rich-text">
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={{
+          p: ({ children }) => <span>{children}</span>
+        }}
+      >
+        {toFormulaMarkdown(text)}
+      </ReactMarkdown>
+    </span>
+  );
+}
 
 function parseNumeric(value: string) {
   const cleaned = value.replace(/[%\s,]/g, "");
@@ -119,6 +483,7 @@ export default function QuickPracticePage() {
   }, [categories, selectedGroup]);
 
   const currentQuestion = questions[currentIndex];
+  const isFormulaQuestion = currentQuestion?.categoryId === formulaCategoryId;
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
   const answered = currentAnswer !== undefined;
   const isNumericQuestion = currentQuestion
@@ -785,10 +1150,27 @@ export default function QuickPracticePage() {
                 <div key={item.question.id} className="summary-row">
                   <div className="summary-index">#{index + 1}</div>
                   <div className="summary-body">
-                    <div>{item.question.prompt}</div>
+                    <div>
+                      <FormulaText
+                        text={item.question.prompt}
+                        enabled={item.question.categoryId === formulaCategoryId}
+                      />
+                    </div>
                     <div className="summary-meta">
-                      <span>你的答案：{item.userAnswer || "--"}</span>
-                      <span>正确答案：{item.question.answer}</span>
+                      <span>
+                        你的答案：
+                        <FormulaText
+                          text={item.userAnswer || "--"}
+                          enabled={item.question.categoryId === formulaCategoryId}
+                        />
+                      </span>
+                      <span>
+                        正确答案：
+                        <FormulaText
+                          text={item.question.answer}
+                          enabled={item.question.categoryId === formulaCategoryId}
+                        />
+                      </span>
                       {item.isNumeric &&
                       item.isAnalysis &&
                       !item.isPercentConversion &&
@@ -817,7 +1199,9 @@ export default function QuickPracticePage() {
           </div>
         ) : currentQuestion ? (
           <>
-            <div className="practice-question">{currentQuestion.prompt}</div>
+            <div className="practice-question">
+              <FormulaText text={currentQuestion.prompt} enabled={isFormulaQuestion} />
+            </div>
             {isNumericQuestion ? (
               <>
                 <div className="practice-input">
@@ -941,7 +1325,7 @@ export default function QuickPracticePage() {
                       onClick={() => handleChoice(choice)}
                       disabled={answered}
                     >
-                      {choice}
+                      <FormulaText text={choice} enabled={isFormulaQuestion} />
                     </button>
                   );
                 })}
@@ -951,10 +1335,15 @@ export default function QuickPracticePage() {
               <div className="practice-answer">
                 <div>
                   <strong>答案：</strong>
-                  {currentQuestion.answer}
+                  <FormulaText text={currentQuestion.answer} enabled={isFormulaQuestion} />
                 </div>
                 {currentQuestion.explanation ? (
-                  <p>{currentQuestion.explanation}</p>
+                  <p>
+                    <FormulaText
+                      text={currentQuestion.explanation}
+                      enabled={isFormulaQuestion}
+                    />
+                  </p>
                 ) : null}
                 {currentErrorText ? (
                   <div className="practice-error-note">

@@ -174,16 +174,20 @@ export default function FloatingChat() {
       const res = await fetch(`${apiBase}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        window.localStorage.removeItem(sessionKey);
+        setAuthState("anon");
+        setMessages([]);
+        setHistoryCount(0);
+        setIsOpen(false);
+        return;
+      }
       if (!res.ok) {
-        throw new Error("未登录");
+        throw new Error("认证状态检查失败");
       }
       setAuthState("authed");
     } catch (_err) {
-      window.localStorage.removeItem(sessionKey);
-      setAuthState("anon");
-      setMessages([]);
-      setHistoryCount(0);
-      setIsOpen(false);
+      setAuthState("authed");
     }
   };
 

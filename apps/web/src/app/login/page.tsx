@@ -178,14 +178,18 @@ export default function LoginPage() {
         const res = await fetch(`${apiBase}/auth/me`, {
           headers: { Authorization: `Bearer ${stored}` }
         });
+        if (res.status === 401) {
+          window.localStorage.removeItem(sessionKey);
+          return;
+        }
         if (!res.ok) {
-          throw new Error("未登录");
+          throw new Error("认证状态检查失败");
         }
         const data = await res.json();
         setCurrentUser(data.user);
         setSessionExpiresAt(data.sessionExpiresAt ?? null);
       } catch (_err) {
-        window.localStorage.removeItem(sessionKey);
+        // 网络波动或服务异常时不主动清除本地登录态
       }
     };
 

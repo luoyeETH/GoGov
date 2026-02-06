@@ -5504,6 +5504,27 @@ select {
   padding-right: 96px;
 }
 
+.practice-rich-text {
+  display: inline;
+}
+
+.practice-rich-text p {
+  margin: 0;
+  display: inline;
+}
+
+.practice-rich-text .katex {
+  font-size: 1.05em;
+}
+
+.practice-question .practice-rich-text {
+  display: block;
+}
+
+.choice .practice-rich-text .katex {
+  font-size: 1em;
+}
+
 .practice-choices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

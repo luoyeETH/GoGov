@@ -47,8 +47,13 @@ export default function NavUser() {
       const res = await fetch(`${apiBase}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        window.localStorage.removeItem(sessionKey);
+        setStatus("anon");
+        return;
+      }
       if (!res.ok) {
-        throw new Error("未登录");
+        throw new Error("认证状态检查失败");
       }
       const data = await res.json();
       const user = (data.user ?? {}) as Profile;
@@ -57,8 +62,7 @@ export default function NavUser() {
       );
       setStatus("authed");
     } catch (_err) {
-      window.localStorage.removeItem(sessionKey);
-      setStatus("anon");
+      setStatus((prev) => (prev === "loading" ? "anon" : prev));
     }
   };
 

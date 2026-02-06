@@ -150,6 +150,12 @@ const categories: QuickPracticeCategory[] = [
     name: "比重估算",
     group: "资料分析专项",
     description: "大数比重的截位直除与百分数估算。"
+  },
+  {
+    id: "formula-memory",
+    name: "公式记忆（双向）",
+    group: "资料分析专项",
+    description: "资料分析核心公式混合记忆：名称选公式、公式选名称。"
   }
 ];
 
@@ -178,7 +184,8 @@ const generators: Record<string, () => QuickPracticeQuestion> = {
   "ratio-change": generateRatioChange,
   "ratio-compare": generateRatioCompare,
   "growth-rate": generateGrowthRate,
-  proportion: generateProportion
+  proportion: generateProportion,
+  "formula-memory": generateFormulaMemory
 };
 
 function randInt(min: number, max: number) {
@@ -270,6 +277,380 @@ function buildDecimalChoices(value: number, decimals = 3) {
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
+type FormulaMemoryCard = {
+  id: string;
+  name: string;
+  formula: string;
+  variableHint?: string;
+  explanation: string;
+  shortcut: string;
+  distractors: string[];
+};
+
+const FORMULA_MEMORY_CARDS: FormulaMemoryCard[] = [
+  {
+    id: "growth-rate",
+    name: "增长率",
+    formula: "(现期-基期)/基期",
+    variableHint: "现期为本期值，基期为上期值。",
+    explanation: "增长率表示相对增长幅度。",
+    shortcut: "差值除以基期。",
+    distractors: ["(基期-现期)/基期", "(现期-基期)/现期", "现期/基期"]
+  },
+  {
+    id: "current-period",
+    name: "现期量",
+    formula: "基期 × (1+r)",
+    variableHint: "r 为增长率（小数形式）。",
+    explanation: "已知基期和增速时可直接得到现期。",
+    shortcut: "基期乘以 1+r。",
+    distractors: ["基期 ÷ (1+r)", "现期 ÷ (1+r)", "基期 × (1-r)"]
+  },
+  {
+    id: "base-period",
+    name: "基期量",
+    formula: "现期 ÷ (1+r)",
+    variableHint: "r 为增长率（小数形式）。",
+    explanation: "已知现期和增速时回推基期。",
+    shortcut: "现期除以 1+r。",
+    distractors: ["现期 × (1+r)", "基期 × (1+r)", "现期 ÷ (1-r)"]
+  },
+  {
+    id: "growth-amount",
+    name: "增长量",
+    formula: "现期-基期 = 现期 × r/(1+r)",
+    variableHint: "r 为增长率（小数形式）。",
+    explanation: "增长量也可写作基期×r。",
+    shortcut: "已知现期时常用现期×r/(1+r)。",
+    distractors: [
+      "现期-基期 = 现期 × r",
+      "现期-基期 = 基期 × r/(1+r)",
+      "增长量 = 基期-现期"
+    ]
+  },
+  {
+    id: "two-year-growth",
+    name: "间隔增长率",
+    formula: "r1 + r2 + r1×r2",
+    variableHint: "r1、r2 分别为相邻两年的增长率（小数形式）。",
+    explanation: "两期连乘展开后得到隔年增速。",
+    shortcut: "先加再补交叉项。",
+    distractors: ["r1 + r2 - r1×r2", "(r1 + r2)/2", "r1×r2"]
+  },
+  {
+    id: "current-share",
+    name: "现期比重",
+    formula: "A/B",
+    variableHint: "A 为部分量，B 为总体量。",
+    explanation: "部分占总体的份额。",
+    shortcut: "部分除以总体。",
+    distractors: ["B/A", "A/(A+B)", "(A-B)/B"]
+  },
+  {
+    id: "base-share",
+    name: "基期比重",
+    formula: "(A/B) × ((1+b)/(1+a))",
+    variableHint: "A、B 为现期部分/总体量，a、b 为对应增速。",
+    explanation: "基期比重由现期比重乘修正系数得到。",
+    shortcut: "先算 A/B，再乘 (1+b)/(1+a)。",
+    distractors: [
+      "(A/B) × ((1+a)/(1+b))",
+      "(B/A) × ((1+b)/(1+a))",
+      "(A/B) × ((a-b)/(1+a))"
+    ]
+  },
+  {
+    id: "two-period-share-gap",
+    name: "比重差",
+    formula: "(A/B) × ((a-b)/(1+a))",
+    variableHint: "A、B 为现期部分/总体量，a、b 为对应增速。",
+    explanation: "常用于求“比重上升/下降多少个百分点”。",
+    shortcut: "先看 a-b 判断正负，再算大小。",
+    distractors: [
+      "(A/B) × ((b-a)/(1+b))",
+      "(A/B) × ((a-b)/(1+b))",
+      "(B/A) × ((a-b)/(1+a))"
+    ]
+  },
+  {
+    id: "base-multiple",
+    name: "基期倍数",
+    formula: "现期倍数 × ((1+b)/(1+a))",
+    variableHint: "a、b 为分子和分母对应增速。",
+    explanation: "基期倍数由现期倍数按增速差异修正。",
+    shortcut: "现期倍数乘以 (1+b)/(1+a)。",
+    distractors: [
+      "现期倍数 × ((1+a)/(1+b))",
+      "现期倍数 × ((a-b)/(1+a))",
+      "现期倍数 ÷ ((1+b)/(1+a))"
+    ]
+  },
+  {
+    id: "avg-growth-precise",
+    name: "年均增长率（精确）",
+    formula: "(现期/基期)^(1/n)-1",
+    variableHint: "n 为年数。",
+    explanation: "即复合增长率（CAGR）公式。",
+    shortcut: "先求倍数，再开 n 次方。",
+    distractors: [
+      "((现期-基期)/基期) ÷ n",
+      "(现期/基期)-1/n",
+      "(基期/现期)^(1/n)-1"
+    ]
+  },
+  {
+    id: "growth-contribution",
+    name: "增长贡献率",
+    formula: "部分增长量/整体增长量",
+    variableHint: "分子分母都用“增长量”而不是“现期量”。",
+    explanation: "用于比较各部分对总体增长的贡献。",
+    shortcut: "谁的增长量占总体增长量更多。",
+    distractors: ["部分现期量/整体现期量", "部分基期量/整体基期量", "整体增长量/部分增长量"]
+  },
+  {
+    id: "growth-multiple",
+    name: "增长倍数",
+    formula: "现期/基期 = 1+r",
+    variableHint: "r 为增长率（小数形式）。",
+    explanation: "增长倍数常用于多期连乘。",
+    shortcut: "先转成 1+r 再连乘。",
+    distractors: ["基期/现期 = 1+r", "现期/基期 = r", "1+r = 基期/现期"]
+  },
+  {
+    id: "decline-rate",
+    name: "下降率",
+    formula: "(基期-现期)/基期",
+    variableHint: "当现期小于基期时使用。",
+    explanation: "下降率是相对减少幅度。",
+    shortcut: "减少量除以基期。",
+    distractors: ["(现期-基期)/基期", "(基期-现期)/现期", "(现期-基期)/现期"]
+  },
+  {
+    id: "average",
+    name: "平均数",
+    formula: "总量/总份数",
+    variableHint: "典型如人均、单价、客单价。",
+    explanation: "平均数是总量除以数量。",
+    shortcut: "总量 ÷ 份数。",
+    distractors: ["总份数/总量", "(总量-总份数)/总份数", "总量/(总量+总份数)"]
+  },
+  {
+    id: "average-growth",
+    name: "平均数变化",
+    formula: "(1+a)/(1+b)-1",
+    variableHint: "a 为总量增速，b 为份数增速。",
+    explanation: "平均数=总量/份数，增长率需做比值修正。",
+    shortcut: "先比 1+a 与 1+b，再减 1。",
+    distractors: ["(1+a)/(1+b)", "(1+b)/(1+a)-1", "(a-b)/(1+a)"]
+  },
+  {
+    id: "average-base",
+    name: "基期平均数",
+    formula: "现期平均数 ÷ (1+r)",
+    variableHint: "r 为平均数增长率（小数形式）。",
+    explanation: "平均数也遵循现期/基期换算。",
+    shortcut: "现期平均数除以 1+r。",
+    distractors: ["现期平均数 × (1+r)", "现期平均数 ÷ (1-r)", "基期平均数 × (1+r)"]
+  },
+  {
+    id: "growth-diff",
+    name: "同比增速差",
+    formula: "a-b",
+    variableHint: "a、b 分别为两个对象的同比增速。",
+    explanation: "用于快速比较谁更快以及快多少。",
+    shortcut: "直接相减看正负。",
+    distractors: ["b-a", "a+b", "a/b"]
+  },
+  {
+    id: "growth-pull",
+    name: "增长贡献值（拉动）",
+    formula: "部分增长量/总体基期量",
+    variableHint: "结果常写为百分点。",
+    explanation: "衡量某部分对总体增速的拉动。",
+    shortcut: "分子用部分增量，分母用总体基期。",
+    distractors: ["部分增长量/整体增长量", "部分现期量/整体现期量", "总体增长量/部分基期量"]
+  },
+  {
+    id: "share-change-rate",
+    name: "比重变化率",
+    formula: "(a-b)/(1+b)",
+    variableHint: "a、b 为部分与总体增速（小数形式）。",
+    explanation: "常用于快速判断比重变化幅度。",
+    shortcut: "先算 a-b，再除 1+b。",
+    distractors: ["(a-b)/(1+a)", "(b-a)/(1+b)", "(a+b)/(1+b)"]
+  },
+  {
+    id: "multiple-ratio",
+    name: "倍数对比修正系数",
+    formula: "(1+a)/(1+b)",
+    variableHint: "a、b 为分子分母对应增速。",
+    explanation: "用于现期倍数与基期倍数之间换算。",
+    shortcut: "谁在分子谁放上面。",
+    distractors: ["(1+b)/(1+a)", "(a-b)/(1+a)", "(a+b)/(1+b)"]
+  },
+  {
+    id: "avg-growth-approx",
+    name: "年均增长率（近似）",
+    formula: "((现期/基期)-1)/n",
+    variableHint: "n 为年数，适用于小增速近似。",
+    explanation: "把复合增长近似为线性增长。",
+    shortcut: "总增幅除以年数。",
+    distractors: ["(现期/基期)^(1/n)-1", "(现期/基期)-1/n", "((基期/现期)-1)/n"]
+  },
+  {
+    id: "mix-growth-rate",
+    name: "混合增长率",
+    formula: "r = w1×r1 + w2×r2 (w1+w2=1)",
+    variableHint: "w1、w2 为权重，r1、r2 为各部分增速。",
+    explanation: "总体增速是分项增速的加权平均。",
+    shortcut: "总增速介于各分项增速之间。",
+    distractors: [
+      "r = r1 + r2",
+      "r = w1×r1 - w2×r2",
+      "r = (r1+r2)/2"
+    ]
+  },
+  {
+    id: "two-period-share",
+    name: "两期比重",
+    formula: "基期比重 = 现期比重 × ((1+b)/(1+a))",
+    variableHint: "a、b 为部分与总体增速（小数形式）。",
+    explanation: "两期比重换算本质是现期比重乘修正系数。",
+    shortcut: "先算现期比重，再乘 (1+b)/(1+a)。",
+    distractors: [
+      "基期比重 = 现期比重 × ((1+a)/(1+b))",
+      "基期比重 = 现期比重 × ((a-b)/(1+a))",
+      "基期比重 = 现期比重 ÷ ((1+b)/(1+a))"
+    ]
+  }
+];
+
+const NAME_TO_FORMULA_PROMPT_TEMPLATES = [
+  "{name}的公式是哪个？{hint}",
+  "下列哪个是{name}的标准公式？{hint}",
+  "若要求{name}，应优先使用哪一个式子？{hint}",
+  "关于{name}，正确公式是？{hint}"
+];
+
+const FORMULA_TO_NAME_PROMPT_TEMPLATES = [
+  "公式 {formula} 对应哪个资料分析公式？{hint}",
+  "看到公式 {formula}，应判定为哪个公式名称？{hint}",
+  "下列给出的公式是 {formula}，它属于哪一类公式？{hint}",
+  "公式识别：{formula} 是什么公式？{hint}"
+];
+
+type FormulaVariant = {
+  cardIndex: number;
+  askNameToFormula: boolean;
+  templateIndex: number;
+};
+
+function createFormulaPrompt(
+  card: FormulaMemoryCard,
+  askNameToFormula: boolean,
+  templateIndex: number
+) {
+  const hintText = card.variableHint ? `（${card.variableHint}）` : "";
+  const templates = askNameToFormula
+    ? NAME_TO_FORMULA_PROMPT_TEMPLATES
+    : FORMULA_TO_NAME_PROMPT_TEMPLATES;
+  const pickedTemplate = templates[templateIndex] ?? templates[0];
+  return pickedTemplate
+    .replaceAll("{name}", card.name)
+    .replaceAll("{formula}", card.formula)
+    .replaceAll("{hint}", hintText)
+    .replace(/\s+$/, "");
+}
+
+function generateFormulaMemoryByVariant(
+  card: FormulaMemoryCard,
+  askNameToFormula: boolean,
+  templateIndex: number
+): QuickPracticeQuestion {
+  if (askNameToFormula) {
+    const formulaPool = [
+      ...card.distractors,
+      ...FORMULA_MEMORY_CARDS.filter((item) => item.id !== card.id).map(
+        (item) => item.formula
+      )
+    ];
+    return {
+      id: makeId("formula-memory"),
+      categoryId: "formula-memory",
+      prompt: createFormulaPrompt(card, true, templateIndex),
+      answer: card.formula,
+      choices: buildChoices(card.formula, formulaPool),
+      explanation: `${card.name}：${card.explanation} 标准写法为 ${card.formula}。`,
+      shortcut: card.shortcut
+    };
+  }
+
+  const namePool = FORMULA_MEMORY_CARDS.filter((item) => item.id !== card.id).map(
+    (item) => item.name
+  );
+  return {
+    id: makeId("formula-memory"),
+    categoryId: "formula-memory",
+    prompt: createFormulaPrompt(card, false, templateIndex),
+    answer: card.name,
+    choices: buildChoices(card.name, namePool),
+    explanation: `该公式对应“${card.name}”。${card.explanation}`,
+    shortcut: card.shortcut
+  };
+}
+
+function buildFormulaVariants() {
+  const variants: FormulaVariant[] = [];
+  FORMULA_MEMORY_CARDS.forEach((_, cardIndex) => {
+    NAME_TO_FORMULA_PROMPT_TEMPLATES.forEach((__, templateIndex) => {
+      variants.push({
+        cardIndex,
+        askNameToFormula: true,
+        templateIndex
+      });
+    });
+    FORMULA_TO_NAME_PROMPT_TEMPLATES.forEach((__, templateIndex) => {
+      variants.push({
+        cardIndex,
+        askNameToFormula: false,
+        templateIndex
+      });
+    });
+  });
+  return variants;
+}
+
+function generateFormulaMemory(): QuickPracticeQuestion {
+  const cardIndex = randInt(0, FORMULA_MEMORY_CARDS.length - 1);
+  const askNameToFormula = Math.random() > 0.5;
+  const templates = askNameToFormula
+    ? NAME_TO_FORMULA_PROMPT_TEMPLATES
+    : FORMULA_TO_NAME_PROMPT_TEMPLATES;
+  const templateIndex = randInt(0, templates.length - 1);
+  return generateFormulaMemoryByVariant(
+    FORMULA_MEMORY_CARDS[cardIndex],
+    askNameToFormula,
+    templateIndex
+  );
+}
+
+function generateFormulaMemoryBatch(count: number) {
+  const variants = shuffle(buildFormulaVariants());
+  const questions: QuickPracticeQuestion[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const variant = variants[i % variants.length];
+    const card = FORMULA_MEMORY_CARDS[variant.cardIndex];
+    questions.push(
+      generateFormulaMemoryByVariant(
+        card,
+        variant.askNameToFormula,
+        variant.templateIndex
+      )
+    );
+  }
+  return questions;
 }
 
 function generateBasicAddTwo(): QuickPracticeQuestion {
@@ -792,5 +1173,8 @@ export function generateQuickQuestion(categoryId?: string) {
 
 export function generateQuickBatch(categoryId: string | undefined, count: number) {
   const safeCount = Math.max(1, Math.min(50, Math.floor(count)));
+  if (categoryId === "formula-memory") {
+    return generateFormulaMemoryBatch(safeCount);
+  }
   return Array.from({ length: safeCount }, () => generateQuickQuestion(categoryId));
 }
