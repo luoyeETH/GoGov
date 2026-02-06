@@ -475,7 +475,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     const headerContent = (
       <div>
         <h4>{title}</h4>
-        {description ? <p className="form-message">{description}</p> : null}
+        {!isPwa && description ? <p className="form-message">{description}</p> : null}
       </div>
     );
 
