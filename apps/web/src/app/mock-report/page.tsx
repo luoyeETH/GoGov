@@ -46,6 +46,10 @@ const trendSeriesColors: Record<string, string> = {
   资料分析: "#eab308"
 };
 
+const trendSubjectDisplayNames: Record<string, string> = {
+  言语理解与表达: "言语理解"
+};
+
 const trendFallbackColors = [
   "#2563eb",
   "#22c55e",
@@ -169,6 +173,10 @@ function normalizeSubjectName(subject: string) {
     return "";
   }
   return subjectAliases[trimmed] ?? trimmed;
+}
+
+function getTrendSubjectDisplayName(subject: string) {
+  return trendSubjectDisplayNames[subject] ?? subject;
 }
 
 function getMaxVisibleCount(viewportWidth: number) {
@@ -1159,7 +1167,7 @@ export default function MockReportPage() {
         });
         return {
           key: subject,
-          label: subject,
+          label: getTrendSubjectDisplayName(subject),
           color:
             trendSeriesColors[subject] ??
             trendFallbackColors[index % trendFallbackColors.length],
@@ -1753,7 +1761,7 @@ export default function MockReportPage() {
             <div>
               <h3>历史正确率走势</h3>
               <span className="form-message">
-                覆盖常识判断、政治理论、言语理解与表达、数量关系、判断推理、资料分析
+                覆盖常识判断、政治理论、言语理解、数量关系、判断推理、资料分析
               </span>
             </div>
             <div className="mock-trend-header-actions">
