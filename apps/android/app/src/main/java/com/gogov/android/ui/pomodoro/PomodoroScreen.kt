@@ -1236,7 +1236,7 @@ private fun SegmentListCard(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "第$segmentNumber段",
+                                    text = "第${segmentNumber}段",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = titleColor
                                 )
