@@ -117,5 +117,6 @@ data class PomodoroState(
     val elapsedSeconds: Int = 0,
     val pauseElapsedSeconds: Int = 0,
     val pauseCount: Int = 0,
-    val segments: List<Int> = emptyList()
+    val segments: List<Int> = emptyList(),
+    val overlayEnabled: Boolean = false
 )

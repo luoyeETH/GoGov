@@ -51,6 +51,7 @@ class PomodoroViewModel(
 
     init {
         observeAppLifecycle()
+        observeOverlayPreference()
         restoreState()
     }
 
@@ -59,10 +60,32 @@ class PomodoroViewModel(
             lifecycleObserver.isInForeground.collect { inForeground ->
                 val currentState = _state.value
                 if (!inForeground && currentState.status == PomodoroStatus.RUNNING) {
-                    pauseSession()
-                    saveStateToDisk()
+                    if (currentState.overlayEnabled) {
+                        saveStateToDisk()
+                    } else {
+                        pauseSession()
+                    }
                 }
             }
+        }
+    }
+
+    private fun observeOverlayPreference() {
+        viewModelScope.launch {
+            storage.savedState
+                .map { it?.overlayEnabled ?: false }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    _state.update { current ->
+                        if (current.sessionId == null) current.copy(overlayEnabled = false)
+                        else current.copy(overlayEnabled = enabled)
+                    }
+
+                    val current = _state.value
+                    if (!enabled && !lifecycleObserver.isInForeground.value && current.status == PomodoroStatus.RUNNING) {
+                        pauseSession()
+                    }
+                }
         }
     }
 
@@ -109,7 +132,8 @@ class PomodoroViewModel(
                 elapsedSeconds = elapsed,
                 pauseElapsedSeconds = pauseElapsed,
                 pauseCount = saved.pauseCount,
-                segments = saved.segments
+                segments = saved.segments,
+                overlayEnabled = saved.overlayEnabled
             )
 
             if (status == PomodoroStatus.RUNNING || status == PomodoroStatus.PAUSED) {
@@ -140,9 +164,15 @@ class PomodoroViewModel(
                     PomodoroStatus.PAUSED -> "paused"
                     else -> "idle"
                 },
-                mode = if (current.mode == PomodoroMode.TIMER) "timer" else "countdown"
+                mode = if (current.mode == PomodoroMode.TIMER) "timer" else "countdown",
+                overlayEnabled = current.overlayEnabled
             )
         )
+    }
+
+    fun setOverlayEnabled(enabled: Boolean) {
+        _state.update { it.copy(overlayEnabled = enabled) }
+        viewModelScope.launch { saveStateToDisk() }
     }
 
     fun loadData() {
@@ -203,7 +233,8 @@ class PomodoroViewModel(
                             elapsedSeconds = 0,
                             pauseElapsedSeconds = 0,
                             pauseCount = 0,
-                            segments = emptyList()
+                            segments = emptyList(),
+                            overlayEnabled = false
                         )
                     }
 
@@ -327,7 +358,8 @@ class PomodoroViewModel(
                 elapsedSeconds = 0,
                 pauseElapsedSeconds = 0,
                 pauseCount = 0,
-                segments = emptyList()
+                segments = emptyList(),
+                overlayEnabled = false
             )
         }
     }

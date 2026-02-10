@@ -3,6 +3,7 @@ package com.gogov.android.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -28,6 +29,7 @@ class PomodoroStorage(private val context: Context) {
         private val SEGMENTS = stringPreferencesKey("segments")
         private val STATUS = stringPreferencesKey("status")
         private val MODE = stringPreferencesKey("mode")
+        private val OVERLAY_ENABLED = booleanPreferencesKey("overlay_enabled")
     }
 
     data class PomodoroSavedState(
@@ -40,7 +42,8 @@ class PomodoroStorage(private val context: Context) {
         val pauseCount: Int,
         val segments: List<Int>,
         val status: String,
-        val mode: String
+        val mode: String,
+        val overlayEnabled: Boolean
     )
 
     val savedState: Flow<PomodoroSavedState?> = context.pomodoroDataStore.data.map { prefs ->
@@ -59,7 +62,8 @@ class PomodoroStorage(private val context: Context) {
             pauseCount = prefs[PAUSE_COUNT] ?: 0,
             segments = segments,
             status = prefs[STATUS] ?: "idle",
-            mode = prefs[MODE] ?: "countdown"
+            mode = prefs[MODE] ?: "countdown",
+            overlayEnabled = prefs[OVERLAY_ENABLED] ?: false
         )
     }
 
@@ -81,6 +85,17 @@ class PomodoroStorage(private val context: Context) {
             prefs[SEGMENTS] = state.segments.joinToString(",")
             prefs[STATUS] = state.status
             prefs[MODE] = state.mode
+            prefs[OVERLAY_ENABLED] = state.overlayEnabled
+        }
+    }
+
+    suspend fun setOverlayEnabled(enabled: Boolean) {
+        context.pomodoroDataStore.edit { prefs ->
+            if (enabled) {
+                prefs[OVERLAY_ENABLED] = true
+            } else {
+                prefs.remove(OVERLAY_ENABLED)
+            }
         }
     }
 

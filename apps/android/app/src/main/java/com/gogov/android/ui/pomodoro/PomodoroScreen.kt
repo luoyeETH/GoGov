@@ -1,5 +1,7 @@
 package com.gogov.android.ui.pomodoro
 
+import android.content.Intent
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +36,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.toArgb
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.gogov.android.ui.components.PageTitle
 import com.gogov.android.domain.model.PomodoroMode
 import com.gogov.android.domain.model.PomodoroStatus
@@ -42,6 +48,9 @@ import com.gogov.android.domain.model.PomodoroHeatmapDay
 import com.gogov.android.domain.model.PomodoroTotals
 import com.gogov.android.util.DateUtils
 import android.graphics.Paint
+import android.net.Uri
+import android.provider.Settings
+import android.widget.Toast
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -75,6 +84,7 @@ fun PomodoroScreen(
         labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
     val view = LocalView.current
+    val context = LocalContext.current
 
     DisposableEffect(state.status) {
         val keepScreenOn = state.status == PomodoroStatus.RUNNING || state.status == PomodoroStatus.PAUSED
@@ -95,6 +105,14 @@ fun PomodoroScreen(
                     PomodoroStatus.ABANDONED
                 }
                 viewModel.finishSession(finalStatus)
+            },
+            onStartOverlay = {
+                viewModel.setOverlayEnabled(true)
+                context.startService(Intent(context, PomodoroOverlayService::class.java))
+            },
+            onStopOverlay = {
+                context.stopService(Intent(context, PomodoroOverlayService::class.java))
+                viewModel.setOverlayEnabled(false)
             },
             onAddSegment = { viewModel.addSegment() }
         )
@@ -1002,8 +1020,66 @@ private fun ImmersiveTimerDialog(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onFinish: () -> Unit,
+    onStartOverlay: () -> Unit,
+    onStopOverlay: () -> Unit,
     onAddSegment: () -> Unit
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = remember(context) { context as? LifecycleOwner }
+
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    val startOverlayAfterPermission = remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        if (lifecycleOwner == null) return@DisposableEffect onDispose { }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && startOverlayAfterPermission.value) {
+                startOverlayAfterPermission.value = false
+                if (Settings.canDrawOverlays(context)) {
+                    onStartOverlay()
+                    Toast
+                        .makeText(context, "悬浮窗已开启，可切换应用继续学习。长按悬浮窗可关闭。", Toast.LENGTH_SHORT)
+                        .show()
+                    (context as? Activity)?.moveTaskToBack(true)
+                } else {
+                    Toast
+                        .makeText(context, "未授予悬浮窗权限，无法开启。", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showOverlayPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverlayPermissionDialog = false },
+            title = { Text("需要悬浮窗权限") },
+            text = { Text("开启悬浮窗计时需要允许 GoGov 显示在其他应用上层。授权后返回会自动开启悬浮窗。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOverlayPermissionDialog = false
+                        startOverlayAfterPermission.value = true
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("去授权")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverlayPermissionDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     val displaySeconds = if (state.mode == PomodoroMode.COUNTDOWN) {
         (state.plannedMinutes * 60 - state.elapsedSeconds).coerceAtLeast(0)
     } else {
@@ -1139,10 +1215,38 @@ private fun ImmersiveTimerDialog(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        if (state.overlayEnabled) {
+                            onStopOverlay()
+                            Toast.makeText(context, "悬浮窗已关闭。", Toast.LENGTH_SHORT).show()
+                        } else {
+                            if (Settings.canDrawOverlays(context)) {
+                                onStartOverlay()
+                                Toast
+                                    .makeText(context, "悬浮窗已开启，可切换应用继续学习。长按悬浮窗可关闭。", Toast.LENGTH_SHORT)
+                                    .show()
+                                (context as? Activity)?.moveTaskToBack(true)
+                            } else {
+                                showOverlayPermissionDialog = true
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text(if (state.overlayEnabled) "关闭悬浮窗" else "我用手机学习")
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "退出将自动暂停，暂停超过 5 分钟将判定失败。",
+                    text = if (state.overlayEnabled) {
+                        "悬浮窗模式：切换应用不会自动暂停。点击悬浮窗返回，长按悬浮窗可关闭。"
+                    } else {
+                        "退出将自动暂停，暂停超过 5 分钟将判定失败。"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center
