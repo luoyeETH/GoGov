@@ -108,7 +108,8 @@ class PomodoroViewModel(
                 plannedMinutes = saved.plannedMinutes,
                 elapsedSeconds = elapsed,
                 pauseElapsedSeconds = pauseElapsed,
-                pauseCount = saved.pauseCount
+                pauseCount = saved.pauseCount,
+                segments = saved.segments
             )
 
             if (status == PomodoroStatus.RUNNING || status == PomodoroStatus.PAUSED) {
@@ -133,6 +134,7 @@ class PomodoroViewModel(
                 pausedTotalMs = pausedTotalMs,
                 pauseStart = pauseStartMs,
                 pauseCount = current.pauseCount,
+                segments = current.segments,
                 status = when (current.status) {
                     PomodoroStatus.RUNNING -> "running"
                     PomodoroStatus.PAUSED -> "paused"
@@ -289,11 +291,20 @@ class PomodoroViewModel(
         if (_state.value.status != PomodoroStatus.RUNNING) return
         if (_state.value.mode != PomodoroMode.TIMER) return
 
+        // Capture segment based on the real elapsed time at tap, not the UI tick.
+        val now = System.currentTimeMillis()
+        val elapsed = ((now - startTimeMs - pausedTotalMs) / 1000).toInt()
         val segmentsTotal = _state.value.segments.sum()
-        val currentSegment = _state.value.elapsedSeconds - segmentsTotal
+        val currentSegment = elapsed - segmentsTotal
         if (currentSegment <= 0) return
 
-        _state.update { it.copy(segments = it.segments + currentSegment) }
+        _state.update {
+            it.copy(
+                elapsedSeconds = elapsed.coerceAtLeast(it.elapsedSeconds),
+                segments = it.segments + currentSegment
+            )
+        }
+        viewModelScope.launch { saveStateToDisk() }
     }
 
     fun clearMessage() {

@@ -25,6 +25,7 @@ class PomodoroStorage(private val context: Context) {
         private val PAUSED_TOTAL_MS = longPreferencesKey("paused_total_ms")
         private val PAUSE_START = longPreferencesKey("pause_start")
         private val PAUSE_COUNT = intPreferencesKey("pause_count")
+        private val SEGMENTS = stringPreferencesKey("segments")
         private val STATUS = stringPreferencesKey("status")
         private val MODE = stringPreferencesKey("mode")
     }
@@ -37,12 +38,17 @@ class PomodoroStorage(private val context: Context) {
         val pausedTotalMs: Long,
         val pauseStart: Long?,
         val pauseCount: Int,
+        val segments: List<Int>,
         val status: String,
         val mode: String
     )
 
     val savedState: Flow<PomodoroSavedState?> = context.pomodoroDataStore.data.map { prefs ->
         val sessionId = prefs[SESSION_ID] ?: return@map null
+        val segments = prefs[SEGMENTS]
+            ?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?: emptyList()
         PomodoroSavedState(
             sessionId = sessionId,
             subject = prefs[SUBJECT] ?: "",
@@ -51,6 +57,7 @@ class PomodoroStorage(private val context: Context) {
             pausedTotalMs = prefs[PAUSED_TOTAL_MS] ?: 0L,
             pauseStart = prefs[PAUSE_START]?.takeIf { it > 0 },
             pauseCount = prefs[PAUSE_COUNT] ?: 0,
+            segments = segments,
             status = prefs[STATUS] ?: "idle",
             mode = prefs[MODE] ?: "countdown"
         )
@@ -71,6 +78,7 @@ class PomodoroStorage(private val context: Context) {
             prefs[PAUSED_TOTAL_MS] = state.pausedTotalMs
             prefs[PAUSE_START] = state.pauseStart ?: 0L
             prefs[PAUSE_COUNT] = state.pauseCount
+            prefs[SEGMENTS] = state.segments.joinToString(",")
             prefs[STATUS] = state.status
             prefs[MODE] = state.mode
         }

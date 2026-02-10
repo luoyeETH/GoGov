@@ -6,8 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -158,6 +160,14 @@ fun PomodoroScreen(
                         text = "${result.subject} - ${result.elapsedSeconds / 60} 分钟",
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    if (result.mode == PomodoroMode.TIMER && result.segments.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SegmentListCard(
+                            elapsedSeconds = result.elapsedSeconds,
+                            segments = result.segments,
+                            currentSegmentLabel = "末段"
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { viewModel.clearLastResult() }) {
                         Text("继续")
@@ -1073,14 +1083,18 @@ private fun ImmersiveTimerDialog(
                 // Segments for timer mode
                 if (state.mode == PomodoroMode.TIMER && state.segments.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "分段：${state.segments.size}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.5f)
+                    SegmentListCard(
+                        elapsedSeconds = state.elapsedSeconds,
+                        segments = state.segments,
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        titleColor = Color.White.copy(alpha = 0.85f),
+                        metaColor = Color.White.copy(alpha = 0.6f),
+                        valueColor = Color.White,
+                        dividerColor = Color.White.copy(alpha = 0.12f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(if (state.segments.isNotEmpty()) 32.dp else 48.dp))
 
                 // Action buttons
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1133,6 +1147,119 @@ private fun ImmersiveTimerDialog(
                     color = Color.White.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SegmentListCard(
+    elapsedSeconds: Int,
+    segments: List<Int>,
+    modifier: Modifier = Modifier,
+    currentSegmentLabel: String = "当前段",
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    metaColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    dividerColor: Color = MaterialTheme.colorScheme.outlineVariant
+) {
+    if (segments.isEmpty()) return
+
+    val cumulativeSeconds = remember(segments) {
+        val sums = IntArray(segments.size)
+        var total = 0
+        for (i in segments.indices) {
+            total += segments[i]
+            sums[i] = total
+        }
+        sums
+    }
+
+    val segmentsTotal = cumulativeSeconds.lastOrNull() ?: 0
+    val currentSegmentSeconds = (elapsedSeconds - segmentsTotal).coerceAtLeast(0)
+    val reversed = segments.asReversed()
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "分段记录",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = titleColor
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${segments.size} 段",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = metaColor
+                )
+            }
+
+            if (currentSegmentSeconds > 0) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "$currentSegmentLabel：${DateUtils.formatSeconds(currentSegmentSeconds)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = metaColor
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 170.dp)
+            ) {
+                itemsIndexed(reversed) { index, segmentSeconds ->
+                    val segmentNumber = segments.size - index
+                    val cumulativeForSegment = cumulativeSeconds[segmentNumber - 1]
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "第$segmentNumber段",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = titleColor
+                                )
+                                Text(
+                                    text = "累计 ${DateUtils.formatSeconds(cumulativeForSegment)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = metaColor
+                                )
+                            }
+                            Text(
+                                text = DateUtils.formatSeconds(segmentSeconds),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = valueColor
+                            )
+                        }
+
+                        if (index != reversed.lastIndex) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = dividerColor)
+                        }
+                    }
+                }
             }
         }
     }
