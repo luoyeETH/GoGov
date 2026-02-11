@@ -1,3 +1,5 @@
+import { safeFetch } from "../security/outbound";
+
 type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -37,7 +39,7 @@ export async function generateAssistAnswer(params: {
   if (provider === "openai" || provider === "custom") {
     const baseUrl = normalizeBaseUrl(params.baseUrl);
     const url = buildChatUrl(baseUrl);
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${params.apiKey}`,

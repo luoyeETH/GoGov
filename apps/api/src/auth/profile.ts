@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { assertSafeOutboundUrl } from "../security/outbound";
 
 function isValidUsername(username: string) {
   const trimmed = username.trim();
@@ -65,7 +66,16 @@ export async function updateProfile(userId: string, params: {
     throw new Error("AI 提供商不合法");
   }
   const aiModel = params.aiModel?.trim();
-  const aiBaseUrl = params.aiBaseUrl?.trim();
+  let aiBaseUrl: string | null | undefined;
+  if (params.aiBaseUrl !== undefined) {
+    const trimmed = params.aiBaseUrl.trim();
+    if (!trimmed) {
+      aiBaseUrl = null;
+    } else {
+      await assertSafeOutboundUrl(trimmed);
+      aiBaseUrl = trimmed.replace(/\/$/, "");
+    }
+  }
   let aiApiKey: string | null | undefined;
   if (params.aiApiKey !== undefined) {
     const trimmed = params.aiApiKey.trim();
@@ -91,7 +101,7 @@ export async function updateProfile(userId: string, params: {
       examStartDate: examStartDate ?? undefined,
       aiProvider: provider ?? undefined,
       aiModel: aiModel ?? undefined,
-      aiBaseUrl: aiBaseUrl ?? undefined,
+      aiBaseUrl: aiBaseUrl === undefined ? undefined : aiBaseUrl,
       aiApiKey: aiApiKey,
       reminderHour: reminderHour ?? undefined,
       reminderMinute: reminderMinute ?? undefined

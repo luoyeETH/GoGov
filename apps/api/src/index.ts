@@ -26,7 +26,7 @@ import {
 } from "./auth/registration";
 import { loginWithWallet } from "./auth/wallet";
 import { createWalletChallenge, verifyWalletChallenge } from "./auth/wallet-challenge";
-import { revokeSession, verifySession } from "./auth/session";
+import { revokeOtherSessions, revokeSession, verifySession } from "./auth/session";
 import { updateProfile } from "./auth/profile";
 import { changePassword } from "./auth/password-change";
 import { listModels } from "./ai/models";
@@ -52,11 +52,56 @@ import {
 } from "./practice/computer";
 import { registerInterviewRoutes } from "./routes/interview";
 
-const server = Fastify({ logger: true, bodyLimit: 15 * 1024 * 1024 });
+function parseTrustProxy(value?: string) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) {
+    return false;
+  }
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return false;
+}
+
+const server = Fastify({
+  logger: true,
+  bodyLimit: 15 * 1024 * 1024,
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY)
+});
 const port = Number(process.env.API_PORT ?? 3031);
 
+function loadCorsOriginAllowlist() {
+  const raw =
+    typeof process.env.CORS_ORIGINS === "string" ? process.env.CORS_ORIGINS.trim() : "";
+  if (!raw) {
+    return null;
+  }
+  const values = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  return values.length ? new Set(values) : null;
+}
+
+const corsOriginAllowlist = loadCorsOriginAllowlist();
+
 server.register(cors, {
-  origin: true,
+  origin: corsOriginAllowlist
+    ? (origin, cb) => {
+        if (!origin) {
+          cb(null, true);
+          return;
+        }
+        cb(null, corsOriginAllowlist.has(origin));
+      }
+    : true,
   allowedHeaders: ["Content-Type", "Authorization"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 });
@@ -2180,20 +2225,25 @@ server.post(
     }
     const session = await verifySession(token);
     const body = request.body as { oldPassword?: string; newPassword?: string };
-    if (!body?.oldPassword || !body?.newPassword) {
-      reply.code(400).send({ error: "缺少必要参数" });
-      return;
-    }
-    const result = await changePassword({
-      userId: session.user.id,
-      oldPassword: body.oldPassword,
-      newPassword: body.newPassword
-    });
-    reply.send(result);
-  } catch (error) {
-    reply.code(400).send({ error: error instanceof Error ? error.message : "修改失败" });
-  }
-  }
+	    if (!body?.oldPassword || !body?.newPassword) {
+	      reply.code(400).send({ error: "缺少必要参数" });
+	      return;
+	    }
+	    const result = await changePassword({
+	      userId: session.user.id,
+	      oldPassword: body.oldPassword,
+	      newPassword: body.newPassword
+	    });
+	    try {
+	      await revokeOtherSessions(session.user.id, token);
+	    } catch (err) {
+	      server.log.warn({ err }, "Failed to revoke other sessions after password change");
+	    }
+	    reply.send(result);
+	  } catch (error) {
+	    reply.code(400).send({ error: error instanceof Error ? error.message : "修改失败" });
+	  }
+	  }
 );
 
 server.post("/expenses/parse", async (request, reply) => {

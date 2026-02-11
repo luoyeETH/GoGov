@@ -1,3 +1,5 @@
+import { safeFetch } from "../security/outbound";
+
 type ModelInfo = {
   id: string;
 };
@@ -31,7 +33,7 @@ export async function listModels(params: {
   if (provider === "openai" || provider === "custom") {
     const baseUrl = normalizeBaseUrl(params.baseUrl);
     const url = buildModelsUrl(baseUrl);
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: {
         Authorization: `Bearer ${params.apiKey}`
       }

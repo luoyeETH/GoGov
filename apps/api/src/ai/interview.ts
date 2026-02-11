@@ -1,4 +1,5 @@
 import { InterviewType } from "@prisma/client";
+import { safeFetch } from "../security/outbound";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -50,7 +51,7 @@ async function callAI(params: {
     payload.response_format = { type: "json_object" };
   }
 
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${params.apiKey}`,

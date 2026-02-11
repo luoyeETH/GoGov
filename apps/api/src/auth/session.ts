@@ -78,3 +78,15 @@ export async function revokeSession(token: string) {
     data: { revokedAt: new Date() }
   });
 }
+
+export async function revokeOtherSessions(userId: string, currentToken: string) {
+  const tokenHash = hashToken(currentToken);
+  await prisma.session.updateMany({
+    where: {
+      userId,
+      tokenHash: { not: tokenHash },
+      revokedAt: null
+    },
+    data: { revokedAt: new Date() }
+  });
+}

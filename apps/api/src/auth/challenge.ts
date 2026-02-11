@@ -1,7 +1,9 @@
+import crypto from "crypto";
+
 const challenges = new Map<string, { answer: string; expiresAt: number }>();
 
 function randomId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return crypto.randomBytes(12).toString("hex");
 }
 
 export function createChallenge() {

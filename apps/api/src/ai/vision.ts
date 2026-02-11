@@ -1,3 +1,5 @@
+import { safeFetch } from "../security/outbound";
+
 type VisionMessage = {
   role: "system" | "user" | "assistant";
   content:
@@ -42,7 +44,7 @@ export async function generateVisionAnswer(params: {
   if (provider === "openai" || provider === "custom") {
     const baseUrl = normalizeBaseUrl(params.baseUrl);
     const url = buildChatUrl(baseUrl);
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${params.apiKey}`,
