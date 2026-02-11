@@ -7109,6 +7109,306 @@ body.pomodoro-immersive .page {
   color: var(--muted);
 }
 
+.pomodoro-candle-scene {
+  --melt-y: 0px;
+  --wax-scale: 1;
+  --wax-opacity: 1;
+  --pool-scale: 0.55;
+  --pool-opacity: 0.22;
+  --flame-opacity: 1;
+  --ambient-opacity: 0.95;
+  --wave-opacity: 0.18;
+  --drip-opacity: 0.3;
+  width: 172px;
+  height: 168px;
+  margin: 6px auto 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+[data-theme="light"] .pomodoro-candle-scene,
+[data-theme="eyecare"] .pomodoro-candle-scene {
+  display: none;
+}
+
+.pomodoro-candle-ambient {
+  position: absolute;
+  inset: -14px -18px 36px -18px;
+  background:
+    radial-gradient(closest-side at 50% 38%, rgba(255, 205, 132, 0.32), transparent 70%),
+    radial-gradient(closest-side at 48% 44%, rgba(255, 126, 90, 0.18), transparent 72%),
+    radial-gradient(closest-side at 52% 60%, rgba(56, 161, 105, 0.08), transparent 76%);
+  opacity: var(--ambient-opacity);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.pomodoro-candle-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.pomodoro-jar-wax-solid {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scaleY(var(--wax-scale));
+  opacity: var(--wax-opacity);
+  transition: transform 480ms linear, opacity 220ms ease;
+}
+
+.pomodoro-jar-wax-pool {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transform: translateY(var(--melt-y)) scaleX(var(--pool-scale));
+  opacity: var(--pool-opacity);
+  transition: transform 480ms linear, opacity 220ms ease;
+}
+
+.pomodoro-jar-wax-wave {
+  opacity: var(--wave-opacity);
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: pomodoro-wax-wave 2.8s ease-in-out infinite;
+}
+
+.pomodoro-jar-reflection {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: pomodoro-jar-sheen 6.4s ease-in-out infinite;
+}
+
+.pomodoro-jar-aroma-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0;
+  stroke-dasharray: 18 96;
+  animation: pomodoro-aroma 3.4s ease-in-out infinite;
+  filter: blur(0.1px);
+}
+
+.pomodoro-jar-aroma-line.aroma-b {
+  stroke: rgba(255, 255, 255, 0.13);
+  animation-delay: 1.1s;
+}
+
+.pomodoro-jar-aroma-line.aroma-c {
+  stroke: rgba(255, 255, 255, 0.11);
+  animation-delay: 0.6s;
+}
+
+.pomodoro-candle-pool-group {
+  transform-origin: 50% 86%;
+  transform-box: fill-box;
+  transition: transform 480ms linear, opacity 220ms ease;
+}
+
+.pomodoro-candle-wax-group {
+  transform-origin: 50% 100%;
+  transform-box: fill-box;
+  transition: transform 480ms linear, opacity 220ms ease;
+}
+
+.pomodoro-candle-wick-group,
+.pomodoro-candle-glow-group,
+.pomodoro-candle-flame-group {
+  transition: transform 480ms linear, opacity 220ms ease;
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  transform: translateY(var(--melt-y));
+}
+
+.pomodoro-candle-wax-drip {
+  opacity: var(--drip-opacity);
+  transform-origin: 50% 10%;
+  transform-box: fill-box;
+  transition: opacity 220ms ease;
+}
+
+.pomodoro-candle-wax-drip.drip-a {
+  animation: pomodoro-svg-drip-a 2.6s ease-in-out infinite;
+}
+
+.pomodoro-candle-wax-drip.drip-b {
+  animation: pomodoro-svg-drip-b 3.3s ease-in-out infinite;
+}
+
+.pomodoro-candle-flame-flicker {
+  transform-origin: 50% 82%;
+  transform-box: fill-box;
+  filter: drop-shadow(0 0 14px rgba(255, 186, 110, 0.48));
+  animation: pomodoro-svg-flame 1.75s ease-in-out infinite;
+}
+
+.pomodoro-candle-glow-group {
+  opacity: var(--ambient-opacity);
+}
+
+.pomodoro-candle-glow {
+  animation: pomodoro-svg-glow 2.8s ease-in-out infinite;
+}
+
+.pomodoro-candle-flame-group {
+  opacity: var(--flame-opacity);
+}
+
+.pomodoro-candle-scene.is-paused .pomodoro-candle-wax-drip,
+.pomodoro-candle-scene.is-paused .pomodoro-jar-wax-wave,
+.pomodoro-candle-scene.is-paused .pomodoro-jar-reflection,
+.pomodoro-candle-scene.is-paused .pomodoro-jar-aroma-line,
+.pomodoro-candle-scene.is-paused .pomodoro-candle-flame-flicker,
+.pomodoro-candle-scene.is-paused .pomodoro-candle-glow {
+  animation-play-state: paused;
+}
+
+.pomodoro-candle-scene.is-paused .pomodoro-candle-flame-flicker {
+  filter: drop-shadow(0 0 10px rgba(255, 186, 110, 0.24));
+}
+
+.pomodoro-candle-scene.is-finished .pomodoro-candle-wax-drip,
+.pomodoro-candle-scene.is-finished .pomodoro-candle-wick-group,
+.pomodoro-candle-scene.is-finished .pomodoro-candle-glow-group,
+.pomodoro-candle-scene.is-finished .pomodoro-candle-flame-group {
+  opacity: 0;
+}
+
+@keyframes pomodoro-svg-flame {
+  0% {
+    transform: rotate(-2deg) scale(0.98, 1.02);
+  }
+  32% {
+    transform: rotate(3deg) scale(1.02, 0.98);
+  }
+  68% {
+    transform: rotate(-4deg) scale(0.99, 1.01);
+  }
+  100% {
+    transform: rotate(-2deg) scale(0.98, 1.02);
+  }
+}
+
+@keyframes pomodoro-svg-glow {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes pomodoro-svg-drip-a {
+  0%,
+  18% {
+    transform: translateY(-2px) scaleY(0.5);
+    opacity: 0;
+  }
+  38% {
+    transform: translateY(0) scaleY(1);
+    opacity: var(--drip-opacity);
+  }
+  76% {
+    transform: translateY(8px) scaleY(1.08);
+    opacity: var(--drip-opacity);
+  }
+  100% {
+    transform: translateY(12px) scaleY(0.55);
+    opacity: 0;
+  }
+}
+
+@keyframes pomodoro-svg-drip-b {
+  0%,
+  24% {
+    transform: translateY(-2px) scaleY(0.45);
+    opacity: 0;
+  }
+  44% {
+    transform: translateY(0) scaleY(1);
+    opacity: var(--drip-opacity);
+  }
+  80% {
+    transform: translateY(7px) scaleY(1.06);
+    opacity: var(--drip-opacity);
+  }
+  100% {
+    transform: translateY(11px) scaleY(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pomodoro-wax-wave {
+  0%,
+  100% {
+    transform: translateX(0) scaleX(1);
+  }
+  50% {
+    transform: translateX(2px) scaleX(1.08);
+  }
+}
+
+@keyframes pomodoro-jar-sheen {
+  0%,
+  100% {
+    transform: translateX(-1px);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateX(2px);
+    opacity: 0.95;
+  }
+}
+
+@keyframes pomodoro-aroma {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 96;
+    transform: translateY(0);
+  }
+  18% {
+    opacity: 0.12;
+  }
+  45% {
+    opacity: 0.32;
+    stroke-dashoffset: 24;
+    transform: translateY(-10px);
+  }
+  72% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -10;
+    transform: translateY(-18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pomodoro-candle-wax-drip,
+  .pomodoro-jar-wax-wave,
+  .pomodoro-jar-reflection,
+  .pomodoro-jar-aroma-line,
+  .pomodoro-candle-flame-flicker,
+  .pomodoro-candle-glow {
+    animation: none;
+  }
+
+  .pomodoro-jar-wax-solid,
+  .pomodoro-jar-wax-pool,
+  .pomodoro-candle-wax-group,
+  .pomodoro-candle-pool-group,
+  .pomodoro-candle-wick-group,
+  .pomodoro-candle-glow-group,
+  .pomodoro-candle-flame-group {
+    transition: none;
+  }
+}
+
 .pomodoro-overlay-timer {
   font-size: 64px;
   font-weight: 700;

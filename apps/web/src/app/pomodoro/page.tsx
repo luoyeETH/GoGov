@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import PomodoroCandle from "../../components/pomodoro-candle";
+
 type LoadState = "loading" | "idle" | "error";
 
 type PomodoroStatus =
@@ -1340,6 +1342,9 @@ export default function PomodoroPage() {
         <div className="pomodoro-overlay">
           <div className="pomodoro-overlay-card">
             <span className="pomodoro-overlay-subject">{subject}</span>
+            {mode === "countdown" ? (
+              <PomodoroCandle progress={progress} paused={status === "paused"} />
+            ) : null}
             <div className="pomodoro-overlay-timer">
               {formatSeconds(displaySeconds)}
             </div>
