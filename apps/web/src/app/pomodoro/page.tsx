@@ -70,22 +70,38 @@ const sessionKey = "gogov_session_token";
 const PAUSE_LIMIT_SECONDS = 5 * 60;
 const HEATMAP_DAYS = 84;
 const MAX_CUSTOM_SUBJECTS = 5;
-const PIE_COLORS = [
+const SUBJECT_COLOR_MAP: Record<string, string> = {
+  常识: "#4c7ef3",
+  政治理论: "#44bba4",
+  言语理解: "#f2c94c",
+  数量关系: "#ef6c57",
+  判断推理: "#9b51e0",
+  资料分析: "#2d9cdb",
+  专业知识: "#f97316",
+  申论: "#ec4899"
+};
+
+const PIE_FALLBACK_COLORS = [
   "#4c7ef3",
   "#44bba4",
   "#f2c94c",
   "#ef6c57",
   "#9b51e0",
-  "#2d9cdb"
+  "#2d9cdb",
+  "#f97316",
+  "#ec4899"
 ];
 
 function getSubjectColor(subject: string) {
+  if (SUBJECT_COLOR_MAP[subject]) {
+    return SUBJECT_COLOR_MAP[subject];
+  }
   let hash = 0;
   for (let i = 0; i < subject.length; i += 1) {
     hash = (hash * 31 + subject.charCodeAt(i)) | 0;
   }
-  const index = Math.abs(hash) % PIE_COLORS.length;
-  return PIE_COLORS[index];
+  const index = Math.abs(hash) % PIE_FALLBACK_COLORS.length;
+  return PIE_FALLBACK_COLORS[index];
 }
 
 const SUBJECTS = [

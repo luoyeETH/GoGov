@@ -7,7 +7,7 @@ type PomodoroCandleProps = {
   paused?: boolean;
 };
 
-const WAX_TRAVEL_PX = 92;
+const WAX_TRAVEL_PX = 100;
 
 export default function PomodoroCandle({
   progress,
@@ -151,7 +151,7 @@ export default function PomodoroCandle({
           </radialGradient>
 
           <clipPath id={ids.innerClip} clipPathUnits="userSpaceOnUse">
-            <path d="M62 28H110C116 28 120 32 120 38V128C120 140 110 150 98 150H74C62 150 52 140 52 128V38C52 32 56 28 62 28Z" />
+            <path d="M68 12H110C114 12 117 15 117 19V130C117 142 107 150 98 150H80C71 150 61 142 61 130V19C61 15 64 12 68 12Z" />
           </clipPath>
 
           <filter id={ids.softGlow} x="-50%" y="-60%" width="200%" height="240%">
@@ -215,19 +215,19 @@ export default function PomodoroCandle({
         <g clipPath={`url(#${ids.innerClip})`}>
           <g className="pomodoro-jar-wax-solid">
             <path
-              d="M60 58H112C116 58 120 62 120 66V128C120 140 110 150 98 150H74C62 150 52 140 52 128V66C52 62 56 58 60 58Z"
+              d="M66 44H112C116 44 118 47 118 50V130C118 142 108 150 98 150H80C70 150 60 142 60 130V50C60 47 62 44 66 44Z"
               fill={`url(#${ids.wax})`}
             />
             <path
-              d="M60 58H112C116 58 120 62 120 66V128C120 140 110 150 98 150H74C62 150 52 140 52 128V66C52 62 56 58 60 58Z"
+              d="M66 44H112C116 44 118 47 118 50V130C118 142 108 150 98 150H80C70 150 60 142 60 130V50C60 47 62 44 66 44Z"
               fill={`url(#${ids.waxDepth})`}
               opacity="0.9"
             />
             <path
-              d="M66 74 C74 64, 98 64, 106 74"
+              d="M72 56 C80 48, 102 48, 108 56"
               fill="none"
               stroke="rgba(255,255,255,0.18)"
-              strokeWidth="10"
+              strokeWidth="8"
               strokeLinecap="round"
               opacity="0.5"
             />
@@ -235,13 +235,13 @@ export default function PomodoroCandle({
 
           <g className="pomodoro-jar-wax-pool">
             <path
-              d="M60 62 C72 48, 100 48, 112 62 C102 74, 70 74, 60 62 Z"
+              d="M66 48 C76 36, 106 36, 114 48 C106 58, 74 58, 66 48 Z"
               fill={`url(#${ids.pool})`}
               stroke="rgba(136,86,46,0.14)"
             />
             <path
               className="pomodoro-jar-wax-wave"
-              d="M68 62 C76 56, 96 56, 104 62 C96 66, 76 66, 68 62 Z"
+              d="M70 48 C78 42, 100 42, 108 48 C100 52, 80 52, 70 48 Z"
               fill="rgba(255,255,255,0.2)"
             />
           </g>
@@ -249,12 +249,12 @@ export default function PomodoroCandle({
 
         <g className="pomodoro-candle-wick-group">
           <path
-            d="M86 52 C84 58 84 62 86 68 C88 62 88 58 86 52 Z"
+            d="M86 38 C84 44 84 48 86 54 C88 48 88 44 86 38 Z"
             fill="rgba(34,18,10,0.92)"
           />
           <rect
             x="84.8"
-            y="64"
+            y="50"
             width="2.4"
             height="10"
             rx="1.2"
@@ -266,8 +266,34 @@ export default function PomodoroCandle({
           <circle
             className="pomodoro-candle-glow"
             cx="86"
-            cy="36"
-            r="28"
+            cy="24"
+            r="26"
+            fill="rgba(255,189,104,0.18)"
+            filter={`url(#${ids.softGlow})`}
+          />
+        </g>
+
+        <g className="pomodoro-candle-wick-group">
+          <path
+            d="M86 38 C84 44 84 48 86 54 C88 48 88 44 86 38 Z"
+            fill="rgba(34,18,10,0.92)"
+          />
+          <rect
+            x="84.8"
+            y="50"
+            width="2.4"
+            height="10"
+            rx="1.2"
+            fill="rgba(22,12,6,0.92)"
+          />
+        </g>
+
+        <g className="pomodoro-candle-glow-group">
+          <circle
+            className="pomodoro-candle-glow"
+            cx="86"
+            cy="24"
+            r="26"
             fill="rgba(255,189,104,0.18)"
             filter={`url(#${ids.softGlow})`}
           />
