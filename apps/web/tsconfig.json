@@ -5,6 +5,7 @@
     "allowJs": false,
     "baseUrl": ".",
     "paths": {},
+    "tsBuildInfoFile": ".next/cache/tsconfig.tsbuildinfo",
     "incremental": true,
     "isolatedModules": true,
     "plugins": [

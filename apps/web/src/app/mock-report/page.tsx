@@ -64,6 +64,7 @@ const trendFallbackColors = [
 const maxTrendVisibleCountDesktop = 18;
 const maxTrendVisibleCountMobile = 8;
 const trendMobileBreakpoint = 720;
+const maxHistoryRecords = 30;
 
 const baseSeasonDate = "2025-12-21";
 const baseNationalSeasonIndex = 3;
@@ -611,7 +612,7 @@ export default function MockReportPage() {
       return;
     }
     try {
-      const res = await fetch(`${apiBase}/mock/reports?limit=30`, {
+      const res = await fetch(`${apiBase}/mock/reports?limit=${maxHistoryRecords}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -876,12 +877,19 @@ export default function MockReportPage() {
       const trendScroll = clone.querySelector('.mock-trend-scroll') as HTMLElement | null;
       if (trendScroll) {
         trendScroll.style.width = "100%";
+        trendScroll.style.maxWidth = "100%";
         trendScroll.style.marginLeft = "0";
         trendScroll.style.marginRight = "0";
+        trendScroll.style.paddingRight = "0";
+        trendScroll.style.overflowX = "visible";
+        trendScroll.style.overflowY = "visible";
       }
 
-      const captureWidth =
-        trendViewportWidth || (typeof window !== "undefined" ? window.innerWidth : 0);
+      const captureWidth = Math.ceil(
+        trendCardRef.current.getBoundingClientRect().width ||
+          trendViewportWidth ||
+          (typeof window !== "undefined" ? window.innerWidth : 0)
+      );
 
       // 创建容器
       const container = buildShareContainer(clone, trendCardRef.current, {
@@ -1100,7 +1108,7 @@ export default function MockReportPage() {
             analysisRaw: data.raw ?? null
           },
           ...prev
-        ].slice(0, 30));
+        ].slice(0, maxHistoryRecords));
       }
     } catch (err) {
       setState("error");
@@ -1209,13 +1217,16 @@ export default function MockReportPage() {
       typeof window !== "undefined" && window.innerWidth
         ? window.innerWidth
         : 680;
-    const height = 240;
-    const padding = { top: 20, right: 16, bottom: 32, left: 44 };
     const count = trendData.labels.length;
     const viewportWidth = Math.max(
       0,
       Math.floor(trendViewportWidth || fallbackViewportWidth)
     );
+    const isCompactViewport = viewportWidth <= trendMobileBreakpoint;
+    const height = isCompactViewport ? 220 : 240;
+    const padding = isCompactViewport
+      ? { top: 18, right: 12, bottom: 30, left: 36 }
+      : { top: 20, right: 16, bottom: 32, left: 44 };
     const maxVisibleCount = getMaxVisibleCount(viewportWidth);
     const plotWidthForVisible = Math.max(
       1,
