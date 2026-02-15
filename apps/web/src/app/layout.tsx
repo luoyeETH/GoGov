@@ -9,6 +9,7 @@ import ThemeToggle from "../components/theme-toggle";
 import { FontSizeProvider } from "../components/font-size-provider";
 import FontSizeSwitcher from "../components/font-size-switcher";
 import FloatingChat from "../components/floating-chat";
+import PWAInstallGuide from "../components/pwa-install-guide";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
@@ -166,6 +167,7 @@ export default function RootLayout({
                   Gemini. Design by humans.
                 </span>
               </footer>
+              <PWAInstallGuide />
               <FloatingChat />
               <MobileBottomNav />
             </div>

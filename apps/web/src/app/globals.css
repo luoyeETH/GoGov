@@ -8506,6 +8506,174 @@ body.pomodoro-immersive .page {
   font-weight: var(--weight-semibold);
 }
 
+/* Mobile first-visit PWA installation guide */
+.pwa-install-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 14px);
+  background: linear-gradient(180deg, rgba(22, 24, 28, 0.36) 0%, rgba(22, 24, 28, 0.58) 100%);
+  backdrop-filter: grayscale(0.22) blur(2px);
+  -webkit-backdrop-filter: grayscale(0.22) blur(2px);
+  animation: pwaGuideFadeIn 0.2s ease-out;
+}
+
+.pwa-install-guide {
+  width: min(480px, 100%);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: saturate(160%) blur(22px);
+  -webkit-backdrop-filter: saturate(160%) blur(22px);
+  padding: 18px 16px 16px;
+  animation: pwaGuideRise 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.pwa-install-guide-tag {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--brand-dark);
+  text-transform: uppercase;
+}
+
+.pwa-install-guide h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.pwa-install-guide-lead {
+  margin: 8px 0 12px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.pwa-install-guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  counter-reset: pwa-guide-step;
+}
+
+.pwa-install-guide-steps li {
+  position: relative;
+  padding-left: 34px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.pwa-install-guide-steps li::before {
+  counter-increment: pwa-guide-step;
+  content: counter(pwa-guide-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brand-light);
+  color: var(--brand-dark);
+  font-size: 12px;
+  font-weight: var(--weight-bold);
+  display: grid;
+  place-items: center;
+}
+
+.pwa-install-guide-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pwa-install-guide-primary,
+.pwa-install-guide-secondary {
+  border: none;
+  border-radius: 12px;
+  min-height: 42px;
+  padding: 10px 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.2s ease;
+}
+
+.pwa-install-guide-primary {
+  background: var(--nav-highlight-bg);
+  color: #fff;
+  box-shadow: var(--nav-highlight-shadow);
+}
+
+.pwa-install-guide-secondary {
+  background: var(--text-alpha-12);
+  color: var(--text);
+}
+
+.pwa-install-guide-primary:active,
+.pwa-install-guide-secondary:active {
+  transform: scale(0.96);
+}
+
+body.pwa-guide-lock {
+  overflow: hidden;
+  touch-action: none;
+}
+
+body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
+  pointer-events: none;
+  user-select: none;
+  filter: grayscale(0.2) brightness(0.78);
+}
+
+@keyframes pwaGuideFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pwaGuideRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 769px) {
+  .pwa-install-guide-overlay {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .pwa-install-guide {
+    border-radius: 18px;
+    padding: 16px 14px 14px;
+  }
+
+  .pwa-install-guide-actions {
+    gap: 8px;
+  }
+}
+
 /* PWA standalone mode - Apple-like experience */
 @media (display-mode: standalone) {
   .header {
