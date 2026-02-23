@@ -710,6 +710,10 @@ private fun buildKaTeXHtml(
                     {left: "\\\\(", right: "\\\\)", display: false},
                     {left: "\\\\[", right: "\\\\]", display: true}
                   ],
+                  preProcess: function(math) {
+                    // marked 会把 \% 解义成 %，KaTeX 里裸 % 会被当注释吞掉后续字符
+                    return math.replace(/(^|[^\\\\])%/g, '$1\\\\%');
+                  },
                   throwOnError: false
                 });
               } catch (e) {}
