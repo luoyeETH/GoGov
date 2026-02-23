@@ -711,11 +711,13 @@ private fun buildKaTeXHtml(
                     {left: "\\\\[", right: "\\\\]", display: true}
                   ],
                   preProcess: function(math) {
-                    // 统一把百分号转成字面量 \%，避免被 KaTeX 当注释吞掉后续内容。
-                    // 同时兼容模型偶发输出的 \\%（会触发换行命令）等异常写法。
+                    // 用占位符统一处理百分号，避免 `%`/`\%`/`\\%` 在链路里变形后
+                    // 被 KaTeX 当注释吞掉后续字符或触发换行。
+                    const pctToken = '__GOGOV_LATEX_PERCENT__';
                     return math
-                      .replace(/\\\\+%/g, '\\\\%')
-                      .replace(/(^|[^\\\\])%/g, '$1\\\\%');
+                      .replace(/\\\\+%/g, pctToken)
+                      .replace(/%/g, pctToken)
+                      .replace(new RegExp(pctToken, 'g'), '\\\\%');
                   },
                   throwOnError: false
                 });
