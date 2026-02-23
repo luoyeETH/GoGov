@@ -711,8 +711,11 @@ private fun buildKaTeXHtml(
                     {left: "\\\\[", right: "\\\\]", display: true}
                   ],
                   preProcess: function(math) {
-                    // marked 会把 \% 解义成 %，KaTeX 里裸 % 会被当注释吞掉后续字符
-                    return math.replace(/(^|[^\\\\])%/g, '$1\\\\%');
+                    // 统一把百分号转成字面量 \%，避免被 KaTeX 当注释吞掉后续内容。
+                    // 同时兼容模型偶发输出的 \\%（会触发换行命令）等异常写法。
+                    return math
+                      .replace(/\\\\+%/g, '\\\\%')
+                      .replace(/(^|[^\\\\])%/g, '$1\\\\%');
                   },
                   throwOnError: false
                 });
