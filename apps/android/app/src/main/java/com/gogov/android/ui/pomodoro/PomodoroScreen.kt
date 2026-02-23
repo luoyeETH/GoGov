@@ -62,6 +62,35 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+private val SUBJECT_COLOR_MAP = mapOf(
+    "常识" to Color(0xFF4C7EF3),
+    "政治理论" to Color(0xFF44BBA4),
+    "言语理解" to Color(0xFFF2C94C),
+    "数量关系" to Color(0xFFEF6C57),
+    "判断推理" to Color(0xFF9B51E0),
+    "资料分析" to Color(0xFF2D9CDB),
+    "专业知识" to Color(0xFFF97316),
+    "申论" to Color(0xFFEC4899)
+)
+
+private val SUBJECT_COLOR_ALIASES = mapOf(
+    "常识判断" to "常识",
+    "言语理解与表达" to "言语理解",
+    "资料" to "资料分析",
+    "专业" to "专业知识"
+)
+
+private val SUBJECT_FALLBACK_COLORS = listOf(
+    Color(0xFF4C7EF3),
+    Color(0xFF44BBA4),
+    Color(0xFFF2C94C),
+    Color(0xFFEF6C57),
+    Color(0xFF9B51E0),
+    Color(0xFF2D9CDB),
+    Color(0xFFF97316),
+    Color(0xFFEC4899)
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PomodoroScreen(
@@ -974,16 +1003,11 @@ private fun RadarCard(items: List<PomodoroRadarItem>) {
 }
 
 private fun subjectColor(subject: String): Color {
-    val palette = listOf(
-        Color(0xFF4C7EF3),
-        Color(0xFF44BBA4),
-        Color(0xFFF2C94C),
-        Color(0xFFEF6C57),
-        Color(0xFF9B51E0),
-        Color(0xFF2D9CDB)
-    )
-    val index = (subject.hashCode().absoluteValue % palette.size)
-    return palette[index]
+    val trimmed = subject.trim()
+    val normalized = SUBJECT_COLOR_ALIASES[trimmed] ?: trimmed
+    SUBJECT_COLOR_MAP[normalized]?.let { return it }
+    val index = normalized.hashCode().absoluteValue % SUBJECT_FALLBACK_COLORS.size
+    return SUBJECT_FALLBACK_COLORS[index]
 }
 
 @Composable
