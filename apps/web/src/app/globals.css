@@ -2933,15 +2933,17 @@ button {
   position: relative;
 }
 
-.mock-trend-pan {
-  position: relative;
+.mock-trend-scroll-spacer {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .mock-trend-chart {
-  position: sticky;
+  position: absolute;
   left: 0;
+  top: 0;
   width: 100%;
-  min-width: 100%;
+  min-width: 0;
 }
 
 .mock-trend-toggle {

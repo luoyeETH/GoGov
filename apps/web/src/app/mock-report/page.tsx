@@ -1923,9 +1923,13 @@ export default function MockReportPage() {
               style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
             >
               <div
-                className="mock-trend-pan"
-                style={{ width: `${chartLayout.scrollTrackWidth}px` }}
-              >
+                className="mock-trend-scroll-spacer"
+                style={{
+                  width: `${chartLayout.scrollTrackWidth}px`,
+                  height: `${chartLayout.height}px`
+                }}
+                aria-hidden="true"
+              />
               <div className="mock-trend-chart">
               <svg
                 width={chartLayout.viewportWidth}
@@ -1988,7 +1992,9 @@ export default function MockReportPage() {
                       key={`x-${index}`}
                       x={
                         chartLayout.padding.left +
-                        (chartLayout.count <= 1 ? 0 : chartLayout.slotSpacing * index)
+                        (chartLayout.count <= 1
+                          ? 0
+                          : chartLayout.slotSpacing * (index - chartLayout.windowOffset))
                       }
                       y={chartLayout.height - 10}
                       textAnchor="middle"
@@ -2058,7 +2064,6 @@ export default function MockReportPage() {
                 </g>
                 </svg>
               </svg>
-              </div>
               </div>
             </div>
           ) : (
