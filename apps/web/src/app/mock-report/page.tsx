@@ -364,46 +364,8 @@ function buildLinePath(points: Array<{ x: number; y: number | null }>) {
   return path;
 }
 
-function getXAxisLabelIndices(count: number, maxVisibleCount: number) {
-  if (count <= maxVisibleCount) {
-    return Array.from({ length: count }, (_, index) => index);
-  }
-  return [0, Math.floor(count / 3), Math.floor((2 * count) / 3), count - 1];
-}
-
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function getVisibleXAxisLabelIndices(
-  count: number,
-  visibleCount: number,
-  windowOffset: number
-) {
-  if (count <= 0) {
-    return [];
-  }
-  const lastIndex = Math.max(0, count - 1);
-  const visibleStart = clampNumber(Math.floor(windowOffset), 0, lastIndex);
-  const visibleEnd = clampNumber(
-    Math.ceil(windowOffset + visibleCount - 1),
-    visibleStart,
-    lastIndex
-  );
-  const range = visibleEnd - visibleStart + 1;
-  if (range <= 0) {
-    return [];
-  }
-  if (range <= 4) {
-    return Array.from({ length: range }, (_, index) => visibleStart + index);
-  }
-  const targetCount = range <= 6 ? range : 4;
-  const indices = new Set<number>();
-  for (let step = 0; step < targetCount; step += 1) {
-    const ratio = targetCount === 1 ? 0 : step / (targetCount - 1);
-    indices.add(visibleStart + Math.round((visibleEnd - visibleStart) * ratio));
-  }
-  return Array.from(indices).sort((a, b) => a - b);
 }
 
 function parseJsonAnalysis(raw: string) {
@@ -614,6 +576,7 @@ export default function MockReportPage() {
   const [shareGenerating, setShareGenerating] = useState(false);
   const [shareAnalysisGenerating, setShareAnalysisGenerating] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
+  const trendShellRef = useRef<HTMLDivElement | null>(null);
   const trendScrollRef = useRef<HTMLDivElement | null>(null);
   const trendCardRef = useRef<HTMLDivElement | null>(null);
   const analysisCardRef = useRef<HTMLDivElement | null>(null);
@@ -695,7 +658,7 @@ export default function MockReportPage() {
   }, []);
 
   useEffect(() => {
-    const node = trendScrollRef.current;
+    const node = trendShellRef.current;
     if (!node) {
       return;
     }
@@ -904,21 +867,12 @@ export default function MockReportPage() {
       // 克隆趋势图卡片
       const clone = trendCardRef.current.cloneNode(true) as HTMLElement;
 
-      // 移除克隆中的分享按钮
-      const shareBtn = clone.querySelector('.share-button');
-      if (shareBtn?.parentElement) {
-        shareBtn.parentElement.removeChild(shareBtn);
-      }
+      clone.querySelectorAll('.share-button').forEach((button) => button.remove());
 
-      const trendScroll = clone.querySelector('.mock-trend-scroll') as HTMLElement | null;
-      if (trendScroll) {
-        trendScroll.style.width = "100%";
-        trendScroll.style.maxWidth = "100%";
-        trendScroll.style.marginLeft = "0";
-        trendScroll.style.marginRight = "0";
-        trendScroll.style.paddingRight = "0";
-        trendScroll.style.overflowX = "hidden";
-        trendScroll.style.overflowY = "hidden";
+      const sourceTrendScroll = trendScrollRef.current;
+      const clonedTrendScroll = clone.querySelector('.mock-trend-scroll') as HTMLElement | null;
+      if (clonedTrendScroll && sourceTrendScroll) {
+        clonedTrendScroll.scrollLeft = sourceTrendScroll.scrollLeft;
       }
 
       const captureWidth = Math.ceil(
@@ -936,6 +890,15 @@ export default function MockReportPage() {
       container.style.position = 'fixed';
       container.style.left = '-9999px';
       document.body.appendChild(container);
+
+      const attachedTrendScroll = container.querySelector('.mock-trend-scroll') as HTMLElement | null;
+      if (attachedTrendScroll && sourceTrendScroll) {
+        attachedTrendScroll.scrollLeft = sourceTrendScroll.scrollLeft;
+      }
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
 
       // 生成截图
       const canvas = await html2canvas(container, {
@@ -1265,20 +1228,24 @@ export default function MockReportPage() {
       : { top: 20, right: 16, bottom: 32, left: 44 };
     const maxVisibleCount = getMaxVisibleCount(viewportWidth);
     const visibleCount = Math.max(1, Math.min(count || 1, maxVisibleCount));
-    const plotWidth = Math.max(1, viewportWidth - padding.left - padding.right);
-    const slotSpacing = visibleCount <= 1 ? plotWidth : plotWidth / (visibleCount - 1);
-    const scrollableSteps = Math.max(0, count - visibleCount);
-    const maxScrollLeft = slotSpacing * scrollableSteps;
-    const windowOffset = clampNumber(trendScrollLeft, 0, maxScrollLeft) / Math.max(1, slotSpacing);
+    const plotViewportWidth = Math.max(1, viewportWidth - padding.left - padding.right);
+    const slotSpacing =
+      visibleCount <= 1 ? plotViewportWidth : plotViewportWidth / Math.max(1, visibleCount - 1);
+    const plotContentWidth =
+      count <= 1
+        ? plotViewportWidth
+        : Math.max(plotViewportWidth, slotSpacing * Math.max(1, count - 1));
+    const maxScrollLeft = Math.max(0, plotContentWidth - plotViewportWidth);
+    const clampedScrollLeft = clampNumber(trendScrollLeft, 0, maxScrollLeft);
     const chartWidth = viewportWidth;
     const plotHeight = height - padding.top - padding.bottom;
     const plotLeft = padding.left;
     const plotRight = chartWidth - padding.right;
     const getX = (index: number) => {
       if (count <= 1) {
-        return padding.left;
+        return plotContentWidth / 2;
       }
-      return padding.left + slotSpacing * (index - windowOffset);
+      return slotSpacing * index;
     };
     const getY = (value: number) => padding.top + (1 - value) * plotHeight;
     const seriesWithPoints = trendData.seriesList.map((series) => ({
@@ -1298,24 +1265,27 @@ export default function MockReportPage() {
       height,
       padding,
       count,
-      plotWidth,
+      plotViewportWidth,
+      plotContentWidth,
       plotHeight,
       plotLeft,
       plotRight,
-      scrollTrackWidth: viewportWidth + maxScrollLeft,
-      windowOffset,
-      visibleStartIndex: clampNumber(Math.floor(windowOffset), 0, Math.max(0, count - 1)),
+      scrollMaxLeft: maxScrollLeft,
+      visibleStartIndex: clampNumber(
+        count <= 1 ? 0 : Math.floor(clampedScrollLeft / Math.max(1, slotSpacing)),
+        0,
+        Math.max(0, count - 1)
+      ),
       visibleEndIndex: clampNumber(
-        Math.ceil(windowOffset + visibleCount - 1),
+        count <= 1
+          ? 0
+          : Math.ceil((clampedScrollLeft + plotViewportWidth) / Math.max(1, slotSpacing)),
         0,
         Math.max(0, count - 1)
       ),
       seriesWithPoints,
-      xLabelIndices:
-        count <= maxVisibleCount
-          ? getXAxisLabelIndices(count, maxVisibleCount)
-          : getVisibleXAxisLabelIndices(count, visibleCount, windowOffset),
-      shouldScroll: scrollableSteps > 0
+      xLabelIndices: Array.from({ length: count }, (_, index) => index),
+      shouldScroll: maxScrollLeft > 0
     };
   }, [trendData, trendViewportWidth, trendScrollLeft]);
 
@@ -1338,7 +1308,7 @@ export default function MockReportPage() {
     }
     const fallbackIndex = trendData.entries.length - 1;
     const visibleFallbackIndex = clampNumber(
-      Math.round(chartLayout.windowOffset + chartLayout.visibleCount - 1),
+      chartLayout.visibleEndIndex,
       0,
       fallbackIndex
     );
@@ -1356,7 +1326,6 @@ export default function MockReportPage() {
     chartLayout.visibleCount,
     chartLayout.visibleEndIndex,
     chartLayout.visibleStartIndex,
-    chartLayout.windowOffset,
     selectedTrendIndex,
     trendData.entries.length
   ]);
@@ -1387,11 +1356,8 @@ export default function MockReportPage() {
       return;
     }
     const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const rawIndex = Math.round(
-      (x - chartLayout.padding.left) / Math.max(1, chartLayout.slotSpacing) +
-        chartLayout.windowOffset
-    );
+    const x = event.clientX - rect.left + event.currentTarget.scrollLeft;
+    const rawIndex = Math.round(x / Math.max(1, chartLayout.slotSpacing));
     const clamped = Math.min(
       Math.max(rawIndex, 0),
       Math.max(0, trendData.entries.length - 1)
@@ -1406,8 +1372,9 @@ export default function MockReportPage() {
   const activeX =
     activeTrendIndex === null
       ? null
-      : chartLayout.padding.left +
-        chartLayout.slotSpacing * (activeTrendIndex - chartLayout.windowOffset);
+      : chartLayout.count <= 1
+        ? chartLayout.plotContentWidth / 2
+        : chartLayout.slotSpacing * activeTrendIndex;
 
   useEffect(() => {
     const node = trendScrollRef.current;
@@ -1416,7 +1383,7 @@ export default function MockReportPage() {
     }
     if (chartLayout.shouldScroll) {
       requestAnimationFrame(() => {
-        node.scrollLeft = node.scrollWidth - node.clientWidth;
+        node.scrollLeft = chartLayout.scrollMaxLeft;
         setTrendScrollLeft(node.scrollLeft);
       });
     } else {
@@ -1425,7 +1392,8 @@ export default function MockReportPage() {
     }
   }, [
     chartLayout.shouldScroll,
-    chartLayout.scrollTrackWidth,
+    chartLayout.scrollMaxLeft,
+    chartLayout.plotViewportWidth,
     chartLayout.viewportWidth,
     trendData.records
   ]);
@@ -1916,30 +1884,17 @@ export default function MockReportPage() {
           </div>
 
           {trendData.records ? (
-            <div className="mock-trend-shell" onClick={handleTrendClick}>
-              <div
-                className="mock-trend-scroll"
-                ref={trendScrollRef}
-                onScroll={handleTrendScroll}
-                style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
-              >
-                <div
-                  className="mock-trend-scroll-spacer"
-                  style={{
-                    width: `${chartLayout.scrollTrackWidth}px`,
-                    height: `${chartLayout.height}px`
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="mock-trend-chart">
+            <div
+              className="mock-trend-shell"
+              ref={trendShellRef}
+              style={{ height: `${chartLayout.height}px` }}
+            >
+              <div className="mock-trend-frame" aria-hidden="true">
                 <svg
                   width={chartLayout.viewportWidth}
                   height={chartLayout.height}
                   viewBox={`0 0 ${chartLayout.viewportWidth} ${chartLayout.height}`}
-                  role="img"
-                  aria-label="模考历史正确率趋势"
-                  className="mock-trend-svg"
+                  className="mock-trend-frame-svg"
                 >
                   <rect
                     x="0"
@@ -1988,83 +1943,105 @@ export default function MockReportPage() {
                         </text>
                       );
                     })}
-                    {chartLayout.xLabelIndices.map((index) => (
-                      <text
-                        key={`x-${index}`}
-                        x={
-                          chartLayout.padding.left +
-                          (chartLayout.count <= 1
-                            ? 0
-                            : chartLayout.slotSpacing * (index - chartLayout.windowOffset))
-                        }
-                        y={chartLayout.height - 10}
-                        textAnchor="middle"
-                      >
-                        {trendData.labels[index]}
-                      </text>
-                    ))}
                   </g>
-                  <svg
-                    x={chartLayout.plotLeft}
-                    y={chartLayout.padding.top}
-                    width={chartLayout.plotWidth}
-                    height={chartLayout.plotHeight}
-                    viewBox={`${chartLayout.plotLeft} ${chartLayout.padding.top} ${chartLayout.plotWidth} ${chartLayout.plotHeight}`}
-                    preserveAspectRatio="none"
-                    className="mock-trend-plot"
-                  >
-                    {activeX !== null ? (
-                      <g className="mock-trend-focus">
-                        <line
-                          x1={activeX}
-                          y1={chartLayout.padding.top}
-                          x2={activeX}
-                          y2={chartLayout.height - chartLayout.padding.bottom}
-                        />
-                      </g>
-                    ) : null}
-                    <g className="mock-trend-lines">
-                      {visibleSeries.map((series) => (
-                        <path
-                          key={`line-${series.key}`}
-                          d={buildLinePath(
-                            series.points.map((point) => ({
-                              x: point.x,
-                              y: point.y
-                            }))
-                          )}
-                          className={`mock-trend-line ${
-                            series.key === "overall" ? "overall" : ""
-                          }`}
-                          style={{ stroke: series.color }}
-                        />
-                      ))}
-                    </g>
-                    <g className="mock-trend-points">
-                      {visibleSeries.map((series) =>
-                        series.points.map((point, index) =>
-                          point.y === null ? null : (
-                            <circle
-                              key={`point-${series.key}-${index}`}
-                              cx={point.x}
-                              cy={point.y}
-                              r={activeTrendIndex === index ? 4.5 : 3.5}
-                              className="mock-trend-point"
-                              style={{ fill: series.color }}
-                            >
-                              <title>
-                                {`${series.label} ${trendData.labels[index]} ${formatAccuracy(
-                                  point.value,
-                                  1
-                                )}`}
-                              </title>
-                            </circle>
-                          )
-                        )
-                      )}
-                    </g>
-                  </svg>
                 </svg>
+              </div>
+              <div
+                className="mock-trend-scroll"
+                ref={trendScrollRef}
+                onScroll={handleTrendScroll}
+                onClick={handleTrendClick}
+                style={{
+                  left: `${chartLayout.padding.left}px`,
+                  width: `${chartLayout.plotViewportWidth}px`,
+                  overflowX: chartLayout.shouldScroll ? "auto" : "hidden"
+                }}
+              >
+                <div
+                  className="mock-trend-content"
+                  style={{
+                    width: `${chartLayout.plotContentWidth}px`,
+                    height: `${chartLayout.height}px`
+                  }}
+                >
+                  <div className="mock-trend-chart">
+                    <svg
+                      width={chartLayout.plotContentWidth}
+                      height={chartLayout.height}
+                      viewBox={`0 0 ${chartLayout.plotContentWidth} ${chartLayout.height}`}
+                      role="img"
+                      aria-label="模考历史正确率趋势"
+                      className="mock-trend-svg"
+                    >
+                      <g className="mock-trend-axis">
+                        {chartLayout.xLabelIndices.map((index) => (
+                          <text
+                            key={`x-${index}`}
+                            x={
+                              chartLayout.count <= 1
+                                ? chartLayout.plotContentWidth / 2
+                                : chartLayout.slotSpacing * index
+                            }
+                            y={chartLayout.height - 10}
+                            textAnchor="middle"
+                          >
+                            {trendData.labels[index]}
+                          </text>
+                        ))}
+                      </g>
+                      {activeX !== null ? (
+                        <g className="mock-trend-focus">
+                          <line
+                            x1={activeX}
+                            y1={chartLayout.padding.top}
+                            x2={activeX}
+                            y2={chartLayout.height - chartLayout.padding.bottom}
+                          />
+                        </g>
+                      ) : null}
+                      <g className="mock-trend-lines">
+                        {visibleSeries.map((series) => (
+                          <path
+                            key={`line-${series.key}`}
+                            d={buildLinePath(
+                              series.points.map((point) => ({
+                                x: point.x,
+                                y: point.y
+                              }))
+                            )}
+                            className={`mock-trend-line ${
+                              series.key === "overall" ? "overall" : ""
+                            }`}
+                            style={{ stroke: series.color }}
+                          />
+                        ))}
+                      </g>
+                      <g className="mock-trend-points">
+                        {visibleSeries.map((series) =>
+                          series.points.map((point, index) =>
+                            point.y === null ? null : (
+                              <circle
+                                key={`point-${series.key}-${index}`}
+                                cx={point.x}
+                                cy={point.y}
+                                r={activeTrendIndex === index ? 4.5 : 3.5}
+                                className="mock-trend-point"
+                                style={{ fill: series.color }}
+                              >
+                                <title>
+                                  {`${series.label} ${trendData.labels[index]} ${formatAccuracy(
+                                    point.value,
+                                    1
+                                  )}`}
+                                </title>
+                              </circle>
+                            )
+                          )
+                        )}
+                      </g>
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
