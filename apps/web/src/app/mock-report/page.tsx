@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, CSSProperties, MouseEvent } from "react";
+import type { ChangeEvent, CSSProperties, MouseEvent, UIEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LoadingButton from "../../components/loading-button";
@@ -371,6 +371,41 @@ function getXAxisLabelIndices(count: number, maxVisibleCount: number) {
   return [0, Math.floor(count / 3), Math.floor((2 * count) / 3), count - 1];
 }
 
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getVisibleXAxisLabelIndices(
+  count: number,
+  visibleCount: number,
+  windowOffset: number
+) {
+  if (count <= 0) {
+    return [];
+  }
+  const lastIndex = Math.max(0, count - 1);
+  const visibleStart = clampNumber(Math.floor(windowOffset), 0, lastIndex);
+  const visibleEnd = clampNumber(
+    Math.ceil(windowOffset + visibleCount - 1),
+    visibleStart,
+    lastIndex
+  );
+  const range = visibleEnd - visibleStart + 1;
+  if (range <= 0) {
+    return [];
+  }
+  if (range <= 4) {
+    return Array.from({ length: range }, (_, index) => visibleStart + index);
+  }
+  const targetCount = range <= 6 ? range : 4;
+  const indices = new Set<number>();
+  for (let step = 0; step < targetCount; step += 1) {
+    const ratio = targetCount === 1 ? 0 : step / (targetCount - 1);
+    indices.add(visibleStart + Math.round((visibleEnd - visibleStart) * ratio));
+  }
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
 function parseJsonAnalysis(raw: string) {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -570,6 +605,7 @@ export default function MockReportPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [trendFilter, setTrendFilter] = useState<string>("all");
   const [trendViewportWidth, setTrendViewportWidth] = useState<number>(0);
+  const [trendScrollLeft, setTrendScrollLeft] = useState<number>(0);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
   const [inputMethod, setInputMethod] = useState<InputMethod>("image");
   const [focusColumn, setFocusColumn] = useState<FocusColumn>("input");
@@ -881,13 +917,13 @@ export default function MockReportPage() {
         trendScroll.style.marginLeft = "0";
         trendScroll.style.marginRight = "0";
         trendScroll.style.paddingRight = "0";
-        trendScroll.style.overflowX = "visible";
-        trendScroll.style.overflowY = "visible";
+        trendScroll.style.overflowX = "hidden";
+        trendScroll.style.overflowY = "hidden";
       }
 
       const captureWidth = Math.ceil(
-        trendCardRef.current.getBoundingClientRect().width ||
-          trendViewportWidth ||
+        trendViewportWidth ||
+          trendCardRef.current.getBoundingClientRect().width ||
           (typeof window !== "undefined" ? window.innerWidth : 0)
       );
 
@@ -1228,21 +1264,21 @@ export default function MockReportPage() {
       ? { top: 18, right: 12, bottom: 30, left: 36 }
       : { top: 20, right: 16, bottom: 32, left: 44 };
     const maxVisibleCount = getMaxVisibleCount(viewportWidth);
-    const plotWidthForVisible = Math.max(
-      1,
-      viewportWidth - padding.left - padding.right
-    );
-    const slotSpacing = plotWidthForVisible / Math.max(1, maxVisibleCount - 1);
-    const plotWidth = slotSpacing * Math.max(0, count - 1);
-    const rawChartWidth = padding.left + padding.right + plotWidth;
-    const chartWidth =
-      count <= maxVisibleCount ? viewportWidth : Math.max(viewportWidth, rawChartWidth);
+    const visibleCount = Math.max(1, Math.min(count || 1, maxVisibleCount));
+    const plotWidth = Math.max(1, viewportWidth - padding.left - padding.right);
+    const slotSpacing = visibleCount <= 1 ? plotWidth : plotWidth / (visibleCount - 1);
+    const scrollableSteps = Math.max(0, count - visibleCount);
+    const maxScrollLeft = slotSpacing * scrollableSteps;
+    const windowOffset = clampNumber(trendScrollLeft, 0, maxScrollLeft) / Math.max(1, slotSpacing);
+    const chartWidth = viewportWidth;
     const plotHeight = height - padding.top - padding.bottom;
+    const plotLeft = padding.left;
+    const plotRight = chartWidth - padding.right;
     const getX = (index: number) => {
       if (count <= 1) {
         return padding.left;
       }
-      return padding.left + slotSpacing * index;
+      return padding.left + slotSpacing * (index - windowOffset);
     };
     const getY = (value: number) => padding.top + (1 - value) * plotHeight;
     const seriesWithPoints = trendData.seriesList.map((series) => ({
@@ -1257,15 +1293,31 @@ export default function MockReportPage() {
       chartWidth,
       viewportWidth,
       maxVisibleCount,
+      visibleCount,
       slotSpacing,
       height,
       padding,
       count,
+      plotWidth,
+      plotHeight,
+      plotLeft,
+      plotRight,
+      scrollTrackWidth: viewportWidth + maxScrollLeft,
+      windowOffset,
+      visibleStartIndex: clampNumber(Math.floor(windowOffset), 0, Math.max(0, count - 1)),
+      visibleEndIndex: clampNumber(
+        Math.ceil(windowOffset + visibleCount - 1),
+        0,
+        Math.max(0, count - 1)
+      ),
       seriesWithPoints,
-      xLabelIndices: getXAxisLabelIndices(count, maxVisibleCount),
-      shouldScroll: chartWidth > viewportWidth + 1
+      xLabelIndices:
+        count <= maxVisibleCount
+          ? getXAxisLabelIndices(count, maxVisibleCount)
+          : getVisibleXAxisLabelIndices(count, visibleCount, windowOffset),
+      shouldScroll: scrollableSteps > 0
     };
-  }, [trendData, trendViewportWidth]);
+  }, [trendData, trendViewportWidth, trendScrollLeft]);
 
   const availableSeries = useMemo(
     () => chartLayout.seriesWithPoints.filter((series) => series.hasData),
@@ -1285,11 +1337,29 @@ export default function MockReportPage() {
       return null;
     }
     const fallbackIndex = trendData.entries.length - 1;
+    const visibleFallbackIndex = clampNumber(
+      Math.round(chartLayout.windowOffset + chartLayout.visibleCount - 1),
+      0,
+      fallbackIndex
+    );
     if (selectedTrendIndex === null || selectedTrendIndex > fallbackIndex) {
-      return fallbackIndex;
+      return visibleFallbackIndex;
+    }
+    if (
+      selectedTrendIndex < chartLayout.visibleStartIndex ||
+      selectedTrendIndex > chartLayout.visibleEndIndex
+    ) {
+      return visibleFallbackIndex;
     }
     return selectedTrendIndex;
-  }, [selectedTrendIndex, trendData.entries.length]);
+  }, [
+    chartLayout.visibleCount,
+    chartLayout.visibleEndIndex,
+    chartLayout.visibleStartIndex,
+    chartLayout.windowOffset,
+    selectedTrendIndex,
+    trendData.entries.length
+  ]);
 
   const activeTrendEntry = useMemo(() => {
     if (activeTrendIndex === null) {
@@ -1319,7 +1389,8 @@ export default function MockReportPage() {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const rawIndex = Math.round(
-      (x - chartLayout.padding.left) / Math.max(1, chartLayout.slotSpacing)
+      (x - chartLayout.padding.left) / Math.max(1, chartLayout.slotSpacing) +
+        chartLayout.windowOffset
     );
     const clamped = Math.min(
       Math.max(rawIndex, 0),
@@ -1328,28 +1399,35 @@ export default function MockReportPage() {
     setSelectedTrendIndex(clamped);
   };
 
+  const handleTrendScroll = (event: UIEvent<HTMLDivElement>) => {
+    setTrendScrollLeft(event.currentTarget.scrollLeft);
+  };
+
   const activeX =
     activeTrendIndex === null
       ? null
-      : chartLayout.padding.left + chartLayout.slotSpacing * activeTrendIndex;
+      : chartLayout.padding.left +
+        chartLayout.slotSpacing * (activeTrendIndex - chartLayout.windowOffset);
 
   useEffect(() => {
     const node = trendScrollRef.current;
     if (!node) {
       return;
     }
-    if (trendData.records > chartLayout.maxVisibleCount) {
+    if (chartLayout.shouldScroll) {
       requestAnimationFrame(() => {
         node.scrollLeft = node.scrollWidth - node.clientWidth;
+        setTrendScrollLeft(node.scrollLeft);
       });
     } else {
       node.scrollLeft = 0;
+      setTrendScrollLeft(0);
     }
   }, [
-    trendData.records,
-    chartLayout.chartWidth,
+    chartLayout.shouldScroll,
+    chartLayout.scrollTrackWidth,
     chartLayout.viewportWidth,
-    chartLayout.maxVisibleCount
+    trendData.records
   ]);
 
   return (
@@ -1841,13 +1919,18 @@ export default function MockReportPage() {
             <div
               className="mock-trend-scroll"
               ref={trendScrollRef}
+              onScroll={handleTrendScroll}
               style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
             >
+              <div
+                className="mock-trend-pan"
+                style={{ width: `${chartLayout.scrollTrackWidth}px` }}
+              >
               <div className="mock-trend-chart">
               <svg
-                width={chartLayout.chartWidth}
+                width={chartLayout.viewportWidth}
                 height={chartLayout.height}
-                viewBox={`0 0 ${chartLayout.chartWidth} ${chartLayout.height}`}
+                viewBox={`0 0 ${chartLayout.viewportWidth} ${chartLayout.height}`}
                 role="img"
                 aria-label="模考历史正确率趋势"
                 className="mock-trend-svg"
@@ -1856,7 +1939,7 @@ export default function MockReportPage() {
                 <rect
                   x="0"
                   y="0"
-                  width={chartLayout.chartWidth}
+                  width={chartLayout.viewportWidth}
                   height={chartLayout.height}
                   rx="14"
                   ry="14"
@@ -1875,7 +1958,7 @@ export default function MockReportPage() {
                         key={`grid-${tick}`}
                         x1={chartLayout.padding.left}
                         y1={y}
-                        x2={chartLayout.chartWidth - chartLayout.padding.right}
+                        x2={chartLayout.viewportWidth - chartLayout.padding.right}
                         y2={y}
                       />
                     );
@@ -1914,6 +1997,15 @@ export default function MockReportPage() {
                     </text>
                   ))}
                 </g>
+                <svg
+                  x={chartLayout.plotLeft}
+                  y={chartLayout.padding.top}
+                  width={chartLayout.plotWidth}
+                  height={chartLayout.plotHeight}
+                  viewBox={`${chartLayout.plotLeft} ${chartLayout.padding.top} ${chartLayout.plotWidth} ${chartLayout.plotHeight}`}
+                  preserveAspectRatio="none"
+                  className="mock-trend-plot"
+                >
                 {activeX !== null ? (
                   <g className="mock-trend-focus">
                     <line
@@ -1964,8 +2056,10 @@ export default function MockReportPage() {
                     )
                   )}
                 </g>
+                </svg>
               </svg>
-            </div>
+              </div>
+              </div>
             </div>
           ) : (
             <div className="knowledge-empty">暂无历史记录，先生成一次解读。</div>

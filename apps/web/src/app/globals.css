@@ -2930,6 +2930,18 @@ button {
   overflow-x: auto;
   overflow-y: hidden;
   width: 100%;
+  position: relative;
+}
+
+.mock-trend-pan {
+  position: relative;
+}
+
+.mock-trend-chart {
+  position: sticky;
+  left: 0;
+  width: 100%;
+  min-width: 100%;
 }
 
 .mock-trend-toggle {
@@ -2975,7 +2987,7 @@ button {
 }
 
 .mock-trend-chart {
-  display: inline-block;
+  display: block;
   padding: 0;
   background: transparent;
   border: none;
@@ -2984,6 +2996,10 @@ button {
 .mock-trend-chart svg {
   height: 240px;
   display: block;
+}
+
+.mock-trend-plot {
+  overflow: hidden;
 }
 
 .mock-trend-svg {
