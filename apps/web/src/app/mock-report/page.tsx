@@ -1382,7 +1382,7 @@ export default function MockReportPage() {
     });
   }, [trendData.entries.length]);
 
-  const handleTrendClick = (event: MouseEvent<SVGSVGElement>) => {
+  const handleTrendClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!trendData.entries.length) {
       return;
     }
@@ -1916,154 +1916,155 @@ export default function MockReportPage() {
           </div>
 
           {trendData.records ? (
-            <div
-              className="mock-trend-scroll"
-              ref={trendScrollRef}
-              onScroll={handleTrendScroll}
-              style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
-            >
+            <div className="mock-trend-shell" onClick={handleTrendClick}>
               <div
-                className="mock-trend-scroll-spacer"
-                style={{
-                  width: `${chartLayout.scrollTrackWidth}px`,
-                  height: `${chartLayout.height}px`
-                }}
-                aria-hidden="true"
-              />
-              <div className="mock-trend-chart">
-              <svg
-                width={chartLayout.viewportWidth}
-                height={chartLayout.height}
-                viewBox={`0 0 ${chartLayout.viewportWidth} ${chartLayout.height}`}
-                role="img"
-                aria-label="模考历史正确率趋势"
-                className="mock-trend-svg"
-                onClick={handleTrendClick}
+                className="mock-trend-scroll"
+                ref={trendScrollRef}
+                onScroll={handleTrendScroll}
+                style={{ overflowX: chartLayout.shouldScroll ? "auto" : "hidden" }}
               >
-                <rect
-                  x="0"
-                  y="0"
+                <div
+                  className="mock-trend-scroll-spacer"
+                  style={{
+                    width: `${chartLayout.scrollTrackWidth}px`,
+                    height: `${chartLayout.height}px`
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="mock-trend-chart">
+                <svg
                   width={chartLayout.viewportWidth}
                   height={chartLayout.height}
-                  rx="14"
-                  ry="14"
-                  className="mock-trend-bg"
-                />
-                <g className="mock-trend-grid">
-                  {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
-                    const y =
-                      chartLayout.padding.top +
-                      (1 - tick) *
-                        (chartLayout.height -
-                          chartLayout.padding.top -
-                          chartLayout.padding.bottom);
-                    return (
-                      <line
-                        key={`grid-${tick}`}
-                        x1={chartLayout.padding.left}
-                        y1={y}
-                        x2={chartLayout.viewportWidth - chartLayout.padding.right}
-                        y2={y}
-                      />
-                    );
-                  })}
-                </g>
-                <g className="mock-trend-axis">
-                  {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
-                    const y =
-                      chartLayout.padding.top +
-                      (1 - tick) *
-                        (chartLayout.height -
-                          chartLayout.padding.top -
-                          chartLayout.padding.bottom);
-                    return (
-                      <text
-                        key={`label-${tick}`}
-                        x={chartLayout.padding.left - 8}
-                        y={y + 4}
-                        textAnchor="end"
-                      >
-                        {(tick * 100).toFixed(0)}%
-                      </text>
-                    );
-                  })}
-                  {chartLayout.xLabelIndices.map((index) => (
-                    <text
-                      key={`x-${index}`}
-                      x={
-                        chartLayout.padding.left +
-                        (chartLayout.count <= 1
-                          ? 0
-                          : chartLayout.slotSpacing * (index - chartLayout.windowOffset))
-                      }
-                      y={chartLayout.height - 10}
-                      textAnchor="middle"
-                    >
-                      {trendData.labels[index]}
-                    </text>
-                  ))}
-                </g>
-                <svg
-                  x={chartLayout.plotLeft}
-                  y={chartLayout.padding.top}
-                  width={chartLayout.plotWidth}
-                  height={chartLayout.plotHeight}
-                  viewBox={`${chartLayout.plotLeft} ${chartLayout.padding.top} ${chartLayout.plotWidth} ${chartLayout.plotHeight}`}
-                  preserveAspectRatio="none"
-                  className="mock-trend-plot"
+                  viewBox={`0 0 ${chartLayout.viewportWidth} ${chartLayout.height}`}
+                  role="img"
+                  aria-label="模考历史正确率趋势"
+                  className="mock-trend-svg"
                 >
-                {activeX !== null ? (
-                  <g className="mock-trend-focus">
-                    <line
-                      x1={activeX}
-                      y1={chartLayout.padding.top}
-                      x2={activeX}
-                      y2={chartLayout.height - chartLayout.padding.bottom}
-                    />
+                  <rect
+                    x="0"
+                    y="0"
+                    width={chartLayout.viewportWidth}
+                    height={chartLayout.height}
+                    rx="14"
+                    ry="14"
+                    className="mock-trend-bg"
+                  />
+                  <g className="mock-trend-grid">
+                    {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+                      const y =
+                        chartLayout.padding.top +
+                        (1 - tick) *
+                          (chartLayout.height -
+                            chartLayout.padding.top -
+                            chartLayout.padding.bottom);
+                      return (
+                        <line
+                          key={`grid-${tick}`}
+                          x1={chartLayout.padding.left}
+                          y1={y}
+                          x2={chartLayout.viewportWidth - chartLayout.padding.right}
+                          y2={y}
+                        />
+                      );
+                    })}
                   </g>
-                ) : null}
-                <g className="mock-trend-lines">
-                  {visibleSeries.map((series) => (
-                    <path
-                      key={`line-${series.key}`}
-                      d={buildLinePath(
-                        series.points.map((point) => ({
-                          x: point.x,
-                          y: point.y
-                        }))
-                      )}
-                      className={`mock-trend-line ${
-                        series.key === "overall" ? "overall" : ""
-                      }`}
-                      style={{ stroke: series.color }}
-                    />
-                  ))}
-                </g>
-                <g className="mock-trend-points">
-                  {visibleSeries.map((series) =>
-                    series.points.map((point, index) =>
-                      point.y === null ? null : (
-                        <circle
-                          key={`point-${series.key}-${index}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r={activeTrendIndex === index ? 4.5 : 3.5}
-                          className="mock-trend-point"
-                          style={{ fill: series.color }}
+                  <g className="mock-trend-axis">
+                    {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+                      const y =
+                        chartLayout.padding.top +
+                        (1 - tick) *
+                          (chartLayout.height -
+                            chartLayout.padding.top -
+                            chartLayout.padding.bottom);
+                      return (
+                        <text
+                          key={`label-${tick}`}
+                          x={chartLayout.padding.left - 8}
+                          y={y + 4}
+                          textAnchor="end"
                         >
-                          <title>
-                            {`${series.label} ${trendData.labels[index]} ${formatAccuracy(
-                              point.value,
-                              1
-                            )}`}
-                          </title>
-                        </circle>
-                      )
-                    )
-                  )}
-                </g>
+                          {(tick * 100).toFixed(0)}%
+                        </text>
+                      );
+                    })}
+                    {chartLayout.xLabelIndices.map((index) => (
+                      <text
+                        key={`x-${index}`}
+                        x={
+                          chartLayout.padding.left +
+                          (chartLayout.count <= 1
+                            ? 0
+                            : chartLayout.slotSpacing * (index - chartLayout.windowOffset))
+                        }
+                        y={chartLayout.height - 10}
+                        textAnchor="middle"
+                      >
+                        {trendData.labels[index]}
+                      </text>
+                    ))}
+                  </g>
+                  <svg
+                    x={chartLayout.plotLeft}
+                    y={chartLayout.padding.top}
+                    width={chartLayout.plotWidth}
+                    height={chartLayout.plotHeight}
+                    viewBox={`${chartLayout.plotLeft} ${chartLayout.padding.top} ${chartLayout.plotWidth} ${chartLayout.plotHeight}`}
+                    preserveAspectRatio="none"
+                    className="mock-trend-plot"
+                  >
+                    {activeX !== null ? (
+                      <g className="mock-trend-focus">
+                        <line
+                          x1={activeX}
+                          y1={chartLayout.padding.top}
+                          x2={activeX}
+                          y2={chartLayout.height - chartLayout.padding.bottom}
+                        />
+                      </g>
+                    ) : null}
+                    <g className="mock-trend-lines">
+                      {visibleSeries.map((series) => (
+                        <path
+                          key={`line-${series.key}`}
+                          d={buildLinePath(
+                            series.points.map((point) => ({
+                              x: point.x,
+                              y: point.y
+                            }))
+                          )}
+                          className={`mock-trend-line ${
+                            series.key === "overall" ? "overall" : ""
+                          }`}
+                          style={{ stroke: series.color }}
+                        />
+                      ))}
+                    </g>
+                    <g className="mock-trend-points">
+                      {visibleSeries.map((series) =>
+                        series.points.map((point, index) =>
+                          point.y === null ? null : (
+                            <circle
+                              key={`point-${series.key}-${index}`}
+                              cx={point.x}
+                              cy={point.y}
+                              r={activeTrendIndex === index ? 4.5 : 3.5}
+                              className="mock-trend-point"
+                              style={{ fill: series.color }}
+                            >
+                              <title>
+                                {`${series.label} ${trendData.labels[index]} ${formatAccuracy(
+                                  point.value,
+                                  1
+                                )}`}
+                              </title>
+                            </circle>
+                          )
+                        )
+                      )}
+                    </g>
+                  </svg>
                 </svg>
-              </svg>
               </div>
             </div>
           ) : (

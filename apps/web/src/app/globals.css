@@ -2926,11 +2926,17 @@ button {
   }
 }
 
+.mock-trend-shell {
+  position: relative;
+  width: 100%;
+}
+
 .mock-trend-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   width: 100%;
   position: relative;
+  z-index: 0;
 }
 
 .mock-trend-scroll-spacer {
@@ -2940,10 +2946,12 @@ button {
 
 .mock-trend-chart {
   position: absolute;
-  left: 0;
-  top: 0;
+  inset: 0;
   width: 100%;
+  height: 100%;
   min-width: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .mock-trend-toggle {
@@ -2993,6 +3001,7 @@ button {
   padding: 0;
   background: transparent;
   border: none;
+  user-select: none;
 }
 
 .mock-trend-chart svg {
