@@ -1496,6 +1496,11 @@ button {
   background: var(--glass-bg-subtle);
 }
 
+.captcha-card.has-error {
+  border-color: rgba(229, 62, 62, 0.55);
+  background: rgba(229, 62, 62, 0.08);
+}
+
 .captcha-question {
   color: var(--text);
   line-height: 1.6;
@@ -1548,6 +1553,20 @@ button {
 }
 
 .captcha-row > button {
+  justify-self: start;
+}
+
+.auth-feedback-card {
+  gap: 10px;
+}
+
+.auth-feedback-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.auth-feedback-action {
   justify-self: start;
 }
 

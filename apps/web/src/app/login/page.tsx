@@ -112,6 +112,18 @@ export default function LoginPage() {
   const [heading, setHeading] = useState(HEADINGS[0]);
   const [quote, setQuote] = useState(QUOTES[0]);
 
+  const clearRegisterFeedback = () => {
+    setRequestState("idle");
+    setRequestMessage(null);
+  };
+
+  const challengeHasError =
+    requestState === "error" && requestMessage?.includes("验证码");
+  const emailHasError =
+    requestState === "error" && requestMessage?.includes("邮箱");
+  const showLoginShortcut =
+    requestState === "error" && requestMessage?.includes("已注册");
+
   useEffect(() => {
     setHeading(HEADINGS[Math.floor(Math.random() * HEADINGS.length)]);
     setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
@@ -162,6 +174,7 @@ export default function LoginPage() {
       setCaptchaAnswer("");
       setChallenge(data);
     } catch (err) {
+      setRequestState("error");
       setRequestMessage(
         err instanceof Error ? err.message : "验证码加载失败"
       );
@@ -169,9 +182,13 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    clearRegisterFeedback();
     if (emailMode === "register") {
-      loadChallenge();
+      void loadChallenge();
+      return;
     }
+    setChallenge(null);
+    setCaptchaAnswer("");
   }, [emailMode]);
 
   useEffect(() => {
@@ -483,7 +500,12 @@ export default function LoginPage() {
                       type="email"
                       placeholder="name@example.com"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        if (requestMessage) {
+                          clearRegisterFeedback();
+                        }
+                      }}
                     />
                     {emailSuggestions.length ? (
                       <div className="email-suggest">
@@ -499,10 +521,13 @@ export default function LoginPage() {
                         ))}
                       </div>
                     ) : null}
+                    {emailHasError ? (
+                      <p className="field-error">{requestMessage}</p>
+                    ) : null}
                   </div>
                   <div className="form-row captcha-row">
                     <label>验证题</label>
-                    <div className="captcha-card">
+                    <div className={`captcha-card ${challengeHasError ? "has-error" : ""}`}>
                       <div className="captcha-question">
                         {challenge ? challenge.question : "题目加载中..."}
                       </div>
@@ -514,7 +539,12 @@ export default function LoginPage() {
                             className={`captcha-option ${
                               captchaAnswer === option.label ? "selected" : ""
                             }`}
-                            onClick={() => setCaptchaAnswer(option.label)}
+                            onClick={() => {
+                              setCaptchaAnswer(option.label);
+                              if (requestMessage) {
+                                clearRegisterFeedback();
+                              }
+                            }}
                           >
                             <span className="captcha-option-label">{option.label}</span>
                             <span>{option.text}</span>
@@ -522,7 +552,17 @@ export default function LoginPage() {
                         ))}
                       </div>
                     </div>
-                    <button type="button" className="ghost" onClick={loadChallenge}>
+                    {challengeHasError ? (
+                      <p className="field-error">{requestMessage}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        clearRegisterFeedback();
+                        void loadChallenge();
+                      }}
+                    >
                       换一题
                     </button>
                   </div>
@@ -538,8 +578,28 @@ export default function LoginPage() {
                       ? `重新发送 (${cooldownSeconds}s)`
                       : "发送注册邮件"}
                   </button>
-                  {requestMessage ? (
-                    <p className="form-message">{requestMessage}</p>
+                  {requestMessage && !emailHasError && !challengeHasError ? (
+                    <div
+                      className={`status-card auth-feedback-card ${
+                        requestState === "error" ? "error" : "success"
+                      }`}
+                      role={requestState === "error" ? "alert" : "status"}
+                      aria-live="polite"
+                    >
+                      <div className="auth-feedback-text">{requestMessage}</div>
+                      {showLoginShortcut ? (
+                        <button
+                          type="button"
+                          className="ghost auth-feedback-action"
+                          onClick={() => {
+                            clearRegisterFeedback();
+                            setEmailMode("login");
+                          }}
+                        >
+                          去登录
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                   <button
                     type="button"
