@@ -20,6 +20,10 @@ const apiBase = (() => {
 type Challenge = {
   id: string;
   question: string;
+  options: Array<{
+    label: string;
+    text: string;
+  }>;
 };
 
 type RequestState = "idle" | "sending" | "sent" | "error";
@@ -126,10 +130,11 @@ export default function LoginPage() {
   const canSend = useMemo(
     () =>
       email.trim().length > 3 &&
+      Boolean(challenge) &&
       captchaAnswer.trim().length > 0 &&
       requestState !== "sending" &&
       cooldownSeconds === 0,
-    [email, captchaAnswer, requestState, cooldownSeconds]
+    [email, challenge, captchaAnswer, requestState, cooldownSeconds]
   );
 
   const canLogin = useMemo(
@@ -154,6 +159,7 @@ export default function LoginPage() {
         throw new Error("无法获取验证码");
       }
       const data = (await res.json()) as Challenge;
+      setCaptchaAnswer("");
       setChallenge(data);
     } catch (err) {
       setRequestMessage(
@@ -495,20 +501,29 @@ export default function LoginPage() {
                     ) : null}
                   </div>
                   <div className="form-row captcha-row">
-                    <label htmlFor="captcha">验证码</label>
-                    <input
-                      id="captcha"
-                      type="text"
-                      placeholder="输入答案"
-                      value={captchaAnswer}
-                      onChange={(event) => setCaptchaAnswer(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={loadChallenge}
-                    >
-                      {challenge ? challenge.question : "刷新"}
+                    <label>验证题</label>
+                    <div className="captcha-card">
+                      <div className="captcha-question">
+                        {challenge ? challenge.question : "题目加载中..."}
+                      </div>
+                      <div className="captcha-options">
+                        {challenge?.options.map((option) => (
+                          <button
+                            key={`${challenge.id}-${option.label}`}
+                            type="button"
+                            className={`captcha-option ${
+                              captchaAnswer === option.label ? "selected" : ""
+                            }`}
+                            onClick={() => setCaptchaAnswer(option.label)}
+                          >
+                            <span className="captcha-option-label">{option.label}</span>
+                            <span>{option.text}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" className="ghost" onClick={loadChallenge}>
+                      换一题
                     </button>
                   </div>
                   <button

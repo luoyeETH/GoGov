@@ -1,18 +1,37 @@
 import crypto from "crypto";
+import { challengeQuestionBank } from "./challenge-bank";
 
-const challenges = new Map<string, { answer: string; expiresAt: number }>();
+const optionLabels = ["A", "B", "C", "D"] as const;
+
+const challenges = new Map<
+  string,
+  {
+    answer: string;
+    expiresAt: number;
+  }
+>();
 
 function randomId() {
   return crypto.randomBytes(12).toString("hex");
 }
 
 export function createChallenge() {
-  const left = Math.floor(Math.random() * 8) + 2;
-  const right = Math.floor(Math.random() * 8) + 1;
-  const answer = String(left + right);
+  const question =
+    challengeQuestionBank[Math.floor(Math.random() * challengeQuestionBank.length)];
   const id = randomId();
-  challenges.set(id, { answer, expiresAt: Date.now() + 5 * 60 * 1000 });
-  return { id, question: `${left} + ${right} = ?` };
+  challenges.set(id, {
+    answer: question.answer,
+    expiresAt: Date.now() + 5 * 60 * 1000
+  });
+
+  return {
+    id,
+    question: question.question,
+    options: question.options.map((text, index) => ({
+      label: optionLabels[index],
+      text
+    }))
+  };
 }
 
 export function verifyChallenge(id: string, input: string) {
@@ -24,7 +43,7 @@ export function verifyChallenge(id: string, input: string) {
     challenges.delete(id);
     return false;
   }
-  const normalized = input.trim();
+  const normalized = input.trim().toUpperCase();
   const ok = normalized === item.answer;
   if (ok) {
     challenges.delete(id);
