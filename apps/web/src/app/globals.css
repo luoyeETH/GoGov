@@ -3058,6 +3058,63 @@ button {
   justify-content: space-between;
 }
 
+.mock-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mock-summary div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.mock-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mock-summary strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mock-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.mock-state-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mock-state-card strong {
+  color: var(--text);
+}
+
+.mock-state-card span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
 .mock-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -3073,6 +3130,7 @@ button {
   padding: 18px;
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .mock-card-header {
@@ -3097,6 +3155,7 @@ button {
 }
 
 .mock-upload-item {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 8px;
@@ -3110,6 +3169,27 @@ button {
   border-radius: 8px;
   object-fit: cover;
   max-height: 160px;
+}
+
+.mock-upload-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.mock-upload-remove:hover {
+  background: var(--danger);
 }
 
 .mock-manual-grid {
@@ -3411,8 +3491,104 @@ button {
   color: var(--brand);
 }
 
+.manual-issues {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 69, 58, 0.28);
+  background: rgba(255, 69, 58, 0.1);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.mock-readiness {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mock-history-skeleton,
+.mock-output-skeleton,
+.mock-trend-skeleton {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.mock-history-skeleton span,
+.mock-output-skeleton span,
+.mock-trend-skeleton span {
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.mock-history-skeleton span {
+  height: 58px;
+  border-radius: 12px;
+}
+
+.mock-output-skeleton {
+  padding: 10px 0;
+}
+
+.mock-output-skeleton .wide {
+  width: 92%;
+}
+
+.mock-output-skeleton .short {
+  width: 56%;
+}
+
+.mock-trend-skeleton {
+  min-height: 220px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  align-content: end;
+}
+
+.mock-trend-skeleton span {
+  height: 28px;
+  border-radius: 8px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 640px) {
+  .mock-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .mock-summary div,
+  .mock-state-card {
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .mock-state-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mock-state-card .button-link,
+  .mock-state-card button {
+    width: 100%;
+    justify-content: center;
+  }
+
   .input-method-tabs {
     gap: 8px;
   }
@@ -3430,6 +3606,27 @@ button {
   .upload-button {
     width: 100%;
     padding: 16px 20px;
+  }
+
+  .mock-upload-list {
+    grid-template-columns: 1fr;
+  }
+
+  .mock-manual-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mock-manual-inputs {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .mock-manual-inputs input[aria-label$="用时"] {
+    grid-column: 1 / -1;
+  }
+
+  .mock-readiness {
+    font-size: 12px;
   }
 }
 
@@ -3929,10 +4126,12 @@ button {
   display: grid;
   gap: 22px;
   align-items: start;
+  min-width: 0;
   transition: grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mock-column {
+  min-width: 0;
   min-height: 400px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
@@ -4045,6 +4244,19 @@ button {
   .mock-column:not(.is-focused) .assist-output,
   .mock-column:not(.is-focused) .knowledge-empty {
     display: block;
+  }
+
+  .mock-column:not(.is-focused) .input-method-tabs {
+    display: grid;
+  }
+
+  .mock-column:not(.is-focused) .input-method-content,
+  .mock-column:not(.is-focused) .form-row {
+    display: grid;
+  }
+
+  .mock-column:not(.is-focused) .assist-actions {
+    display: flex;
   }
 
   .mock-history-item {

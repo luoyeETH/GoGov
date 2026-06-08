@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, MouseEvent, UIEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -563,6 +563,10 @@ export default function MockReportPage() {
   const [uploads, setUploads] = useState<UploadImage[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [authReady, setAuthReady] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [historyState, setHistoryState] = useState<RequestState>("loading");
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
   const [state, setState] = useState<RequestState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [trendFilter, setTrendFilter] = useState<string>("all");
@@ -573,6 +577,7 @@ export default function MockReportPage() {
   const [focusColumn, setFocusColumn] = useState<FocusColumn>("input");
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareImageUrl, setShareImageUrl] = useState<string | null>(null);
+  const [shareMode, setShareMode] = useState<"trend" | "analysis">("trend");
   const [shareGenerating, setShareGenerating] = useState(false);
   const [shareAnalysisGenerating, setShareAnalysisGenerating] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
@@ -595,6 +600,68 @@ export default function MockReportPage() {
     [manualEntries]
   );
 
+  const manualIssues = useMemo(
+    () =>
+      manualEntries
+        .map((entry) => {
+          const hasCorrect = entry.correct.trim().length > 0;
+          const hasTotal = entry.total.trim().length > 0;
+          if (!hasCorrect && !hasTotal) {
+            return null;
+          }
+          const correct = Number(entry.correct);
+          const total = Number(entry.total);
+          if (!Number.isFinite(correct) || !Number.isFinite(total)) {
+            return `${entry.subject} 题数需填写数字`;
+          }
+          if (total <= 0) {
+            return `${entry.subject} 总题数需大于 0`;
+          }
+          if (correct < 0 || correct > total) {
+            return `${entry.subject} 正确题数需在 0-${total} 之间`;
+          }
+          return null;
+        })
+        .filter((item): item is string => Boolean(item)),
+    [manualEntries]
+  );
+
+  const hasReadyInput = uploads.length > 0 || manualMetrics.length > 0;
+
+  const mockSummary = useMemo(() => {
+    const latestHistory = history[0] ?? null;
+    const latestAccuracy = latestHistory
+      ? formatAccuracy(getHistoryOverallAccuracy(latestHistory), 1)
+      : "暂无";
+    const historyLabel =
+      !authReady
+        ? "检查中"
+        : !isAuthed
+        ? "未登录"
+        : historyState === "loading"
+        ? "加载中"
+        : historyState === "error"
+        ? "加载失败"
+        : `${history.length} 条`;
+    const inputLabel =
+      inputMethod === "image" ? `${uploads.length}/3 张` : `${manualMetrics.length} 科`;
+
+    return [
+      { label: "登录状态", value: !authReady ? "检查中" : isAuthed ? "已登录" : "未登录" },
+      { label: "当前输入", value: inputLabel },
+      { label: "历史记录", value: historyLabel },
+      { label: "最近正确率", value: latestAccuracy }
+    ];
+  }, [
+    authReady,
+    history,
+    historyState,
+    inputMethod,
+    isAuthed,
+    manualMetrics.length,
+    uploads.length
+  ]);
+
   const defaultTitles = useMemo(() => getDefaultMockTitles(), []);
 
   useEffect(() => {
@@ -604,10 +671,15 @@ export default function MockReportPage() {
     setTitle(defaultTitles[titlePreset]);
   }, [defaultTitles, titlePreset]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
+    setHistoryState("loading");
+    setHistoryMessage(null);
     const token = window.localStorage.getItem(sessionKey);
+    setAuthReady(true);
+    setIsAuthed(Boolean(token));
     if (!token) {
       setHistory([]);
+      setHistoryState("idle");
       return;
     }
     try {
@@ -615,7 +687,10 @@ export default function MockReportPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data.history)) {
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "历史记录加载失败");
+      }
+      if (Array.isArray(data.history)) {
         setHistory(
           data.history.map((item: Record<string, unknown>) => {
             const analysis = item.analysis as Record<string, unknown> | null | undefined;
@@ -647,15 +722,20 @@ export default function MockReportPage() {
             };
           })
         );
+      } else {
+        setHistory([]);
       }
-    } catch {
+      setHistoryState("idle");
+    } catch (err) {
       setHistory([]);
+      setHistoryState("error");
+      setHistoryMessage(err instanceof Error ? err.message : "历史记录加载失败");
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadHistory();
-  }, []);
+  }, [loadHistory]);
 
   useEffect(() => {
     const node = trendShellRef.current;
@@ -687,12 +767,22 @@ export default function MockReportPage() {
       return;
     }
     const next: UploadImage[] = [];
+    const availableSlots = Math.max(0, 3 - uploads.length);
+    let rejectedType = 0;
+    let rejectedSize = 0;
+    let rejectedLimit = 0;
     for (const file of files) {
       if (!file.type.startsWith("image/")) {
+        rejectedType += 1;
         continue;
       }
       const sizeMb = file.size / (1024 * 1024);
       if (sizeMb > 8) {
+        rejectedSize += 1;
+        continue;
+      }
+      if (next.length >= availableSlots) {
+        rejectedLimit += 1;
         continue;
       }
       next.push({
@@ -701,7 +791,15 @@ export default function MockReportPage() {
         previewUrl: URL.createObjectURL(file)
       });
     }
-    setUploads((prev) => [...prev, ...next].slice(0, 3));
+    if (next.length) {
+      setUploads((prev) => [...prev, ...next].slice(0, 3));
+    }
+    const rejectedMessages = [
+      rejectedType ? `${rejectedType} 个文件不是图片` : "",
+      rejectedSize ? `${rejectedSize} 张图片超过 8MB` : "",
+      rejectedLimit ? "最多保留 3 张截图" : ""
+    ].filter(Boolean);
+    setMessage(rejectedMessages.length ? rejectedMessages.join("，") : null);
     event.target.value = "";
   };
 
@@ -913,6 +1011,7 @@ export default function MockReportPage() {
 
       // 转换为图片URL
       const imageUrl = canvas.toDataURL('image/png');
+      setShareMode("trend");
       setShareImageUrl(imageUrl);
       setShareModalOpen(true);
     } catch (err) {
@@ -956,6 +1055,7 @@ export default function MockReportPage() {
       document.body.removeChild(container);
 
       const imageUrl = canvas.toDataURL('image/png');
+      setShareMode("analysis");
       setShareImageUrl(imageUrl);
       setShareModalOpen(true);
     } catch (err) {
@@ -990,7 +1090,9 @@ export default function MockReportPage() {
   const handleDownloadImage = async () => {
     if (!shareImageUrl) return;
 
-    const filename = `学了么-模考正确率走势-${new Date().toLocaleDateString('zh-CN')}.png`;
+    const filename = `学了么-${
+      shareMode === "analysis" ? "模考成绩点评" : "模考正确率走势"
+    }-${new Date().toLocaleDateString('zh-CN')}.png`;
 
     try {
       const blob = await (await fetch(shareImageUrl)).blob();
@@ -1039,13 +1141,23 @@ export default function MockReportPage() {
     }
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
+      setAuthReady(true);
+      setIsAuthed(false);
       setState("error");
       setMessage("请先登录后使用模考解读。");
       return;
     }
-    if (!uploads.length && !manualMetrics.length) {
+    setIsAuthed(true);
+    if (!hasReadyInput) {
       setState("error");
       setMessage("请上传图片或填写手动数据。");
+      return;
+    }
+    if (manualIssues.length) {
+      setState("error");
+      setMessage(manualIssues[0]);
+      setInputMethod("manual");
+      setFocusColumn("input");
       return;
     }
     setState("loading");
@@ -1376,6 +1488,13 @@ export default function MockReportPage() {
         ? chartLayout.plotContentWidth / 2
         : chartLayout.slotSpacing * activeTrendIndex;
 
+  const canAnalyze =
+    authReady &&
+    isAuthed &&
+    hasReadyInput &&
+    !manualIssues.length &&
+    state !== "loading";
+
   useEffect(() => {
     const node = trendScrollRef.current;
     if (!node) {
@@ -1419,6 +1538,25 @@ export default function MockReportPage() {
         </div>
       </section>
 
+      <section className="mock-summary" aria-label="模考解读状态概览">
+        {mockSummary.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
+      {authReady && !isAuthed ? (
+        <section className="mock-state-card mock-login-state">
+          <div>
+            <strong>登录后可保存历史记录</strong>
+            <span>模考解读会结合最近记录生成趋势建议，登录后才能读取和沉淀历史。</span>
+          </div>
+          <a className="ghost button-link" href="/login">去登录</a>
+        </section>
+      ) : null}
+
       {/* 三列动态布局 */}
       <section
         className={`mock-three-column focus-${focusColumn}`}
@@ -1435,7 +1573,7 @@ export default function MockReportPage() {
           onClick={() => setFocusColumn('input')}
         >
           <div className="mock-card">
-          <div className={`mock-card-header${analysis ? " has-share" : ""}`}>
+          <div className="mock-card-header">
               <div>
                 <h3>成绩输入</h3>
                 {focusColumn !== 'input' && (
@@ -1543,11 +1681,22 @@ export default function MockReportPage() {
                             <img src={item.previewUrl} alt="模考截图" />
                             <button
                               type="button"
-                              className="ghost danger"
+                              className="mock-upload-remove"
                               onClick={() => removeUpload(item.id)}
                               aria-label="删除图片"
+                              title="删除图片"
                             >
-                              删除
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                width="16"
+                                height="16"
+                              >
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
                             </button>
                           </div>
                         ))}
@@ -1638,6 +1787,13 @@ export default function MockReportPage() {
                         已填写 {manualMetrics.length} 个科目
                       </div>
                     )}
+                    {manualIssues.length ? (
+                      <div className="manual-issues" role="alert">
+                        {manualIssues.slice(0, 2).map((issue) => (
+                          <span key={issue}>{issue}</span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 )}
 
@@ -1658,6 +1814,7 @@ export default function MockReportPage() {
                     className="primary"
                     loading={state === "loading"}
                     loadingText="生成中..."
+                    disabled={!canAnalyze}
                     onClick={handleAnalyze}
                   >
                     生成模考点评
@@ -1676,9 +1833,19 @@ export default function MockReportPage() {
                 </div>
 
                 {message ? <p className="form-message">{message}</p> : null}
-                {state === "loading" ? (
-                  <p className="form-message">AI 正在生成解析...</p>
-                ) : null}
+                <div className="mock-readiness" aria-live="polite">
+                  {!authReady
+                    ? "正在检查登录状态"
+                    : !isAuthed
+                    ? "请先登录后生成点评"
+                    : !hasReadyInput
+                    ? "上传截图或填写至少一个科目后可生成"
+                    : manualIssues.length
+                    ? "请先修正手动录入数据"
+                    : state === "loading"
+                    ? "AI 正在生成解析"
+                    : "数据已就绪"}
+                </div>
               </>
             )}
           </div>
@@ -1690,7 +1857,7 @@ export default function MockReportPage() {
           onClick={() => analysis && setFocusColumn('result')}
         >
           <div className="mock-card" ref={analysisCardRef}>
-            <div className="mock-card-header">
+            <div className={`mock-card-header${analysis ? " has-share" : ""}`}>
               <h3>成绩点评</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {focusColumn !== 'result' && analysis && (
@@ -1736,6 +1903,13 @@ export default function MockReportPage() {
                   {analysisMarkdown}
                 </ReactMarkdown>
               </div>
+            ) : state === "loading" ? (
+              <div className="mock-output-skeleton" aria-label="正在生成成绩点评">
+                <span className="wide" />
+                <span />
+                <span />
+                <span className="short" />
+              </div>
             ) : (
               <div className="knowledge-empty">提交数据后显示点评，或查看历史点评</div>
             )}
@@ -1754,7 +1928,23 @@ export default function MockReportPage() {
               )}
             </div>
             <div className="mock-history-list" onClick={(e) => e.stopPropagation()}>
-              {history.length ? (
+              {historyState === "loading" ? (
+                <div className="mock-history-skeleton" aria-label="正在加载历史记录">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ) : historyState === "error" ? (
+                <div className="mock-state-card mock-history-error" role="alert">
+                  <div>
+                    <strong>历史记录加载失败</strong>
+                    <span>{historyMessage ?? "请稍后重试。"}</span>
+                  </div>
+                  <button type="button" className="ghost" onClick={() => void loadHistory()}>
+                    重试
+                  </button>
+                </div>
+              ) : history.length ? (
                 history.map((item) => (
                   <div
                     key={item.id}
@@ -1804,7 +1994,9 @@ export default function MockReportPage() {
                   </div>
                 ))
               ) : (
-                <div className="knowledge-empty">暂无历史记录</div>
+                <div className="knowledge-empty">
+                  {isAuthed ? "暂无历史记录" : "登录后显示历史记录"}
+                </div>
               )}
             </div>
           </div>
@@ -2044,8 +2236,27 @@ export default function MockReportPage() {
                 </div>
               </div>
             </div>
+          ) : historyState === "loading" ? (
+            <div className="mock-trend-skeleton" aria-label="正在加载历史走势">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : historyState === "error" ? (
+            <div className="mock-state-card mock-trend-error" role="alert">
+              <div>
+                <strong>走势加载失败</strong>
+                <span>{historyMessage ?? "请稍后重试。"}</span>
+              </div>
+              <button type="button" className="ghost" onClick={() => void loadHistory()}>
+                重试
+              </button>
+            </div>
           ) : (
-            <div className="knowledge-empty">暂无历史记录，先生成一次解读。</div>
+            <div className="knowledge-empty">
+              {isAuthed ? "暂无历史记录，先生成一次解读。" : "登录后可查看历史走势。"}
+            </div>
           )}
 
           {activeTrendEntry ? (
@@ -2111,7 +2322,7 @@ export default function MockReportPage() {
         <div className="share-modal-overlay" onClick={() => setShareModalOpen(false)}>
           <div className="share-modal" onClick={(e) => e.stopPropagation()}>
             <div className="share-modal-header">
-              <h3>分享走势图</h3>
+              <h3>{shareMode === "analysis" ? "分享成绩点评" : "分享走势图"}</h3>
               <button
                 type="button"
                 className="ghost"
@@ -2133,7 +2344,11 @@ export default function MockReportPage() {
             </div>
             <div className="share-modal-body">
               {shareImageUrl && (
-                <img src={shareImageUrl} alt="走势图分享" className="share-preview" />
+                <img
+                  src={shareImageUrl}
+                  alt={shareMode === "analysis" ? "成绩点评分享" : "走势图分享"}
+                  className="share-preview"
+                />
               )}
             </div>
             <div className="share-modal-actions">
