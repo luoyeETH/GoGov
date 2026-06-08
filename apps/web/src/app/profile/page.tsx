@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme, type Theme } from "../../components/theme-provider";
 
 const apiBase = (() => {
@@ -65,12 +65,31 @@ function maskKey(value: string) {
   return `${head}****${tail}`;
 }
 
+function formatPrepDuration(value: string) {
+  if (!value) {
+    return "未设置";
+  }
+  const start = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(start.getTime())) {
+    return "未设置";
+  }
+  const now = new Date();
+  const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.max(
+    0,
+    Math.floor((today.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1
+  );
+  return `${days} 天`;
+}
+
 export default function ProfilePage() {
   const { theme, setTheme } = useTheme();
   const [state, setState] = useState<ProfileState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [draft, setDraft] = useState<ProfileData | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [aiApiKeyInput, setAiApiKeyInput] = useState("");
   const [clearAiKey, setClearAiKey] = useState(false);
@@ -80,58 +99,81 @@ export default function ProfilePage() {
   const [aiModelsMessage, setAiModelsMessage] = useState<string | null>(null);
   const lastModelConfigRef = useRef<{ provider: string | null; baseUrl: string | null } | null>(null);
 
+  const profileIssues = useMemo(() => {
+    if (!draft) {
+      return [];
+    }
+    const issues: string[] = [];
+    if (!isValidUsername(draft.username.trim())) {
+      issues.push("用户名需为 2-10 位字符，且不能包含空格。");
+    }
+    if (draft.age.trim()) {
+      const age = Number(draft.age);
+      if (!Number.isFinite(age) || age < 0 || age > 120) {
+        issues.push("年龄需填写 0-120 之间的数字。");
+      }
+    }
+    return issues;
+  }, [draft]);
+
   const canSave = useMemo(() => {
     if (state === "saving") {
       return false;
     }
-    if (!draft || !isValidUsername(draft.username.trim())) {
+    if (!draft || profileIssues.length) {
       return false;
     }
     return true;
-  }, [state, draft]);
+  }, [state, draft, profileIssues.length]);
+
+  const loadProfile = useCallback(async () => {
+    const token = window.localStorage.getItem(sessionKey);
+    setAuthReady(true);
+    if (!token) {
+      setProfile(null);
+      setDraft(null);
+      setMessage("请先登录后再完善资料。");
+      setState("error");
+      return;
+    }
+    setState("loading");
+    setMessage(null);
+    try {
+      const res = await fetch(`${apiBase}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error ?? "无法获取用户信息");
+      }
+      const loaded: ProfileData = {
+        email: data.user.email ?? null,
+        walletAddress: data.user.walletAddress ?? null,
+        username: data.user.username ?? "",
+        gender: data.user.gender ?? "hidden",
+        age: data.user.age ? String(data.user.age) : "",
+        examStartDate: data.user.examStartDate ?? "",
+        aiProvider: data.user.aiProvider ?? null,
+        aiModel: data.user.aiModel ?? null,
+        aiBaseUrl: data.user.aiBaseUrl ?? null,
+        aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
+        hasPassword: Boolean(data.user.hasPassword),
+        freeAi: data.user.freeAi ?? null
+      };
+      setProfile(loaded);
+      setDraft(loaded);
+      setState("idle");
+    } catch (err) {
+      setProfile(null);
+      setDraft(null);
+      setMessage(err instanceof Error ? err.message : "无法获取用户信息");
+      setState("error");
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      const token = window.localStorage.getItem(sessionKey);
-      if (!token) {
-        setMessage("请先登录后再完善资料。");
-        setState("error");
-        return;
-      }
-      setState("loading");
-      try {
-        const res = await fetch(`${apiBase}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.error ?? "无法获取用户信息");
-        }
-        const loaded: ProfileData = {
-          email: data.user.email ?? null,
-          walletAddress: data.user.walletAddress ?? null,
-          username: data.user.username ?? "",
-          gender: data.user.gender ?? "hidden",
-          age: data.user.age ? String(data.user.age) : "",
-          examStartDate: data.user.examStartDate ?? "",
-          aiProvider: data.user.aiProvider ?? null,
-          aiModel: data.user.aiModel ?? null,
-          aiBaseUrl: data.user.aiBaseUrl ?? null,
-          aiApiKeyConfigured: Boolean(data.user.aiApiKeyConfigured),
-          hasPassword: Boolean(data.user.hasPassword),
-          freeAi: data.user.freeAi ?? null
-        };
-        setProfile(loaded);
-        setDraft(loaded);
-        setState("idle");
-      } catch (err) {
-        setMessage(err instanceof Error ? err.message : "无法获取用户信息");
-        setState("error");
-      }
-    };
-
-    void load();
-  }, []);
+    void loadProfile();
+  }, [loadProfile]);
 
   useEffect(() => {
     if (!editMode || !draft) {
@@ -162,11 +204,17 @@ export default function ProfilePage() {
   const save = async () => {
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
+      setAuthReady(true);
       setMessage("请先登录后再完善资料。");
       setState("error");
       return;
     }
     if (!draft) {
+      return;
+    }
+    if (profileIssues.length) {
+      setMessage(profileIssues[0]);
+      setState("error");
       return;
     }
     setState("saving");
@@ -249,6 +297,38 @@ export default function ProfilePage() {
         ? "今日额度暂无数据"
         : null;
 
+  const profileOverview = useMemo(() => {
+    const accountValue =
+      state === "loading"
+        ? "加载中"
+        : profile?.email
+          ? "邮箱账号"
+          : profile?.walletAddress
+            ? "钱包账号"
+            : authReady
+              ? "未登录"
+              : "检查中";
+    const prepValue =
+      state === "loading" ? "加载中" : profile ? formatPrepDuration(profile.examStartDate) : "未设置";
+    const aiValue =
+      state === "loading"
+        ? "加载中"
+        : aiConfigured
+          ? "已配置"
+          : profile?.freeAi?.enabled
+            ? "免费通道"
+            : "未配置";
+    const passwordValue =
+      state === "loading" ? "加载中" : profile?.hasPassword ? "已设置" : "未设置";
+
+    return [
+      { label: "账号类型", value: accountValue },
+      { label: "备考天数", value: prepValue },
+      { label: "AI 通道", value: aiValue },
+      { label: "密码状态", value: passwordValue }
+    ];
+  }, [aiConfigured, authReady, profile, state]);
+
   const cycleTheme = () => {
     const themes: Theme[] = ["eyecare", "light", "dark"];
     const currentIndex = themes.indexOf(theme);
@@ -281,6 +361,51 @@ export default function ProfilePage() {
 
   const themeLabel = theme === "dark" ? "深色" : theme === "light" ? "浅色" : "护眼";
 
+  const loadAiModels = async () => {
+    if (!draft) {
+      return;
+    }
+    if (draft.aiProvider === "none") {
+      setAiModelsMessage("暂不配置时无需获取模型。");
+      return;
+    }
+    const token = window.localStorage.getItem(sessionKey);
+    if (!token) {
+      setAiModelsMessage("请先登录后再获取模型。");
+      return;
+    }
+    setAiModelsState("loading");
+    setAiModelsMessage(null);
+    try {
+      const payload: Record<string, string> = {
+        provider: draft.aiProvider ?? "openai"
+      };
+      if (draft.aiBaseUrl) {
+        payload.baseUrl = draft.aiBaseUrl;
+      }
+      if (aiApiKeyInput.trim()) {
+        payload.apiKey = aiApiKeyInput.trim();
+      }
+      const res = await fetch(`${apiBase}/ai/models`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error ?? "获取模型失败");
+      }
+      setAiModels(data.models ?? []);
+      setAiModelsState("success");
+    } catch (err) {
+      setAiModelsState("error");
+      setAiModelsMessage(err instanceof Error ? err.message : "获取模型失败");
+    }
+  };
+
   return (
     <main className="main register-page">
       <section className="login-hero app-page-header profile-page-header">
@@ -310,10 +435,24 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <section className="profile-overview" aria-label="个人中心状态概览">
+        {profileOverview.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
       <section className="profile-grid">
         <div className="login-card register-panel">
           {state === "loading" ? (
-            <div className="practice-loading">正在加载资料...</div>
+            <div className="profile-skeleton" aria-label="正在加载资料">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
           ) : profile && draft ? (
             <>
               <div className="profile-header">
@@ -389,6 +528,13 @@ export default function ProfilePage() {
                       }
                     />
                   </div>
+                  {profileIssues.length ? (
+                    <div className="profile-issues" role="alert">
+                      {profileIssues.map((issue) => (
+                        <span key={issue}>{issue}</span>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="form-row">
                     <label htmlFor="gender">性别</label>
                     <select
@@ -497,51 +643,14 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       className="ghost"
-                      onClick={async () => {
-                        if (!draft) {
-                          return;
-                        }
-                        const token = window.localStorage.getItem(sessionKey);
-                        if (!token) {
-                          setAiModelsMessage("请先登录后再获取模型。");
-                          return;
-                        }
-                        setAiModelsState("loading");
-                        setAiModelsMessage(null);
-                        try {
-                          const payload: Record<string, string> = {
-                            provider: draft.aiProvider ?? "openai"
-                          };
-                          if (draft.aiBaseUrl) {
-                            payload.baseUrl = draft.aiBaseUrl;
-                          }
-                          if (aiApiKeyInput.trim()) {
-                            payload.apiKey = aiApiKeyInput.trim();
-                          }
-                          const res = await fetch(`${apiBase}/ai/models`, {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`
-                            },
-                            body: JSON.stringify(payload)
-                          });
-                          const data = await res.json();
-                          if (!res.ok) {
-                            throw new Error(data?.error ?? "获取模型失败");
-                          }
-                          setAiModels(data.models ?? []);
-                          setAiModelsState("success");
-                        } catch (err) {
-                          setAiModelsState("error");
-                          setAiModelsMessage(
-                            err instanceof Error ? err.message : "获取模型失败"
-                          );
-                        }
-                      }}
+                      onClick={loadAiModels}
+                      disabled={aiModelsState === "loading" || draft.aiProvider === "none"}
                     >
                       {aiModelsState === "loading" ? "加载中..." : "获取模型列表"}
                     </button>
+                    {aiModelsState === "success" && aiModels.length > 0 ? (
+                      <p className="form-message">已加载 {aiModels.length} 个模型。</p>
+                    ) : null}
                     {aiModelsMessage ? (
                       <p className="form-message">{aiModelsMessage}</p>
                     ) : null}
@@ -632,25 +741,36 @@ export default function ProfilePage() {
               )}
 
             </>
-          ) : null}
+          ) : (
+            <div className="profile-state-card" role={state === "error" ? "alert" : undefined}>
+              <strong>{state === "error" ? "资料加载失败" : "尚未加载资料"}</strong>
+              <span>{message ?? "请登录后查看和编辑个人资料。"}</span>
+              <div className="profile-state-actions">
+                <Link href="/login" className="primary button-link">去登录</Link>
+                <button type="button" className="ghost" onClick={() => void loadProfile()}>
+                  重试
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <aside className="login-aside">
           <div className="aside-card">
             <h3>资料将用于</h3>
             <div className="aside-list">
-              <div>✔ 个性化学习计划</div>
-              <div>✔ 练习节奏推荐</div>
-              <div>✔ AI 提示与纠错</div>
+              <div><span className="aside-list-dot success" />个性化学习计划</div>
+              <div><span className="aside-list-dot success" />练习节奏推荐</div>
+              <div><span className="aside-list-dot success" />AI 提示与纠错</div>
             </div>
           </div>
           <div className="aside-card card-disabled" title="正在开发中">
             <h3>历史练习记录</h3>
             <p>即将支持练习曲线、错题回溯与答题统计。</p>
             <div className="aside-list">
-              <div>• 最近训练趋势</div>
-              <div>• 错题复盘清单</div>
-              <div>• 练习时间统计</div>
+              <div><span className="aside-list-dot" />最近训练趋势</div>
+              <div><span className="aside-list-dot" />错题复盘清单</div>
+              <div><span className="aside-list-dot" />练习时间统计</div>
             </div>
           </div>
         </aside>

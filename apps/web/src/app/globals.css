@@ -1332,6 +1332,24 @@ button {
   font-size: 13px;
 }
 
+.aside-list div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aside-list-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.aside-list-dot.success {
+  background: var(--success);
+}
+
 .benefit-list {
   list-style: none;
   padding: 0;
@@ -1631,6 +1649,36 @@ button {
   align-items: start;
 }
 
+.profile-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-overview div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.profile-overview span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-overview strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .profile-header {
   display: flex;
   align-items: center;
@@ -1641,6 +1689,59 @@ button {
 .profile-actions {
   display: flex;
   gap: 10px;
+}
+
+.profile-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-skeleton span {
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.profile-state-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.profile-state-card strong {
+  color: var(--text);
+}
+
+.profile-state-card span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.profile-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-issues {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 69, 58, 0.28);
+  background: rgba(255, 69, 58, 0.1);
+  color: var(--danger);
+  font-size: 12px;
 }
 
 .profile-summary {
@@ -6169,6 +6270,34 @@ button {
 
   .profile-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .profile-overview div {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .profile-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-actions,
+  .profile-state-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-actions button,
+  .profile-state-actions button,
+  .profile-state-actions .button-link {
+    width: 100%;
+    justify-content: center;
   }
 
   .assist-grid {
