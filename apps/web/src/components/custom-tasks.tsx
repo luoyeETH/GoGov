@@ -138,6 +138,7 @@ function detectCompactTaskMode() {
 
 export default function CustomTasksModule({ variant = "standalone" }: CustomTasksModuleProps) {
   const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [tasks, setTasks] = useState<CustomTask[]>([]);
   const [todayTasks, setTodayTasks] = useState<CustomTaskOccurrence[]>([]);
   const [completedTasks, setCompletedTasks] = useState<CustomTaskOccurrence[]>([]);
@@ -160,6 +161,46 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
   >("today");
 
   const today = useMemo(() => getBeijingDateString(), []);
+  const activeTaskCount = useMemo(
+    () => tasks.filter((task) => task.isActive).length,
+    [tasks]
+  );
+  const hasTaskData = Boolean(
+    tasks.length ||
+      todayTasks.length ||
+      completedTasks.length ||
+      overdueTasks.length
+  );
+  const showInitialTaskSkeleton = loading && !hasTaskData;
+  const taskStatusItems = useMemo(
+    () => [
+      {
+        label: "今日待办",
+        value: loading && !hasTaskData ? "同步中" : `${todayTasks.length}`
+      },
+      {
+        label: "未完成",
+        value: loading && !hasTaskData ? "同步中" : `${overdueTasks.length}`
+      },
+      {
+        label: "已完成",
+        value: loading && !hasTaskData ? "同步中" : `${completedTasks.length}`
+      },
+      {
+        label: "任务池",
+        value: loading && !hasTaskData ? "同步中" : `${activeTaskCount}/${tasks.length}`
+      }
+    ],
+    [
+      activeTaskCount,
+      completedTasks.length,
+      hasTaskData,
+      loading,
+      overdueTasks.length,
+      tasks.length,
+      todayTasks.length
+    ]
+  );
 
   const wrapperClass = [
     "custom-task-card",
@@ -297,8 +338,10 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
       return;
     }
     setToken(window.localStorage.getItem(sessionKey));
+    setAuthReady(true);
     const handleAuthChange = () => {
       setToken(window.localStorage.getItem(sessionKey));
+      setAuthReady(true);
     };
     window.addEventListener("auth-change", handleAuthChange);
     return () => {
@@ -467,6 +510,28 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     });
   };
 
+  if (!authReady) {
+    return (
+      <section className={wrapperClass}>
+        <div className="daily-card-header">
+          <div>
+            {variant === "standalone" ? <p className="eyebrow">待办清单</p> : null}
+            <h3>待办清单</h3>
+          </div>
+          <div className="daily-meta">
+            <span>{today}</span>
+            <span>检查登录态</span>
+          </div>
+        </div>
+        <div className="custom-task-skeleton" aria-label="正在检查待办清单状态">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </section>
+    );
+  }
+
   if (!token) {
     return (
       <section className={wrapperClass}>
@@ -479,7 +544,10 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
             去登录
           </Link>
         </div>
-        <div className="knowledge-empty">登录后即可创建待办任务。</div>
+        <div className="custom-task-auth-state">
+          <strong>登录后同步待办清单</strong>
+          <span>创建自定义任务后，今日待办、逾期补齐和已完成记录会在这里统一展示。</span>
+        </div>
       </section>
     );
   }
@@ -554,7 +622,31 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         </div>
       </div>
 
-      {renderBlock({
+      <div className="custom-task-overview" aria-label="待办清单状态">
+        {taskStatusItems.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      {message ? (
+        <div className="custom-task-alert" role={state === "error" ? "alert" : "status"}>
+          {message}
+        </div>
+      ) : null}
+
+      {showInitialTaskSkeleton ? (
+        <div className="custom-task-skeleton" aria-label="正在同步待办清单">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      ) : (
+        <>
+          {renderBlock({
         id: "overdue",
         title: "未完成列表",
         description: "按日期依次补齐，完成后才会刷新下一次。",
@@ -616,7 +708,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         )
       })}
 
-      {renderBlock({
+          {renderBlock({
         id: "today",
         title: "今日任务",
         description: "完成后会进入下一次周期。",
@@ -732,7 +824,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
         )
       })}
 
-      {renderBlock({
+          {renderBlock({
         id: "create",
         title: "创建待办任务",
         description: "可设置单次、每天、每周或间隔任务。",
@@ -824,16 +916,16 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
                 loading={state === "loading"}
                 loadingText="添加中..."
                 onClick={handleCreate}
+                disabled={loading}
               >
                 添加任务
               </LoadingButton>
-              {message ? <span className="form-message">{message}</span> : null}
             </div>
           </>
         )
       })}
 
-      {renderBlock({
+          {renderBlock({
         id: "library",
         title: "已创建任务",
         description: "管理正在生效的待办任务。",
@@ -868,6 +960,8 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
           <div className="knowledge-empty">暂无已创建任务。</div>
         )
       })}
+        </>
+      )}
     </section>
   );
 }

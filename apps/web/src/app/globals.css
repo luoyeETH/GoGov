@@ -6203,6 +6203,100 @@ button {
   gap: 16px;
 }
 
+.custom-tasks-page {
+  gap: 24px;
+}
+
+.custom-tasks-summary {
+  min-width: min(100%, 360px);
+}
+
+.custom-task-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.custom-task-overview div {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--glass-bg-subtle);
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.custom-task-overview span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.custom-task-overview strong {
+  font-size: 15px;
+  color: var(--brand-dark);
+  overflow-wrap: anywhere;
+}
+
+.custom-task-alert,
+.custom-task-auth-state {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.custom-task-alert {
+  color: var(--brand-dark);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.custom-task-auth-state {
+  display: grid;
+  gap: 6px;
+}
+
+.custom-task-auth-state strong {
+  font-size: 16px;
+}
+
+.custom-task-auth-state span {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.custom-task-skeleton {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.custom-task-skeleton span {
+  min-height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-12),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.custom-task-skeleton span:nth-child(2) {
+  width: 78%;
+}
+
+.custom-task-skeleton span:nth-child(3) {
+  width: 58%;
+}
+
 .custom-task-card-pwa {
   gap: 0;
 }
@@ -6365,10 +6459,12 @@ button {
 .custom-task-content {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .custom-task-title {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .custom-task-title.is-overdue {
@@ -6584,6 +6680,73 @@ button {
 
   .daily-mode-switch button {
     flex: 1;
+  }
+
+  .custom-tasks-page {
+    gap: 16px;
+  }
+
+  .custom-tasks-summary {
+    width: 100%;
+  }
+
+  .custom-task-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .custom-task-card {
+    gap: 12px;
+  }
+
+  .custom-task-card .daily-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .custom-task-card .daily-card-header .button-link {
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .custom-task-card .daily-meta {
+    text-align: left;
+  }
+
+  .custom-task-card .plan-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-task-card .assist-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .custom-task-card .assist-actions button,
+  .custom-task-card .assist-actions .loading-button {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .custom-task-weekdays {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .custom-task-weekday {
+    min-height: 38px;
+    padding: 6px 8px;
+  }
+
+  .custom-task-library-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .custom-task-library-item button {
+    width: 100%;
+    justify-content: center;
+    min-height: 40px;
   }
 }
 
@@ -12231,6 +12394,11 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 }
 
 @media (max-width: 480px) {
+  .custom-task-overview,
+  .custom-task-weekdays {
+    grid-template-columns: 1fr;
+  }
+
   .features-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
