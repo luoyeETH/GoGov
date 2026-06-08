@@ -1730,6 +1730,51 @@ button {
   gap: 10px;
 }
 
+.assist-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.assist-summary div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+}
+
+.assist-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.assist-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.assist-state-card {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+}
+
+.assist-state-card strong {
+  color: var(--text);
+}
+
 .scenario-list {
   display: grid;
   gap: 10px;
@@ -1764,6 +1809,99 @@ button {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.assist-history-tools {
+  display: flex;
+  gap: 10px;
+}
+
+.assist-history-tools input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  padding: 9px 14px;
+  font: inherit;
+}
+
+.assist-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.assist-empty strong {
+  color: var(--text);
+}
+
+.assist-empty span {
+  line-height: 1.55;
+}
+
+.assist-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.assist-skeleton-line,
+.assist-skeleton-grid span,
+.assist-history-skeleton span,
+.assist-output-skeleton span {
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.assist-skeleton-line {
+  width: min(520px, 72%);
+}
+
+.assist-skeleton-line.wide {
+  width: min(680px, 92%);
+}
+
+.assist-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.assist-history-skeleton,
+.assist-output-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.assist-history-skeleton span:nth-child(2),
+.assist-output-skeleton span:nth-child(2) {
+  width: 86%;
+}
+
+.assist-history-skeleton span:nth-child(3),
+.assist-output-skeleton span:nth-child(3) {
+  width: 68%;
+}
+
+.assist-output-skeleton span:nth-child(4) {
+  width: 78%;
 }
 
 .prompt-preview {
@@ -5573,6 +5711,31 @@ button {
 
   .assist-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assist-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assist-history-tools,
+  .assist-actions,
+  .assist-empty-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assist-history-tools button,
+  .assist-actions button,
+  .assist-actions .loading-button,
+  .assist-empty-actions button,
+  .assist-empty-actions .button-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .assist-card-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .plan-hero {
