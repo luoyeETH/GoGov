@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import LoadingButton from "../../components/loading-button";
@@ -230,40 +230,50 @@ export default function ComputerModulePage() {
     [sqlTasks, currentSqlTaskId]
   );
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoadState("loading");
-      setLoadMessage(null);
-      try {
-        const [overviewRes, topicsRes, cRes, sqlRes] = await Promise.all([
-          fetch(`${apiBase}/practice/computer/overview`),
-          fetch(`${apiBase}/practice/computer/topics`),
-          fetch(`${apiBase}/practice/computer/c/tasks`),
-          fetch(`${apiBase}/practice/computer/sql/tasks`)
-        ]);
-        const overviewData = (await overviewRes.json()) as OverviewResponse;
-        const topicsData = (await topicsRes.json()) as { topics?: Topic[] };
-        const cData = (await cRes.json()) as { tasks?: CTask[] };
-        const sqlData = (await sqlRes.json()) as { tasks?: SqlTask[] };
-        if (!overviewRes.ok) {
-          throw new Error((overviewData as { error?: string })?.error ?? "加载失败");
-        }
-        if (!topicsRes.ok) {
-          throw new Error((topicsData as { error?: string })?.error ?? "加载失败");
-        }
-        setOverview(overviewData);
-        setTopics(Array.isArray(topicsData.topics) ? topicsData.topics : []);
-        setCTasks(Array.isArray(cData.tasks) ? cData.tasks : []);
-        setSqlTasks(Array.isArray(sqlData.tasks) ? sqlData.tasks : []);
-        setLoadState("idle");
-      } catch (error) {
-        setLoadState("error");
-        setLoadMessage(error instanceof Error ? error.message : "加载失败");
-      }
-    };
+  const computerSummary = useMemo(
+    () => [
+      { label: "知识点", value: topics.length ? `${topics.length}` : "--" },
+      { label: "C 题", value: cTasks.length ? `${cTasks.length}` : "--" },
+      { label: "SQL 题", value: sqlTasks.length ? `${sqlTasks.length}` : "--" },
+      { label: "当前", value: activeTopic?.label ?? "待选择" }
+    ],
+    [activeTopic?.label, cTasks.length, sqlTasks.length, topics.length]
+  );
 
-    void loadAll();
+  const loadAll = useCallback(async () => {
+    setLoadState("loading");
+    setLoadMessage(null);
+    try {
+      const [overviewRes, topicsRes, cRes, sqlRes] = await Promise.all([
+        fetch(`${apiBase}/practice/computer/overview`),
+        fetch(`${apiBase}/practice/computer/topics`),
+        fetch(`${apiBase}/practice/computer/c/tasks`),
+        fetch(`${apiBase}/practice/computer/sql/tasks`)
+      ]);
+      const overviewData = (await overviewRes.json()) as OverviewResponse;
+      const topicsData = (await topicsRes.json()) as { topics?: Topic[] };
+      const cData = (await cRes.json()) as { tasks?: CTask[] };
+      const sqlData = (await sqlRes.json()) as { tasks?: SqlTask[] };
+      if (!overviewRes.ok) {
+        throw new Error((overviewData as { error?: string })?.error ?? "加载失败");
+      }
+      if (!topicsRes.ok) {
+        throw new Error((topicsData as { error?: string })?.error ?? "加载失败");
+      }
+      setOverview(overviewData);
+      setTopics(Array.isArray(topicsData.topics) ? topicsData.topics : []);
+      setCTasks(Array.isArray(cData.tasks) ? cData.tasks : []);
+      setSqlTasks(Array.isArray(sqlData.tasks) ? sqlData.tasks : []);
+      setLoadState("idle");
+    } catch (error) {
+      setLoadState("error");
+      setLoadMessage(error instanceof Error ? error.message : "加载失败");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
 
   useEffect(() => {
     if (!activeTopicId && topics.length) {
@@ -737,6 +747,35 @@ export default function ComputerModulePage() {
         ) : null}
       </section>
 
+      <section className="computer-summary" aria-label="计算机专项数据概览">
+        {computerSummary.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
+      {loadState === "loading" && !topics.length ? (
+        <section className="computer-load-skeleton" aria-label="正在加载计算机专项数据">
+          <span />
+          <span />
+          <span />
+        </section>
+      ) : null}
+
+      {loadState === "error" ? (
+        <div className="computer-load-state">
+          <div>
+            <h3>计算机专项加载失败</h3>
+            <p>{loadMessage ?? "请稍后重试。"}</p>
+          </div>
+          <button type="button" className="ghost" onClick={() => void loadAll()}>
+            重新加载
+          </button>
+        </div>
+      ) : null}
+
       {showExamIntro ? (
         <section className="computer-grid">
           <div className="computer-card">
@@ -811,7 +850,11 @@ export default function ComputerModulePage() {
             )) ?? null}
           </div>
           {loadState === "loading" ? (
-            <p className="form-message">知识点加载中...</p>
+            <div className="computer-inline-skeleton" aria-label="知识点加载中">
+              <span />
+              <span />
+              <span />
+            </div>
           ) : null}
         </div>
 
@@ -982,7 +1025,14 @@ export default function ComputerModulePage() {
             <h3>AI 学习卡片</h3>
             <span className="form-message">根据所选知识点生成</span>
           </div>
-          {answer ? (
+          {requestState === "loading" ? (
+            <div className="computer-output-skeleton" aria-label="AI 正在生成内容">
+              <span className="wide" />
+              <span />
+              <span />
+              <span className="short" />
+            </div>
+          ) : answer ? (
             <div className="assist-output">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
             </div>
@@ -1039,6 +1089,14 @@ export default function ComputerModulePage() {
               抽题
             </button>
           </div>
+
+          {practiceState === "loading" && !practiceQuestion ? (
+            <div className="computer-inline-skeleton" aria-label="正在抽题">
+              <span />
+              <span />
+              <span className="short" />
+            </div>
+          ) : null}
 
           {practiceQuestion ? (
             <div className="practice-question">

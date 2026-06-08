@@ -2425,6 +2425,104 @@ button {
   font-size: 14px;
 }
 
+.computer-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.computer-summary div {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  padding: 12px 14px;
+  display: grid;
+  gap: 5px;
+}
+
+.computer-summary span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.computer-summary strong {
+  color: var(--text);
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.computer-load-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 69, 58, 0.28);
+  background: rgba(255, 69, 58, 0.08);
+  padding: 16px;
+}
+
+.computer-load-state h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.computer-load-state p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.computer-load-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.computer-load-skeleton span,
+.computer-inline-skeleton span,
+.computer-output-skeleton span {
+  display: block;
+  border-radius: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--glass-bg-subtle) 0%,
+    var(--glass-bg-strong) 50%,
+    var(--glass-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.computer-load-skeleton span {
+  min-height: 120px;
+}
+
+.computer-inline-skeleton,
+.computer-output-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.computer-inline-skeleton span,
+.computer-output-skeleton span {
+  height: 14px;
+}
+
+.computer-inline-skeleton span.short,
+.computer-output-skeleton span.short {
+  width: 66%;
+}
+
+.computer-output-skeleton span.wide {
+  height: 22px;
+}
+
 .computer-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -2656,6 +2754,29 @@ button {
 
 .practice-toolbar button {
   height: 40px;
+}
+
+@media (max-width: 720px) {
+  .computer-summary,
+  .computer-load-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .computer-load-state,
+  .topic-detail-header,
+  .resource-item,
+  .practice-question-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .computer-load-state button,
+  .topic-detail-header button,
+  .practice-toolbar button,
+  .practice-actions button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .practice-question {
