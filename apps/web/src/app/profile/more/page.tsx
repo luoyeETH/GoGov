@@ -73,6 +73,18 @@ const featureGroups: Array<{ title: string; items: FeatureItem[] }> = [
   }
 ];
 
+const totalFeatureCount = featureGroups.reduce(
+  (count, group) => count + group.items.length,
+  0
+);
+
+const quickLinks = [
+  featureGroups[3].items[0],
+  featureGroups[1].items[1],
+  featureGroups[0].items[2],
+  featureGroups[4].items[0]
+];
+
 function FeatureIconSvg({ name }: { name: FeatureIcon }) {
   switch (name) {
     case "book":
@@ -228,12 +240,26 @@ function FeatureIconSvg({ name }: { name: FeatureIcon }) {
 
 export default function ProfileMorePage() {
   return (
-    <main className="main register-page">
+    <main className="main register-page profile-more-page">
       <section className="login-hero app-page-header">
         <div className="app-page-header-main">
           <p className="eyebrow">个人中心</p>
           <h1 className="app-page-title">更多功能</h1>
-          <p className="lead app-page-subtitle">常用工具与服务入口</p>
+          <p className="lead app-page-subtitle">常用训练、复盘、工具与账号服务入口</p>
+        </div>
+        <div className="app-page-metrics profile-more-summary" aria-label="更多功能概览">
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">功能入口</span>
+            <strong className="app-page-metric-value">{totalFeatureCount}</strong>
+          </div>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">功能分组</span>
+            <strong className="app-page-metric-value">{featureGroups.length}</strong>
+          </div>
+          <div className="app-page-metric">
+            <span className="app-page-metric-label">移动端</span>
+            <strong className="app-page-metric-value">已适配</strong>
+          </div>
         </div>
         <div className="profile-more-back">
           <Link href="/profile" className="ghost profile-more-back-link">
@@ -247,13 +273,48 @@ export default function ProfileMorePage() {
         </div>
       </section>
 
+      <section className="profile-more-quick" aria-label="常用功能">
+        <div className="profile-more-section-heading">
+          <h2 className="profile-more-section-title">常用入口</h2>
+          <span>4 项</span>
+        </div>
+        <div className="profile-more-quick-grid">
+          {quickLinks.map((item) => (
+            <Link
+              href={item.href}
+              className="feature-card profile-more-quick-card"
+              key={item.href}
+              aria-label={`${item.title}：${item.desc}`}
+              prefetch={false}
+            >
+              <span className="feature-icon" aria-hidden="true">
+                <FeatureIconSvg name={item.icon} />
+              </span>
+              <span className="profile-more-quick-text">
+                <span className="feature-title">{item.title}</span>
+                <span className="feature-desc">{item.desc}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section className="profile-more-features profile-more-features--page">
         {featureGroups.map((group) => (
           <div className="profile-more-section" key={group.title}>
-            <h2 className="profile-more-section-title">{group.title}</h2>
+            <div className="profile-more-section-heading">
+              <h2 className="profile-more-section-title">{group.title}</h2>
+              <span>{group.items.length} 项</span>
+            </div>
             <div className="features-grid profile-more-grid">
               {group.items.map((item) => (
-                <Link href={item.href} className="feature-card" key={item.href}>
+                <Link
+                  href={item.href}
+                  className="feature-card"
+                  key={item.href}
+                  aria-label={`${item.title}：${item.desc}`}
+                  prefetch={false}
+                >
                   <span className="feature-icon" aria-hidden="true">
                     <FeatureIconSvg name={item.icon} />
                   </span>

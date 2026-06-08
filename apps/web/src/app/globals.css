@@ -723,7 +723,7 @@ select {
 }
 
 .app-page-header .eyebrow {
-  letter-spacing: 1.2px;
+  letter-spacing: 0;
   font-size: 11px;
 }
 
@@ -761,7 +761,7 @@ select {
   display: block;
   font-size: 11px;
   color: var(--muted);
-  letter-spacing: 0.6px;
+  letter-spacing: 0;
 }
 
 .app-page-metric-value {
@@ -11799,6 +11799,57 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 }
 
 /* Profile More Features - Apple Settings Style */
+.profile-more-page {
+  display: grid;
+  gap: 20px;
+}
+
+.profile-more-summary {
+  min-width: min(100%, 360px);
+}
+
+.profile-more-quick {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.profile-more-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-more-quick-card {
+  min-height: 92px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: left;
+  padding: 14px;
+}
+
+.profile-more-quick-card .feature-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+
+.profile-more-quick-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-more-quick-text .feature-title,
+.profile-more-quick-text .feature-desc {
+  text-align: left;
+}
+
 .profile-more-features {
   max-width: 800px;
   margin: 0 auto;
@@ -11856,7 +11907,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 .profile-more-entry-text strong {
   font-size: 17px;
   font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .profile-more-entry-text span {
@@ -11901,6 +11952,19 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   color: var(--text);
 }
 
+.profile-more-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-more-section-heading > span {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .profile-more-features--page .profile-more-grid {
   margin-top: 0;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -11912,6 +11976,9 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   min-height: 132px;
   padding: 16px;
   text-align: left;
+  min-width: 0;
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
 
 .profile-more-features--page .feature-icon {
@@ -11936,6 +12003,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   font-size: 12px;
   line-height: 1.35;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .profile-more-back {
@@ -12006,6 +12074,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  min-width: 0;
 }
 
 .feature-card:active {
@@ -12117,10 +12186,62 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   }
 }
 
+@media (max-width: 768px) {
+  .profile-more-page {
+    gap: 16px;
+  }
+
+  .profile-more-page .login-hero {
+    align-items: stretch;
+  }
+
+  .profile-more-summary,
+  .profile-more-back,
+  .profile-more-back-link {
+    width: 100%;
+  }
+
+  .profile-more-back-link {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .profile-more-quick,
+  .profile-more-features--page {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .profile-more-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-more-quick-card {
+    min-height: 88px;
+  }
+
+  .profile-more-features--page .profile-more-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-more-features--page .feature-card {
+    min-height: 126px;
+    padding: 14px;
+  }
+}
+
 @media (max-width: 480px) {
   .features-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .profile-more-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-more-quick-card {
+    min-height: 76px;
   }
 
   .profile-more-features--page .features-grid {
