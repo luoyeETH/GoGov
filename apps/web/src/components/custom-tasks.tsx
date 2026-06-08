@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import LoadingButton from "./loading-button";
 
@@ -125,11 +125,12 @@ function formatRecurrence(task: {
   return "单次";
 }
 
-function detectPwaMode() {
+function detectCompactTaskMode() {
   if (typeof window === "undefined") {
     return false;
   }
   return (
+    window.matchMedia("(max-width: 768px)").matches ||
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as any).standalone === true
   );
@@ -153,7 +154,7 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
   const [completingKeys, setCompletingKeys] = useState<string[]>([]);
   const [uncompletingKeys, setUncompletingKeys] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isPwa, setIsPwa] = useState(() => detectPwaMode());
+  const [isCompact, setIsCompact] = useState(false);
   const [openPanel, setOpenPanel] = useState<
     "overdue" | "today" | "create" | "library" | null
   >("today");
@@ -162,11 +163,48 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
 
   const wrapperClass = [
     "custom-task-card",
-    isPwa ? "custom-task-card-pwa" : "",
+    isCompact ? "custom-task-card-pwa" : "",
     variant === "embedded" ? "custom-task-card-embedded" : "daily-card"
   ]
     .filter(Boolean)
     .join(" ");
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const updateCompactMode = () => setIsCompact(detectCompactTaskMode());
+    updateCompactMode();
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const compactQuery = window.matchMedia("(max-width: 768px)");
+    const handleChange = () => updateCompactMode();
+    const addListener = (query: MediaQueryList) => {
+      if (query.addEventListener) {
+        query.addEventListener("change", handleChange);
+      } else if (query.addListener) {
+        query.addListener(handleChange);
+      }
+    };
+    const removeListener = (query: MediaQueryList) => {
+      if (query.removeEventListener) {
+        query.removeEventListener("change", handleChange);
+      } else if (query.removeListener) {
+        query.removeListener(handleChange);
+      }
+    };
+    addListener(standaloneQuery);
+    addListener(compactQuery);
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("resize", handleChange, { passive: true });
+    }
+    return () => {
+      removeListener(standaloneQuery);
+      removeListener(compactQuery);
+      if (typeof window.removeEventListener === "function") {
+        window.removeEventListener("resize", handleChange);
+      }
+    };
+  }, []);
 
   const loadTasks = async () => {
     if (!token) {
@@ -258,15 +296,6 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     if (typeof window === "undefined") {
       return;
     }
-    const updatePwa = () => setIsPwa(detectPwaMode());
-    updatePwa();
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    const handleChange = () => updatePwa();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleChange);
-    } else if (mediaQuery.addListener) {
-      mediaQuery.addListener(handleChange);
-    }
     setToken(window.localStorage.getItem(sessionKey));
     const handleAuthChange = () => {
       setToken(window.localStorage.getItem(sessionKey));
@@ -274,11 +303,6 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     window.addEventListener("auth-change", handleAuthChange);
     return () => {
       window.removeEventListener("auth-change", handleAuthChange);
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener("change", handleChange);
-      } else if (mediaQuery.removeListener) {
-        mediaQuery.removeListener(handleChange);
-      }
     };
   }, []);
 
@@ -471,12 +495,12 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
     description?: string;
     content: ReactNode;
   }) => {
-    const expanded = !isPwa || openPanel === id;
+    const expanded = !isCompact || openPanel === id;
     const contentId = `custom-task-panel-${id}`;
     const headerContent = (
       <div>
         <h4>{title}</h4>
-        {!isPwa && description ? <p className="form-message">{description}</p> : null}
+        {!isCompact && description ? <p className="form-message">{description}</p> : null}
       </div>
     );
 
@@ -484,13 +508,13 @@ export default function CustomTasksModule({ variant = "standalone" }: CustomTask
       <div
         className={[
           "custom-task-block",
-          isPwa ? "custom-task-block-accordion" : "",
+          isCompact ? "custom-task-block-accordion" : "",
           expanded ? "is-open" : "is-collapsed"
         ]
           .filter(Boolean)
           .join(" ")}
       >
-        {isPwa ? (
+        {isCompact ? (
           <button
             type="button"
             className="custom-task-block-header custom-task-block-toggle"

@@ -6,18 +6,19 @@ import CustomTasksModule from "../../components/custom-tasks";
 
 const pwaViewKey = "gogov_pwa_daily_view";
 
-function detectPwaMode() {
+function detectCompactTaskMode() {
   if (typeof window === "undefined") {
     return false;
   }
   return (
+    window.matchMedia("(max-width: 768px)").matches ||
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as any).standalone === true
   );
 }
 
 export default function DailyTasksPage() {
-  const [isPwa, setIsPwa] = useState(() => detectPwaMode());
+  const [isCompact, setIsCompact] = useState(false);
   const [view, setView] = useState<"daily" | "custom">(() => {
     if (typeof window === "undefined") {
       return "daily";
@@ -36,32 +37,47 @@ export default function DailyTasksPage() {
   const [hasSwitched, setHasSwitched] = useState(false);
   const dailyRef = useRef<HTMLDivElement>(null);
   const customRef = useRef<HTMLDivElement>(null);
-  const showCustom = isPwa && view === "custom";
+  const showCustom = isCompact && view === "custom";
 
   useLayoutEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-    const update = () => setIsPwa(detectPwaMode());
+    const update = () => setIsCompact(detectCompactTaskMode());
     update();
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const compactQuery = window.matchMedia("(max-width: 768px)");
     const handleChange = () => update();
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener("change", handleChange);
-    } else if (mediaQuery.addListener) {
-      mediaQuery.addListener(handleChange);
+    const addListener = (query: MediaQueryList) => {
+      if (query.addEventListener) {
+        query.addEventListener("change", handleChange);
+      } else if (query.addListener) {
+        query.addListener(handleChange);
+      }
+    };
+    const removeListener = (query: MediaQueryList) => {
+      if (query.removeEventListener) {
+        query.removeEventListener("change", handleChange);
+      } else if (query.removeListener) {
+        query.removeListener(handleChange);
+      }
+    };
+    addListener(standaloneQuery);
+    addListener(compactQuery);
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("resize", handleChange, { passive: true });
     }
     return () => {
-      if (mediaQuery.removeEventListener) {
-        mediaQuery.removeEventListener("change", handleChange);
-      } else if (mediaQuery.removeListener) {
-        mediaQuery.removeListener(handleChange);
+      removeListener(standaloneQuery);
+      removeListener(compactQuery);
+      if (typeof window.removeEventListener === "function") {
+        window.removeEventListener("resize", handleChange);
       }
     };
   }, []);
 
   useEffect(() => {
-    if (!isPwa || typeof window === "undefined") {
+    if (!isCompact || typeof window === "undefined") {
       return;
     }
     try {
@@ -72,10 +88,10 @@ export default function DailyTasksPage() {
     } catch {
       // Ignore storage errors.
     }
-  }, [isPwa, view]);
+  }, [isCompact, view]);
 
   useEffect(() => {
-    if (!isPwa || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
+    if (!isCompact || typeof window === "undefined" || typeof ResizeObserver === "undefined") {
       return;
     }
     const dailyNode = dailyRef.current;
@@ -99,14 +115,14 @@ export default function DailyTasksPage() {
     observer.observe(dailyNode);
     observer.observe(customNode);
     return () => observer.disconnect();
-  }, [isPwa, showCustom, hasSwitched]);
+  }, [isCompact, showCustom, hasSwitched]);
 
   const switchView = (next: "daily" | "custom") => {
     if (next !== view) {
       setHasSwitched(true);
     }
     setView(next);
-    if (!isPwa) {
+    if (!isCompact) {
       return;
     }
     try {
@@ -135,7 +151,7 @@ export default function DailyTasksPage() {
 
   return (
     <main className="main daily-page">
-      {isPwa ? (
+      {isCompact ? (
         <section className="daily-switch-top">
           <div className="daily-mode-switch">
             <button
@@ -172,7 +188,7 @@ export default function DailyTasksPage() {
       </section>
 
       <section className="daily-section">
-        {isPwa ? (
+        {isCompact ? (
           <div
             className="daily-view-stack"
             style={maxSectionHeight ? { minHeight: `${maxSectionHeight}px` } : undefined}

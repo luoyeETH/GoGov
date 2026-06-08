@@ -5286,7 +5286,7 @@ button {
   background: var(--glass-bg-subtle);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .daily-mode-switch {
     width: 100%;
   }
