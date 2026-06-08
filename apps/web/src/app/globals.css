@@ -7625,6 +7625,49 @@ body.pomodoro-immersive .page {
   flex-wrap: wrap;
 }
 
+.mistakes-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.mistakes-search {
+  min-width: min(280px, 100%);
+}
+
+.mistakes-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mistakes-summary div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.mistakes-summary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mistakes-summary strong {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: var(--weight-semibold);
+}
+
+.mistakes-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .mistake-list {
   display: grid;
   gap: 16px;
@@ -7675,6 +7718,26 @@ body.pomodoro-immersive .page {
   color: var(--brand-dark);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.mistakes-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.mistakes-empty strong {
+  color: var(--text);
+}
+
+.mistakes-empty span {
+  color: var(--muted);
+}
+
+.mistakes-empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {
@@ -7937,6 +8000,17 @@ body.pomodoro-immersive .page {
 
   .mistakes-controls {
     width: 100%;
+  }
+
+  .mistakes-filter,
+  .mistakes-filter select,
+  .mistakes-filter input {
+    width: 100%;
+  }
+
+  .mistakes-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .practice-keypad {

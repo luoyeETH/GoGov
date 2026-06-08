@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { QuickPracticeCategory } from "@gogov/shared";
 
 const apiBase = (() => {
@@ -51,6 +52,7 @@ export default function MistakesPage() {
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [categories, setCategories] = useState<QuickPracticeCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchText, setSearchText] = useState("");
 
   const computerCategory: QuickPracticeCategory = useMemo(
     () => ({
@@ -65,6 +67,37 @@ export default function MistakesPage() {
   const categoryMap = useMemo(() => {
     return new Map(categories.map((item) => [item.id, item.name]));
   }, [categories]);
+
+  const getCategoryLabel = (item: MistakeItem) =>
+    item.categoryId ? categoryMap.get(item.categoryId) ?? "未知题型" : "未知题型";
+
+  const filteredMistakes = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) {
+      return mistakes;
+    }
+    return mistakes.filter((item) =>
+      [
+        item.prompt,
+        item.answer,
+        item.userAnswer,
+        item.explanation ?? "",
+        getCategoryLabel(item)
+      ].some((value) => value.toLowerCase().includes(query))
+    );
+  }, [mistakes, searchText, categoryMap]);
+
+  const mistakeStats = useMemo(() => {
+    const categoryCount = new Set(
+      mistakes.map((item) => item.categoryId ?? "unknown")
+    ).size;
+    return {
+      total: mistakes.length,
+      visible: filteredMistakes.length,
+      explained: mistakes.filter((item) => Boolean(item.explanation)).length,
+      categoryCount
+    };
+  }, [filteredMistakes.length, mistakes]);
 
   const loadMistakes = async (categoryId?: string) => {
     const token = window.localStorage.getItem(sessionKey);
@@ -129,40 +162,79 @@ export default function MistakesPage() {
           </p>
         </div>
         <div className="mistakes-controls">
-          <label htmlFor="category" className="practice-label">
-            题型筛选
-          </label>
-          <select
-            id="category"
-            value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
-          >
-            <option value="all">全部</option>
-            {categories.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+          <div className="mistakes-filter">
+            <label htmlFor="category" className="practice-label">
+              题型筛选
+            </label>
+            <select
+              id="category"
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+            >
+              <option value="all">全部</option>
+              {categories.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mistakes-filter mistakes-search">
+            <label htmlFor="mistake-search" className="practice-label">
+              关键词
+            </label>
+            <input
+              id="mistake-search"
+              value={searchText}
+              placeholder="搜索题干、答案或解析"
+              onChange={(event) => setSearchText(event.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="mistakes-summary" aria-label="错题统计">
+        <div>
+          <span>当前显示</span>
+          <strong>{mistakeStats.visible}</strong>
+        </div>
+        <div>
+          <span>错题总数</span>
+          <strong>{mistakeStats.total}</strong>
+        </div>
+        <div>
+          <span>覆盖题型</span>
+          <strong>{mistakeStats.categoryCount}</strong>
+        </div>
+        <div>
+          <span>含解析</span>
+          <strong>{mistakeStats.explained}</strong>
         </div>
       </section>
 
       {state === "loading" ? (
         <div className="practice-loading">正在加载错题...</div>
       ) : message ? (
-        <div className="practice-error">{message}</div>
+        <div className="practice-error mistakes-feedback">
+          <span>{message}</span>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() =>
+              loadMistakes(selectedCategory === "all" ? undefined : selectedCategory)
+            }
+          >
+            重试
+          </button>
+        </div>
       ) : null}
 
       <section className="mistake-list">
-        {mistakes.length ? (
-          mistakes.map((item) => (
+        {state !== "idle" ? null : filteredMistakes.length ? (
+          filteredMistakes.map((item) => (
             <div key={item.id} className="mistake-card">
               <div className="mistake-meta">
-                <span>
-                  {item.categoryId
-                    ? categoryMap.get(item.categoryId) ?? "未知题型"
-                    : "未知题型"}
-                </span>
+                <span>{getCategoryLabel(item)}</span>
                 <span>{formatDate(item.createdAt)}</span>
               </div>
               <div className="mistake-question">{item.prompt}</div>
@@ -181,8 +253,27 @@ export default function MistakesPage() {
               ) : null}
             </div>
           ))
+        ) : mistakes.length ? (
+          <div className="knowledge-empty mistakes-empty">
+            <strong>没有匹配的错题</strong>
+            <span>换个关键词，或切换题型筛选。</span>
+            <button type="button" className="ghost" onClick={() => setSearchText("")}>
+              清空搜索
+            </button>
+          </div>
         ) : (
-          <div className="practice-loading">暂无错题记录</div>
+          <div className="knowledge-empty mistakes-empty">
+            <strong>暂无错题记录</strong>
+            <span>完成练习后，答错的题目会自动进入这里。</span>
+            <div className="mistakes-empty-actions">
+              <Link href="/practice/quick" className="primary button-link">
+                去速算练习
+              </Link>
+              <Link href="/computer" className="ghost button-link">
+                去计算机专项
+              </Link>
+            </div>
+          </div>
         )}
       </section>
     </main>
