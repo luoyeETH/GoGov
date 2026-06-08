@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PomodoroCandle from "../../components/pomodoro-candle";
 
@@ -211,6 +211,7 @@ function describeArc(
 
 export default function PomodoroPage() {
   const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<PomodoroStatus>("idle");
   const [mode, setMode] = useState<PomodoroMode>("countdown");
@@ -328,6 +329,37 @@ export default function PomodoroPage() {
   );
   const displaySeconds =
     mode === "countdown" ? remainingSeconds : elapsedSeconds;
+  const selectedSubjectMeta = subjectOptions.find((item) => item.name === subject);
+  const setupModeLabel = mode === "countdown" ? "番茄钟" : "计时器";
+  const setupDurationLabel =
+    mode === "countdown" ? `${normalizedPlannedMinutes} 分钟` : "手动停止";
+
+  const loadInsights = useCallback(async () => {
+    if (!token) {
+      setInsights(null);
+      setInsightsState("idle");
+      return;
+    }
+    setMessage(null);
+    setInsightsState("loading");
+    try {
+      const res = await fetch(
+        `${apiBase}/pomodoro/insights?days=${HEATMAP_DAYS}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error ?? "无法获取学习地图数据");
+      }
+      setInsights(data);
+      setInsightsState("idle");
+    } catch (err) {
+      setInsightsState("error");
+      setMessage(err instanceof Error ? err.message : "无法获取学习地图数据");
+    }
+  }, [token]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -338,9 +370,11 @@ export default function PomodoroPage() {
       setMessage("请先登录后开启番茄钟。");
       setToken(null);
       setInsightsState("idle");
+      setAuthReady(true);
       return;
     }
     setToken(stored);
+    setAuthReady(true);
   }, []);
 
   useEffect(() => {
@@ -387,34 +421,8 @@ export default function PomodoroPage() {
   }, [status]);
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-    const loadInsights = async () => {
-      setInsightsState("loading");
-      try {
-        const res = await fetch(
-          `${apiBase}/pomodoro/insights?days=${HEATMAP_DAYS}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.error ?? "无法获取学习地图数据");
-        }
-        setInsights(data);
-        setInsightsState("idle");
-      } catch (err) {
-        setInsightsState("error");
-        setMessage(
-          err instanceof Error ? err.message : "无法获取学习地图数据"
-        );
-      }
-    };
-
     void loadInsights();
-  }, [token]);
+  }, [loadInsights]);
 
   useEffect(() => {
     if (!token) {
@@ -647,18 +655,7 @@ export default function PomodoroPage() {
           failureReason: reason
         })
       });
-      setInsightsState("loading");
-      const res = await fetch(
-        `${apiBase}/pomodoro/insights?days=${HEATMAP_DAYS}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setInsights(data);
-        setInsightsState("idle");
-      }
+      await loadInsights();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "保存失败，请稍后重试");
     } finally {
@@ -883,7 +880,16 @@ export default function PomodoroPage() {
         </div>
       </section>
 
-      {message ? <div className="practice-error">{message}</div> : null}
+      {message ? (
+        <div className="practice-error pomodoro-message">
+          <span>{message}</span>
+          {message.includes("登录") ? (
+            <Link href="/login" className="primary button-link">
+              去登录
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       {lastResult ? (
         <section className="pomodoro-result">
@@ -968,7 +974,15 @@ export default function PomodoroPage() {
                     }}
                     aria-label={`删除${item.name}`}
                   >
-                    ×
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M7 7l10 10M17 7L7 17"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                   </button>
                 ) : null}
               </div>
@@ -1079,7 +1093,7 @@ export default function PomodoroPage() {
             type="button"
             className="primary button-link pomodoro-start"
             onClick={startSession}
-            disabled={isStarting}
+            disabled={isStarting || !authReady || !token}
           >
             {isStarting
               ? "正在开启..."
@@ -1087,6 +1101,23 @@ export default function PomodoroPage() {
               ? "开始计时"
               : "开始专注"}
           </button>
+          <div className="pomodoro-readiness" aria-label="本轮专注设置">
+            <div>
+              <span>科目</span>
+              <strong>{selectedSubjectMeta?.name ?? subject}</strong>
+            </div>
+            <div>
+              <span>方式</span>
+              <strong>{setupModeLabel}</strong>
+            </div>
+            <div>
+              <span>时长</span>
+              <strong>{setupDurationLabel}</strong>
+            </div>
+          </div>
+          <p className="pomodoro-start-note">
+            开始后会进入沉浸模式；退出全屏会自动暂停，暂停超过 5 分钟判定失败。
+          </p>
         </div>
       </section>
 
@@ -1095,11 +1126,35 @@ export default function PomodoroPage() {
           <h2>学习地图</h2>
           <p>把时间可视化，找到你的高效节奏与偏科风险。</p>
         </div>
+        {authReady && !token ? (
+          <div className="pomodoro-map-state">
+            <div>
+              <h3>登录后显示学习地图</h3>
+              <p>完成专注后会生成今日分布、热力图、高效时段和科目雷达。</p>
+            </div>
+            <Link href="/login" className="primary button-link">
+              去登录
+            </Link>
+          </div>
+        ) : null}
         {token && insightsState === "loading" ? (
-          <div className="practice-loading">正在加载学习地图...</div>
+          <div className="pomodoro-map-skeleton" aria-label="正在加载学习地图">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
         ) : null}
         {token && insightsState === "error" ? (
-          <div className="practice-error">学习地图加载失败</div>
+          <div className="pomodoro-map-state error">
+            <div>
+              <h3>学习地图加载失败</h3>
+              <p>{message ?? "请稍后重试。"}</p>
+            </div>
+            <button type="button" className="ghost" onClick={() => void loadInsights()}>
+              重新加载
+            </button>
+          </div>
         ) : null}
         {insights && insightsState === "idle" ? (
           <div className="pomodoro-map-grid">
@@ -1341,7 +1396,15 @@ export default function PomodoroPage() {
                 onClick={() => setSelectedHeatmapDay(null)}
                 aria-label="关闭"
               >
-                ✕
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M7 7l10 10M17 7L7 17"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
               </button>
             </div>
             <div className="heatmap-tooltip-content">

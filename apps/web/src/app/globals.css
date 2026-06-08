@@ -7289,7 +7289,7 @@ select {
   display: block;
   font-size: 11px;
   color: var(--muted);
-  letter-spacing: 0.6px;
+  letter-spacing: 0;
 }
 
 .pomodoro-summary strong {
@@ -7327,6 +7327,25 @@ select {
 
   .pomodoro-summary strong {
     font-size: 16px;
+  }
+
+  .pomodoro-message,
+  .pomodoro-result,
+  .pomodoro-map-state {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pomodoro-message .button-link,
+  .pomodoro-result .button-link,
+  .pomodoro-map-state button,
+  .pomodoro-map-state .button-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pomodoro-readiness {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .pomodoro-map-grid {
@@ -7393,6 +7412,19 @@ select {
 .pomodoro-result-segments strong {
   color: var(--brand-dark);
   font-weight: 600;
+}
+
+.pomodoro-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pomodoro-message .button-link {
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 .pomodoro-setup {
@@ -7493,6 +7525,11 @@ select {
   cursor: pointer;
   z-index: 2;
   transition: all 0.15s ease;
+}
+
+.pomodoro-subject-remove svg {
+  width: 14px;
+  height: 14px;
 }
 
 .pomodoro-subject-remove:active {
@@ -7617,6 +7654,48 @@ select {
   margin-top: 4px;
 }
 
+.pomodoro-start:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.pomodoro-readiness {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--text-alpha-08);
+  padding: 10px;
+}
+
+.pomodoro-readiness div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pomodoro-readiness span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pomodoro-readiness strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pomodoro-start-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .pomodoro-map {
   display: grid;
   gap: 16px;
@@ -7656,6 +7735,59 @@ select {
   gap: 12px;
 }
 
+.pomodoro-map-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.pomodoro-map-state.error {
+  border-color: rgba(255, 69, 58, 0.28);
+  background: rgba(255, 69, 58, 0.08);
+}
+
+.pomodoro-map-state h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.pomodoro-map-state p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pomodoro-map-state button,
+.pomodoro-map-state .button-link {
+  flex-shrink: 0;
+}
+
+.pomodoro-map-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.pomodoro-map-skeleton span {
+  min-height: 156px;
+  border-radius: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--glass-bg-subtle) 0%,
+    var(--glass-bg-strong) 50%,
+    var(--glass-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
 .pomodoro-today {
   display: grid;
   grid-template-columns: minmax(140px, 180px) 1fr;
@@ -7683,7 +7815,7 @@ select {
 .pomodoro-today-total span {
   font-size: 12px;
   color: var(--muted);
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .pomodoro-today-total strong {
@@ -7842,6 +7974,11 @@ select {
   justify-content: center;
   border-radius: 4px;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+.heatmap-tooltip-header button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .heatmap-tooltip-header button:hover {
@@ -8004,7 +8141,7 @@ body.pomodoro-immersive .page {
 
 .pomodoro-overlay-subject {
   font-size: 14px;
-  letter-spacing: 2px;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -8311,7 +8448,7 @@ body.pomodoro-immersive .page {
 .pomodoro-overlay-timer {
   font-size: 64px;
   font-weight: 700;
-  letter-spacing: 4px;
+  letter-spacing: 0;
   color: var(--brand-dark);
 }
 
