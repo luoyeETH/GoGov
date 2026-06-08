@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import ReactMarkdown from "react-markdown";
@@ -60,6 +61,19 @@ function deriveTitleFromFile(name: string) {
   return `导入 ${formatDate(new Date().toISOString())}`;
 }
 
+function getSourceLabel(source: KnowledgeImport["source"]) {
+  if (source === "ocr") {
+    return "OCR";
+  }
+  if (source === "document") {
+    return "文档";
+  }
+  if (source === "ai") {
+    return "AI";
+  }
+  return "手动";
+}
+
 export default function KnowledgePage() {
   const [imports, setImports] = useState<KnowledgeImport[]>([]);
   const [activeImportId, setActiveImportId] = useState<string | null>(null);
@@ -79,6 +93,10 @@ export default function KnowledgePage() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [requestState, setRequestState] = useState<RequestState>("idle");
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [importsState, setImportsState] = useState<RequestState>("loading");
+  const [importsMessage, setImportsMessage] = useState<string | null>(null);
+  const [importsNeedLogin, setImportsNeedLogin] = useState(false);
+  const [importQuery, setImportQuery] = useState("");
 
   const activeImport = useMemo(() => {
     return imports.find((item) => item.id === activeImportId) ?? null;
@@ -128,37 +146,80 @@ export default function KnowledgePage() {
     );
   }, [activeImport, aiTopics, content, title]);
 
+  const filteredImports = useMemo(() => {
+    const query = importQuery.trim().toLowerCase();
+    if (!query) {
+      return imports;
+    }
+    return imports.filter((item) => {
+      const topicText = (item.topics ?? []).join(" ");
+      return `${item.title} ${item.content} ${topicText}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [importQuery, imports]);
+
+  const knowledgeSummary = useMemo(() => {
+    const currentTitle = activeImport?.title || title.trim() || "暂无";
+    return {
+      importCount: imports.length,
+      topicCount: topics.length,
+      currentTitle,
+      saveState: hasUnsavedChanges
+        ? "有未保存修改"
+        : activeImport
+          ? "已保存"
+          : content.trim()
+            ? "待保存"
+            : "未开始"
+    };
+  }, [activeImport, content, hasUnsavedChanges, imports.length, title, topics.length]);
+
   const loadImports = async () => {
     const token = window.localStorage.getItem(sessionKey);
+    setImportsState("loading");
+    setImportsMessage(null);
     if (!token) {
       setImports([]);
+      setImportsNeedLogin(true);
+      setImportsMessage("登录后可同步个人知识库。");
+      setImportsState("error");
       return;
     }
+    setImportsNeedLogin(false);
     try {
       const res = await fetch(`${apiBase}/knowledge/imports?limit=30`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data.imports)) {
-        setImports(
-          data.imports.map((item: Record<string, unknown>) => ({
-            id: String(item.id),
-            title: String(item.title ?? "未命名"),
-            content: String(item.content ?? ""),
-            source:
-              typeof item.source === "string"
-                ? (item.source as KnowledgeImport["source"])
-                : "manual",
-            topics: Array.isArray(item.topics)
-              ? item.topics.filter((entry: unknown) => typeof entry === "string")
-              : [],
-            createdAt: String(item.createdAt),
-            updatedAt: String(item.updatedAt)
-          }))
-        );
+      if (!res.ok) {
+        throw new Error(data?.error ?? "无法加载个人知识库");
       }
-    } catch {
+      if (!Array.isArray(data.imports)) {
+        throw new Error("知识库数据格式异常");
+      }
+      setImports(
+        data.imports.map((item: Record<string, unknown>) => ({
+          id: String(item.id),
+          title: String(item.title ?? "未命名"),
+          content: String(item.content ?? ""),
+          source:
+            typeof item.source === "string"
+              ? (item.source as KnowledgeImport["source"])
+              : "manual",
+          topics: Array.isArray(item.topics)
+            ? item.topics.filter((entry: unknown) => typeof entry === "string")
+            : [],
+          createdAt: String(item.createdAt),
+          updatedAt: String(item.updatedAt)
+        }))
+      );
+      setImportsState("idle");
+    } catch (err) {
       setImports([]);
+      setImportsNeedLogin(false);
+      setImportsMessage(err instanceof Error ? err.message : "无法加载个人知识库");
+      setImportsState("error");
     }
   };
 
@@ -279,6 +340,9 @@ export default function KnowledgePage() {
       });
       setImports((prev) => [saved, ...prev]);
       setActiveImportId(saved.id);
+      setImportsState("idle");
+      setImportsMessage(null);
+      setImportsNeedLogin(false);
       setSaveMessage(
         result.source === "ocr"
           ? "识别完成，已保存到知识库。"
@@ -451,6 +515,9 @@ export default function KnowledgePage() {
       setTitle(created.title);
       setContent(created.content);
       setAiTopics(created.topics ?? []);
+      setImportsState("idle");
+      setImportsMessage(null);
+      setImportsNeedLogin(false);
       setSaveMessage("已保存到知识库。");
     };
 
@@ -536,6 +603,25 @@ export default function KnowledgePage() {
               <span>可切换 AI 多模态识别以提高准确度。</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="knowledge-summary" aria-label="知识库概览">
+        <div>
+          <span>资料数</span>
+          <strong>{knowledgeSummary.importCount}</strong>
+        </div>
+        <div>
+          <span>当前资料</span>
+          <strong>{knowledgeSummary.currentTitle}</strong>
+        </div>
+        <div>
+          <span>当前关键词</span>
+          <strong>{knowledgeSummary.topicCount}</strong>
+        </div>
+        <div>
+          <span>保存状态</span>
+          <strong>{knowledgeSummary.saveState}</strong>
         </div>
       </section>
 
@@ -640,12 +726,51 @@ export default function KnowledgePage() {
 
         <div className="knowledge-card knowledge-library">
           <div className="knowledge-card-header">
-            <h3>个人知识库</h3>
-            <span className="form-message">已同步到个人知识库</span>
+            <div>
+              <h3>个人知识库</h3>
+              <span className="form-message">
+                {importsState === "loading"
+                  ? "正在同步个人知识库"
+                  : `${filteredImports.length}/${imports.length} 条资料`}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => void loadImports()}
+              disabled={importsState === "loading"}
+            >
+              刷新
+            </button>
+          </div>
+          <div className="knowledge-library-tools">
+            <input
+              type="search"
+              value={importQuery}
+              placeholder="搜索标题、关键词或内容"
+              onChange={(event) => setImportQuery(event.target.value)}
+            />
+            {importQuery ? (
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setImportQuery("")}
+              >
+                清除
+              </button>
+            ) : null}
           </div>
           <div className="knowledge-import-list">
-            {imports.length ? (
-              imports.map((item) => (
+            {importsState === "loading" ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div className="knowledge-import-skeleton" key={index}>
+                  <span />
+                  <strong />
+                  <p />
+                </div>
+              ))
+            ) : filteredImports.length ? (
+              filteredImports.map((item) => (
                 <div
                   key={item.id}
                   className={`knowledge-import-item${
@@ -655,15 +780,7 @@ export default function KnowledgePage() {
                   <div className="knowledge-import-title">
                     <strong>{item.title}</strong>
                     <span>
-                      {item.source === "ocr"
-                        ? "OCR"
-                        : item.source === "document"
-                        ? "文档"
-                        : item.source === "ai"
-                        ? "AI"
-                        : "手动"}{" "}
-                      ·{" "}
-                      {formatDate(item.updatedAt)}
+                      {getSourceLabel(item.source)} · {formatDate(item.updatedAt)}
                     </span>
                   </div>
                   <p>{item.content}</p>
@@ -686,8 +803,47 @@ export default function KnowledgePage() {
                 </div>
               ))
             ) : (
-              <div className="knowledge-empty">
-                暂无导入内容，识别后会保存到个人知识库。
+              <div className="knowledge-empty knowledge-empty-rich">
+                <strong>
+                  {importQuery
+                    ? "没有匹配资料"
+                    : importsState === "error"
+                      ? "知识库暂不可用"
+                      : "暂无导入内容"}
+                </strong>
+                <span>
+                  {importQuery
+                    ? "换个关键词试试，或清除搜索查看全部资料。"
+                    : importsMessage ?? "识别或保存资料后，会出现在个人知识库。"}
+                </span>
+                <div className="knowledge-empty-actions">
+                  {importsNeedLogin ? (
+                    <Link href="/login" className="primary button-link">
+                      去登录
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => void loadImports()}
+                    >
+                      重新同步
+                    </button>
+                  )}
+                  {importQuery ? (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => setImportQuery("")}
+                    >
+                      清除搜索
+                    </button>
+                  ) : (
+                    <button type="button" className="ghost" onClick={handleNewImport}>
+                      新建导入
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
