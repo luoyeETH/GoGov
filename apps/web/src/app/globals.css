@@ -7463,7 +7463,7 @@ select {
   display: block;
   font-size: 11px;
   color: var(--muted);
-  letter-spacing: 0.6px;
+  letter-spacing: 0;
 }
 
 .ledger-summary strong {
@@ -7475,6 +7475,85 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
+}
+
+.ledger-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ledger-status div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.ledger-status span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ledger-status strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-state-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.ledger-state-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ledger-state-card strong {
+  color: var(--text);
+}
+
+.ledger-state-card span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.ledger-state-card-compact {
+  align-items: flex-start;
+}
+
+.ledger-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.ledger-skeleton span {
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
 }
 
 .ledger-card {
@@ -7603,7 +7682,7 @@ select {
   display: block;
   font-size: 12px;
   color: var(--muted);
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .ledger-form input,
@@ -7821,7 +7900,7 @@ select {
   display: block;
   font-size: 12px;
   color: var(--muted);
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .ledger-record-edit input {
@@ -7845,6 +7924,28 @@ select {
 }
 
 @media (max-width: 900px) {
+  .ledger-status {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .ledger-status div,
+  .ledger-state-card {
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .ledger-state-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ledger-state-card .button-link,
+  .ledger-state-card button {
+    width: 100%;
+    justify-content: center;
+  }
+
   .ledger-pie {
     grid-template-columns: 1fr;
   }

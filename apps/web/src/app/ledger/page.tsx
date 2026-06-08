@@ -152,6 +152,7 @@ function formatSeriesLabel(label: string, range: RangeType) {
 
 export default function LedgerPage() {
   const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [inputText, setInputText] = useState("");
   const [parseState, setParseState] = useState<LoadState>("idle");
   const [parseMessage, setParseMessage] = useState<string | null>(null);
@@ -191,6 +192,7 @@ export default function LedgerPage() {
     }
     const stored = window.localStorage.getItem(sessionKey);
     setToken(stored);
+    setAuthReady(true);
   }, []);
 
   useEffect(() => {
@@ -223,6 +225,7 @@ export default function LedgerPage() {
       if (!currentToken) {
         setOverviewMessage("请先登录后查看记账统计。");
         setOverviewState("error");
+        setOverview(null);
         return;
       }
       setOverviewState("loading");
@@ -247,8 +250,11 @@ export default function LedgerPage() {
   );
 
   useEffect(() => {
+    if (!authReady) {
+      return;
+    }
     void loadOverview(token, rangeType, rangeDate);
-  }, [loadOverview, rangeDate, rangeType, token]);
+  }, [authReady, loadOverview, rangeDate, rangeType, token]);
 
   useEffect(() => {
     setEditingId(null);
@@ -538,6 +544,33 @@ export default function LedgerPage() {
     return records.slice(0, 5);
   }, [overview, showAllRecords]);
 
+  const ledgerStatusItems = useMemo(
+    () => [
+      {
+        label: "登录状态",
+        value: !authReady ? "检查中" : token ? "已登录" : "未登录"
+      },
+      {
+        label: "解析结果",
+        value: parseState === "loading" ? "解析中" : parseEntries.length ? `${parseEntries.length} 笔` : "待解析"
+      },
+      {
+        label: "统计状态",
+        value:
+          overviewState === "loading"
+            ? "加载中"
+            : overviewState === "error"
+              ? "加载失败"
+              : "已就绪"
+      },
+      {
+        label: "记录数量",
+        value: overview ? `${overview.totals.count} 笔` : "--"
+      }
+    ],
+    [authReady, overview, overviewState, parseEntries.length, parseState, token]
+  );
+
   const startEditRecord = (record: ExpenseRecord) => {
     setEditingId(record.id);
     setEditDate(record.date);
@@ -667,6 +700,25 @@ export default function LedgerPage() {
         </div>
       </section>
 
+      <section className="ledger-status" aria-label="记账本状态概览">
+        {ledgerStatusItems.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
+      {authReady && !token ? (
+        <section className="ledger-state-card" role="alert">
+          <div>
+            <strong>登录后可使用记账本</strong>
+            <span>自然语言解析、保存记录和统计看板都需要登录后同步到账号。</span>
+          </div>
+          <a href="/login" className="primary button-link">去登录</a>
+        </section>
+      ) : null}
+
       <section className="ledger-grid">
         <div className="ledger-card ledger-input">
           <div className="ledger-card-header">
@@ -683,7 +735,7 @@ export default function LedgerPage() {
               type="button"
               className="primary button-link"
               onClick={handleParse}
-              disabled={parseState === "loading"}
+              disabled={!token || parseState === "loading"}
             >
               {parseState === "loading" ? "解析中..." : "解析"}
             </button>
@@ -693,6 +745,7 @@ export default function LedgerPage() {
                 isListening ? "active" : ""
               }`}
               onClick={handleSpeechToggle}
+              disabled={!token}
             >
               {isListening ? "停止语音" : "语音输入"}
             </button>
@@ -729,7 +782,7 @@ export default function LedgerPage() {
                   type="button"
                   className="ghost button-link ledger-save-all"
                   onClick={handleSaveAll}
-                  disabled={saveState === "loading"}
+                  disabled={!token || saveState === "loading"}
                 >
                   {saveState === "loading"
                     ? "保存中..."
@@ -772,8 +825,8 @@ export default function LedgerPage() {
             <button
               type="button"
               className="ghost button-link"
-              onClick={handleSave}
-              disabled={saveState === "loading"}
+            onClick={handleSave}
+              disabled={!token || saveState === "loading"}
             >
               {saveState === "loading" ? "保存中..." : "保存到记账本"}
             </button>
@@ -815,9 +868,25 @@ export default function LedgerPage() {
             />
           </label>
           {overviewState === "loading" ? (
-            <div className="practice-loading">正在加载记账统计...</div>
+            <div className="ledger-skeleton" aria-label="正在加载记账统计">
+              <span />
+              <span />
+              <span />
+            </div>
           ) : overviewMessage ? (
-            <div className="practice-error">{overviewMessage}</div>
+            <div className="ledger-state-card ledger-state-card-compact" role="alert">
+              <div>
+                <strong>统计加载失败</strong>
+                <span>{overviewMessage}</span>
+              </div>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void loadOverview(token, rangeType, rangeDate)}
+              >
+                重试
+              </button>
+            </div>
           ) : null}
           <div className="ledger-summary-panel">
             <div>
