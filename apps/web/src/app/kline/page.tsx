@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LoadingButton from "../../components/loading-button";
 
@@ -387,6 +388,7 @@ type BaziResult = {
 };
 
 type RequestState = "idle" | "loading" | "queued" | "error";
+type HistoryState = "checking" | "loading" | "ready" | "empty" | "guest" | "error";
 type KlineAnalysis = {
   summary?: string;
   landingYear?: string;
@@ -460,6 +462,8 @@ export default function KlinePage() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [promptCopyMessage, setPromptCopyMessage] = useState<string | null>(null);
   const [historyItems, setHistoryItems] = useState<KlineHistoryRecord[]>([]);
+  const [historyState, setHistoryState] = useState<HistoryState>("checking");
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null);
   const [isEditingBazi, setIsEditingBazi] = useState(false);
   const [draftPillars, setDraftPillars] = useState({
     year: "",
@@ -491,6 +495,47 @@ export default function KlinePage() {
     : "2 分钟";
   const queueLabel =
     queueInfo?.status === "processing" ? "已进入处理" : "排队中";
+  const analysisStatusText =
+    analysisState === "queued"
+      ? queueLabel
+      : analysisState === "loading"
+        ? "生成中"
+        : analysisState === "error"
+          ? "需处理"
+          : result
+            ? "可测算"
+            : "待排盘";
+  const historyStatusText =
+    historyState === "checking" || historyState === "loading"
+      ? "同步中"
+      : historyState === "guest"
+        ? "未登录"
+        : historyState === "error"
+          ? "加载失败"
+          : historyItems.length
+            ? `${historyItems.length} 次`
+            : "暂无";
+  const klineStatusItems = useMemo(
+    () => [
+      {
+        label: "当前步骤",
+        value: result ? "八字已生成" : state === "loading" ? "排盘中" : "填写资料"
+      },
+      {
+        label: "AI 测算",
+        value: analysisStatusText
+      },
+      {
+        label: "历史记录",
+        value: historyStatusText
+      },
+      {
+        label: "AI 风格",
+        value: promptStyle === "gentle" ? "温和版" : "严厉版"
+      }
+    ],
+    [analysisStatusText, historyStatusText, promptStyle, result, state]
+  );
 
   const promptText = useMemo(() => {
     if (!result) {
@@ -687,6 +732,62 @@ export default function KlinePage() {
     };
   }, [analysisState, queueInfo?.id, analysisInputSnapshot]);
 
+  const loadHistory = async (token: string) => {
+    setHistoryState("loading");
+    setHistoryMessage(null);
+    try {
+      const response = await fetch(`${apiBase}/kline/history?limit=20`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = (await response.json()) as {
+        reports?: KlineHistoryRecord[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "历史记录获取失败");
+      }
+      const items = Array.isArray(data.reports) ? data.reports : [];
+      const normalized = items
+        .filter((item) => item && typeof item.id === "string")
+        .map((item) => {
+          const analysis =
+            item.analysis && typeof item.analysis === "object" ? item.analysis : {};
+          if (item.summary && !analysis.summary) {
+            analysis.summary = item.summary;
+          }
+          if (item.landingYear && !analysis.landingYear) {
+            analysis.landingYear = item.landingYear;
+          }
+          if (
+            typeof item.landingProbability === "number" &&
+            typeof analysis.landingProbability !== "number"
+          ) {
+            analysis.landingProbability = item.landingProbability;
+          }
+          return { ...item, analysis };
+        });
+      setHistoryItems(normalized);
+      setHistoryState(normalized.length ? "ready" : "empty");
+    } catch (error) {
+      setHistoryItems([]);
+      setHistoryState("error");
+      setHistoryMessage(
+        error instanceof Error ? error.message : "历史记录获取失败"
+      );
+    }
+  };
+
+  const retryHistory = () => {
+    const token = window.localStorage.getItem(sessionKey);
+    if (!token) {
+      setHistoryItems([]);
+      setHistoryState("guest");
+      setHistoryMessage("登录后可同步历史测算报告。");
+      return;
+    }
+    void loadHistory(token);
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -722,46 +823,11 @@ export default function KlinePage() {
     }
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
+      setHistoryState("guest");
+      setHistoryMessage("登录后可同步历史测算报告。");
       return;
     }
-    const loadHistory = async () => {
-      try {
-        const response = await fetch(`${apiBase}/kline/history?limit=20`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = (await response.json()) as {
-          reports?: KlineHistoryRecord[];
-          error?: string;
-        };
-        if (!response.ok) {
-          throw new Error(data.error || "历史记录获取失败");
-        }
-        const items = Array.isArray(data.reports) ? data.reports : [];
-        const normalized = items
-          .filter((item) => item && typeof item.id === "string")
-          .map((item) => {
-            const analysis =
-              item.analysis && typeof item.analysis === "object" ? item.analysis : {};
-            if (item.summary && !analysis.summary) {
-              analysis.summary = item.summary;
-            }
-            if (item.landingYear && !analysis.landingYear) {
-              analysis.landingYear = item.landingYear;
-            }
-            if (
-              typeof item.landingProbability === "number" &&
-              typeof analysis.landingProbability !== "number"
-            ) {
-              analysis.landingProbability = item.landingProbability;
-            }
-            return { ...item, analysis };
-          });
-        setHistoryItems(normalized);
-      } catch {
-        setHistoryItems([]);
-      }
-    };
-    loadHistory();
+    void loadHistory(token);
   }, []);
 
   const applyAnalysisResult = (
@@ -813,6 +879,8 @@ export default function KlinePage() {
       payload,
       ...prev.filter((item) => item.id !== payload.id)
     ].slice(0, 20));
+    setHistoryState("ready");
+    setHistoryMessage(null);
     setAnalysisInputSnapshot(null);
     setAnalysisState("idle");
     router.push("/kline/result");
@@ -900,6 +968,8 @@ export default function KlinePage() {
     setAnalysisMessage(null);
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
+      setHistoryState("guest");
+      setHistoryMessage("登录后可使用 AI 测算并保存历史报告。");
       setAnalysisMessage("请先登录后再使用 AI 测算。");
       return;
     }
@@ -1222,6 +1292,15 @@ export default function KlinePage() {
             </div>
           </form>
         </div>
+      </section>
+
+      <section className="kline-status" aria-label="K 线功能状态">
+        {klineStatusItems.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
       </section>
 
       {result ? (
@@ -1595,9 +1674,15 @@ export default function KlinePage() {
                 loading={analysisState === "loading" || analysisState === "queued"}
                 loadingText={analysisState === "queued" ? "排队中..." : "测算中..."}
                 onClick={handleAnalyze}
+                disabled={historyState === "guest"}
               >
                 开始测算
               </LoadingButton>
+              {historyState === "guest" ? (
+                <Link className="ghost button-link" href="/login">
+                  去登录
+                </Link>
+              ) : null}
             </div>
             {analysisMessage ? (
               <p className="form-message">{analysisMessage}</p>
@@ -1610,12 +1695,43 @@ export default function KlinePage() {
         </section>
       ) : null}
 
-      {historyItems.length ? (
-        <section className="kline-card kline-history">
-          <div className="kline-card-header">
-            <h3>历史记录</h3>
-            <span>最近 {historyItems.length} 次测算</span>
+      <section className="kline-card kline-history">
+        <div className="kline-card-header">
+          <h3>历史记录</h3>
+          <span>{historyState === "ready" ? `最近 ${historyItems.length} 次测算` : historyStatusText}</span>
+        </div>
+        {historyState === "checking" || historyState === "loading" ? (
+          <div className="kline-skeleton kline-history-skeleton" aria-label="正在加载历史记录">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
+        ) : null}
+        {historyState === "guest" ? (
+          <div className="kline-state-card kline-state-card-compact">
+            <strong>登录后查看历史报告</strong>
+            <span>{historyMessage || "当前设备未检测到登录态。"}</span>
+            <Link className="ghost button-link" href="/login">
+              去登录
+            </Link>
+          </div>
+        ) : null}
+        {historyState === "error" ? (
+          <div className="kline-state-card kline-state-card-compact" role="alert">
+            <strong>历史记录加载失败</strong>
+            <span>{historyMessage || "稍后重试，或继续生成新的 K 线报告。"}</span>
+            <button type="button" className="ghost" onClick={retryHistory}>
+              重新加载
+            </button>
+          </div>
+        ) : null}
+        {historyState === "empty" ? (
+          <div className="kline-state-card kline-state-card-compact">
+            <strong>暂无历史报告</strong>
+            <span>完成一次 AI 测算后，报告会显示在这里。</span>
+          </div>
+        ) : null}
+        {historyState === "ready" && historyItems.length ? (
           <div className="kline-history-list">
             {historyItems.map((item) => (
               <button
@@ -1637,8 +1753,8 @@ export default function KlinePage() {
               </button>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
     </main>
   );
 }

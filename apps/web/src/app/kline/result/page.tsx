@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const apiBase = (() => {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
@@ -64,11 +64,41 @@ type StoredAnalysis = {
   createdAt?: string | null;
 };
 
+type LoadState = "loading" | "ready" | "missing" | "error";
+
 function formatProbability(value?: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "-";
   }
   return `${Math.round(value * 100)}%`;
+}
+
+function KlineResultSkeleton() {
+  return (
+    <main className="main kline-result-page">
+      <section className="kline-result-hero">
+        <div className="kline-skeleton kline-result-skeleton">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div className="kline-skeleton kline-score-skeleton">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </section>
+      <section className="kline-card">
+        <div className="kline-skeleton kline-chart-skeleton">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </section>
+    </main>
+  );
 }
 
 function KlineChart({ points }: { points: ChartPoint[] }) {
@@ -131,11 +161,16 @@ function KlineChart({ points }: { points: ChartPoint[] }) {
   }, [points]);
 
   if (!points.length) {
-    return <p className="form-message">暂无 K 线数据。</p>;
+    return (
+      <div className="kline-state-card kline-state-card-compact">
+        <strong>暂无 K 线数据</strong>
+        <span>当前报告没有返回逐年概率点，可返回重新生成。</span>
+      </div>
+    );
   }
 
   return (
-    <div className="kline-chart">
+    <div className="kline-chart" tabIndex={0} aria-label="上岸概率 K 线图表">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="上岸概率 K 线">
         <rect
           x="0"
@@ -196,11 +231,12 @@ function KlineChart({ points }: { points: ChartPoint[] }) {
 
 export default function KlineResultPage() {
   const [payload, setPayload] = useState<StoredAnalysis | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "missing">(
-    "loading"
-  );
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadMessage, setLoadMessage] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadLatest = useCallback(async () => {
+    setLoadState("loading");
+    setLoadMessage(null);
     const raw = window.sessionStorage.getItem(analysisKey);
     const hydrate = (value: string | null) => {
       if (!value) {
@@ -224,46 +260,73 @@ export default function KlineResultPage() {
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
       setLoadState("missing");
+      setLoadMessage("请先在上岸 K 线页面完成测算，或登录后读取最近一次历史报告。");
       return;
     }
-    const loadLatest = async () => {
-      try {
-        const response = await fetch(`${apiBase}/kline/history?limit=1`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = (await response.json()) as {
-          reports?: StoredAnalysis[];
-          error?: string;
-        };
-        if (!response.ok) {
-          throw new Error(data.error || "获取记录失败");
-        }
-        const latest = Array.isArray(data.reports) ? data.reports[0] : null;
-        if (latest && latest.analysis) {
-          setPayload(latest);
-          window.sessionStorage.setItem(analysisKey, JSON.stringify(latest));
-          setLoadState("ready");
-          return;
-        }
-      } catch {
-        // ignore
+    try {
+      const response = await fetch(`${apiBase}/kline/history?limit=1`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        reports?: StoredAnalysis[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "获取记录失败");
       }
+      const latest = Array.isArray(data.reports) ? data.reports[0] : null;
+      if (latest && latest.analysis) {
+        setPayload(latest);
+        window.sessionStorage.setItem(analysisKey, JSON.stringify(latest));
+        setLoadState("ready");
+        return;
+      }
+      setPayload(null);
       setLoadState("missing");
-    };
-    loadLatest();
+      setLoadMessage("还没有可展示的 K 线报告。");
+    } catch (error) {
+      setPayload(null);
+      setLoadState("error");
+      setLoadMessage(error instanceof Error ? error.message : "结果加载失败");
+    }
   }, []);
+
+  useEffect(() => {
+    void loadLatest();
+  }, [loadLatest]);
 
   const analysis = payload?.analysis;
   const chartPoints = Array.isArray(analysis?.chartPoints)
     ? analysis?.chartPoints.filter((item) => item && typeof item === "object")
     : [];
+  const reportStatusItems = useMemo(
+    () => [
+      {
+        label: "最可能上岸",
+        value: analysis?.landingYear || "无"
+      },
+      {
+        label: "上岸概率",
+        value: formatProbability(analysis?.landingProbability)
+      },
+      {
+        label: "K 线年数",
+        value: `${chartPoints.length}/18`
+      },
+      {
+        label: "AI 模型",
+        value: payload?.model || "-"
+      }
+    ],
+    [analysis?.landingProbability, analysis?.landingYear, chartPoints.length, payload?.model]
+  );
 
   if (loadState === "missing") {
     return (
       <main className="main kline-result-page">
-        <section className="kline-card">
-          <h2>暂无测算结果</h2>
-          <p className="form-message">请先在上岸 K 线页面完成测算。</p>
+        <section className="kline-state-card">
+          <strong>暂无测算结果</strong>
+          <span>{loadMessage || "请先在上岸 K 线页面完成测算。"}</span>
           <Link className="ghost button-link" href="/kline">
             返回上岸 K 线
           </Link>
@@ -272,14 +335,27 @@ export default function KlineResultPage() {
     );
   }
 
-  if (!analysis || loadState === "loading") {
+  if (loadState === "error") {
     return (
       <main className="main kline-result-page">
-        <section className="kline-card">
-          <p className="form-message">加载中...</p>
+        <section className="kline-state-card" role="alert">
+          <strong>结果加载失败</strong>
+          <span>{loadMessage || "请稍后重新加载。"}</span>
+          <div className="kline-state-actions">
+            <button type="button" className="ghost" onClick={loadLatest}>
+              重新加载
+            </button>
+            <Link className="ghost button-link" href="/kline">
+              返回上岸 K 线
+            </Link>
+          </div>
         </section>
       </main>
     );
+  }
+
+  if (!analysis || loadState === "loading") {
+    return <KlineResultSkeleton />;
   }
 
   return (
@@ -290,18 +366,12 @@ export default function KlineResultPage() {
           <h1 className="app-page-title">上岸 K 线报告</h1>
           <p className="lead app-page-subtitle">{analysis.summary || "暂无总结"}</p>
           <div className="kline-result-meta">
-            <div>
-              <span>最可能上岸</span>
-              <strong>{analysis.landingYear || "无"}</strong>
-            </div>
-            <div>
-              <span>上岸概率</span>
-              <strong>{formatProbability(analysis.landingProbability)}</strong>
-            </div>
-            <div>
-              <span>AI 模型</span>
-              <strong>{payload?.model || "-"}</strong>
-            </div>
+            {reportStatusItems.slice(0, 3).map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
           </div>
           {payload?.warning ? (
             <p className="form-message kline-warning">提示：{payload.warning}</p>
@@ -340,6 +410,15 @@ export default function KlineResultPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="kline-status" aria-label="K 线报告状态">
+        {reportStatusItems.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
       </section>
 
       <section className="kline-chart-card kline-card">
