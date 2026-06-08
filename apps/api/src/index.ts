@@ -1931,7 +1931,7 @@ server.post(
           username: { type: "string", minLength: 2, maxLength: 10 },
           password: { type: "string", minLength: 8 },
           gender: { type: "string" },
-          age: { type: "number", minimum: 10, maximum: 80 },
+          age: { type: "number", minimum: 0, maximum: 120 },
           examStartDate: { type: "string" }
         }
       }

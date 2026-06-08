@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const apiBase = (() => {
@@ -30,6 +30,31 @@ type FieldErrors = {
   password?: string;
   confirmPassword?: string;
   age?: string;
+};
+
+type FieldName = keyof FieldErrors;
+
+type RegisterFormValues = {
+  username: string;
+  password: string;
+  confirmPassword: string;
+  age: string;
+};
+
+const fieldOrder: FieldName[] = ["username", "password", "confirmPassword", "age"];
+
+const fieldLabels: Record<FieldName, string> = {
+  username: "用户名",
+  password: "设置密码",
+  confirmPassword: "确认密码",
+  age: "年龄"
+};
+
+const fieldHints: Record<FieldName, string> = {
+  username: "2-10 位字符，不能包含空格。",
+  password: "至少 8 位，建议同时包含字母和数字。",
+  confirmPassword: "请再次输入刚才设置的密码。",
+  age: "选填，范围 0-120 岁。"
 };
 
 function validateUsername(value: string): string | undefined {
@@ -80,6 +105,35 @@ function validateAge(value: string): string | undefined {
   return undefined;
 }
 
+function validateFields(values: RegisterFormValues): FieldErrors {
+  return {
+    username: validateUsername(values.username),
+    password: validatePassword(values.password),
+    confirmPassword: validateConfirmPassword(
+      values.password,
+      values.confirmPassword
+    ),
+    age: validateAge(values.age)
+  };
+}
+
+function getFirstErrorField(errors: FieldErrors): FieldName | null {
+  return fieldOrder.find((field) => Boolean(errors[field])) ?? null;
+}
+
+function mapServerErrorToFieldErrors(errorMessage: string): FieldErrors {
+  if (errorMessage.includes("用户名")) {
+    return { username: errorMessage };
+  }
+  if (errorMessage.includes("密码")) {
+    return { password: errorMessage };
+  }
+  if (errorMessage.includes("年龄")) {
+    return { age: errorMessage.includes("0-120") ? errorMessage : "请输入有效的年龄（0-120）" };
+  }
+  return {};
+}
+
 function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,59 +150,78 @@ function RegisterPageContent() {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const fieldRefs = useRef<Record<FieldName, HTMLInputElement | null>>({
+    username: null,
+    password: null,
+    confirmPassword: null,
+    age: null
+  });
 
-  const validateAllFields = (): FieldErrors => {
-    return {
-      username: validateUsername(username),
-      password: validatePassword(password),
-      confirmPassword: validateConfirmPassword(password, confirmPassword),
-      age: validateAge(age)
-    };
-  };
-
-  const hasErrors = useMemo(() => {
-    const errors = validateAllFields();
-    return Object.values(errors).some(Boolean);
-  }, [username, password, confirmPassword, age]);
+  const formValues = useMemo(
+    () => ({
+      username,
+      password,
+      confirmPassword,
+      age
+    }),
+    [username, password, confirmPassword, age]
+  );
 
   const canSubmit = useMemo(() => {
-    if (!token || !email) {
-      return false;
-    }
-    if (hasErrors) {
+    if (!token || !email || verifyState !== "success") {
       return false;
     }
     return submitState !== "submitting";
-  }, [token, email, hasErrors, submitState]);
+  }, [token, email, verifyState, submitState]);
 
-  const handleBlur = (field: keyof FieldErrors) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
+  const visibleFieldErrors = useMemo(
+    () =>
+      fieldOrder.flatMap((field) =>
+        fieldErrors[field] ? [{ field, label: fieldLabels[field], error: fieldErrors[field]! }] : []
+      ),
+    [fieldErrors]
+  );
 
-    let error: string | undefined;
-    switch (field) {
-      case "username":
-        error = validateUsername(username);
-        break;
-      case "password":
-        error = validatePassword(password);
-        // 同时更新确认密码的错误状态
-        if (touched.confirmPassword) {
-          setFieldErrors((prev) => ({
-            ...prev,
-            confirmPassword: validateConfirmPassword(password, confirmPassword)
-          }));
-        }
-        break;
-      case "confirmPassword":
-        error = validateConfirmPassword(password, confirmPassword);
-        break;
-      case "age":
-        error = validateAge(age);
-        break;
+  const syncFieldErrors = (nextValues: RegisterFormValues) => {
+    const shouldValidate = submitAttempted || Object.values(touched).some(Boolean);
+    if (!shouldValidate) {
+      return;
     }
-
-    setFieldErrors((prev) => ({ ...prev, [field]: error }));
+    setFieldErrors(validateFields(nextValues));
   };
+
+  const clearSubmitErrorIfNeeded = () => {
+    if (submitState === "error") {
+      setSubmitState("idle");
+      setMessage(null);
+    }
+  };
+
+  const handleBlur = (field: FieldName) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setFieldErrors(validateFields(formValues));
+  };
+
+  const focusField = (field: FieldName | null) => {
+    if (!field) {
+      return;
+    }
+    const element = fieldRefs.current[field];
+    if (!element) {
+      return;
+    }
+    element.focus();
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const shouldShowFieldError = (field: FieldName) =>
+    Boolean(fieldErrors[field]) && (Boolean(touched[field]) || submitAttempted);
+
+  const getDescribedBy = (field: FieldName) =>
+    [fieldHints[field] ? `${field}-hint` : "", shouldShowFieldError(field) ? `${field}-error` : ""]
+      .filter(Boolean)
+      .join(" ");
 
   useEffect(() => {
     if (!token) {
@@ -182,8 +255,7 @@ function RegisterPageContent() {
   }, [token]);
 
   const submit = async () => {
-    // 先验证所有字段
-    const errors = validateAllFields();
+    const errors = validateFields(formValues);
     setFieldErrors(errors);
     setTouched({
       username: true,
@@ -191,9 +263,13 @@ function RegisterPageContent() {
       confirmPassword: true,
       age: true
     });
+    setSubmitAttempted(true);
 
-    // 如果有错误，不提交
-    if (Object.values(errors).some(Boolean)) {
+    const firstErrorField = getFirstErrorField(errors);
+    if (firstErrorField) {
+      setSubmitState("error");
+      setMessage("请根据下方提示修改后再提交，已保留你刚才填写的内容。");
+      window.requestAnimationFrame(() => focusField(firstErrorField));
       return;
     }
 
@@ -226,8 +302,31 @@ function RegisterPageContent() {
         router.replace("/");
       }, 800);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "注册失败";
+      const serverFieldErrors = mapServerErrorToFieldErrors(errorMessage);
       setSubmitState("error");
-      setMessage(err instanceof Error ? err.message : "注册失败");
+      setMessage(errorMessage);
+      if (Object.keys(serverFieldErrors).length > 0) {
+        const mergedErrors = {
+          ...validateFields(formValues),
+          ...serverFieldErrors
+        };
+        setFieldErrors(mergedErrors);
+        setTouched((prev) => ({
+          ...prev,
+          ...Object.keys(serverFieldErrors).reduce<Record<string, boolean>>(
+            (acc, field) => {
+              acc[field] = true;
+              return acc;
+            },
+            {}
+          )
+        }));
+        setSubmitAttempted(true);
+        window.requestAnimationFrame(() => {
+          focusField(getFirstErrorField(mergedErrors));
+        });
+      }
     }
   };
 
@@ -266,45 +365,111 @@ function RegisterPageContent() {
                 <label>邮箱</label>
                 <input value={email ?? ""} disabled />
               </div>
-              <div className={`form-row ${touched.username && fieldErrors.username ? "has-error" : ""}`}>
+              {submitAttempted && visibleFieldErrors.length > 0 ? (
+                <div className="status-card error register-feedback-card" role="alert" aria-live="assertive">
+                  <div className="status-title">以下信息还需要修改</div>
+                  <div className="status-lines">
+                    {visibleFieldErrors.map((item) => (
+                      <div key={item.field}>
+                        {item.label}：{item.error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className={`form-row ${shouldShowFieldError("username") ? "has-error" : ""}`}>
                 <label htmlFor="username">用户名</label>
                 <input
                   id="username"
                   value={username}
                   placeholder="2-10 位字符"
-                  onChange={(event) => setUsername(event.target.value)}
+                  ref={(element) => {
+                    fieldRefs.current.username = element;
+                  }}
+                  onChange={(event) => {
+                    const nextUsername = event.target.value;
+                    clearSubmitErrorIfNeeded();
+                    setUsername(nextUsername);
+                    syncFieldErrors({
+                      ...formValues,
+                      username: nextUsername
+                    });
+                  }}
                   onBlur={() => handleBlur("username")}
+                  aria-invalid={shouldShowFieldError("username")}
+                  aria-describedby={getDescribedBy("username")}
                 />
-                {touched.username && fieldErrors.username && (
-                  <span className="field-error">{fieldErrors.username}</span>
+                <span className="field-hint" id="username-hint">
+                  {fieldHints.username}
+                </span>
+                {shouldShowFieldError("username") && (
+                  <span className="field-error" id="username-error">
+                    {fieldErrors.username}
+                  </span>
                 )}
               </div>
-              <div className={`form-row ${touched.password && fieldErrors.password ? "has-error" : ""}`}>
+              <div className={`form-row ${shouldShowFieldError("password") ? "has-error" : ""}`}>
                 <label htmlFor="password">设置密码</label>
                 <input
                   id="password"
                   type="password"
                   value={password}
                   placeholder="至少 8 位"
-                  onChange={(event) => setPassword(event.target.value)}
+                  ref={(element) => {
+                    fieldRefs.current.password = element;
+                  }}
+                  onChange={(event) => {
+                    const nextPassword = event.target.value;
+                    clearSubmitErrorIfNeeded();
+                    setPassword(nextPassword);
+                    syncFieldErrors({
+                      ...formValues,
+                      password: nextPassword
+                    });
+                  }}
                   onBlur={() => handleBlur("password")}
+                  aria-invalid={shouldShowFieldError("password")}
+                  aria-describedby={getDescribedBy("password")}
                 />
-                {touched.password && fieldErrors.password && (
-                  <span className="field-error">{fieldErrors.password}</span>
+                <span className="field-hint" id="password-hint">
+                  {fieldHints.password}
+                </span>
+                {shouldShowFieldError("password") && (
+                  <span className="field-error" id="password-error">
+                    {fieldErrors.password}
+                  </span>
                 )}
               </div>
-              <div className={`form-row ${touched.confirmPassword && fieldErrors.confirmPassword ? "has-error" : ""}`}>
+              <div className={`form-row ${shouldShowFieldError("confirmPassword") ? "has-error" : ""}`}>
                 <label htmlFor="confirmPassword">确认密码</label>
                 <input
                   id="confirmPassword"
                   type="password"
                   value={confirmPassword}
                   placeholder="再次输入密码"
-                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  ref={(element) => {
+                    fieldRefs.current.confirmPassword = element;
+                  }}
+                  onChange={(event) => {
+                    const nextConfirmPassword = event.target.value;
+                    clearSubmitErrorIfNeeded();
+                    setConfirmPassword(nextConfirmPassword);
+                    syncFieldErrors({
+                      ...formValues,
+                      confirmPassword: nextConfirmPassword
+                    });
+                  }}
                   onBlur={() => handleBlur("confirmPassword")}
+                  aria-invalid={shouldShowFieldError("confirmPassword")}
+                  aria-describedby={getDescribedBy("confirmPassword")}
                 />
-                {touched.confirmPassword && fieldErrors.confirmPassword && (
-                  <span className="field-error">{fieldErrors.confirmPassword}</span>
+                <span className="field-hint" id="confirmPassword-hint">
+                  {fieldHints.confirmPassword}
+                </span>
+                {shouldShowFieldError("confirmPassword") && (
+                  <span className="field-error" id="confirmPassword-error">
+                    {fieldErrors.confirmPassword}
+                  </span>
                 )}
               </div>
               <div className="form-row">
@@ -321,7 +486,7 @@ function RegisterPageContent() {
                   <option value="hidden">隐藏</option>
                 </select>
               </div>
-              <div className={`form-row ${touched.age && fieldErrors.age ? "has-error" : ""}`}>
+              <div className={`form-row ${shouldShowFieldError("age") ? "has-error" : ""}`}>
                 <label htmlFor="age">年龄</label>
                 <input
                   id="age"
@@ -330,11 +495,29 @@ function RegisterPageContent() {
                   max={120}
                   value={age}
                   placeholder="可选"
-                  onChange={(event) => setAge(event.target.value)}
+                  ref={(element) => {
+                    fieldRefs.current.age = element;
+                  }}
+                  onChange={(event) => {
+                    const nextAge = event.target.value;
+                    clearSubmitErrorIfNeeded();
+                    setAge(nextAge);
+                    syncFieldErrors({
+                      ...formValues,
+                      age: nextAge
+                    });
+                  }}
                   onBlur={() => handleBlur("age")}
+                  aria-invalid={shouldShowFieldError("age")}
+                  aria-describedby={getDescribedBy("age")}
                 />
-                {touched.age && fieldErrors.age && (
-                  <span className="field-error">{fieldErrors.age}</span>
+                <span className="field-hint" id="age-hint">
+                  {fieldHints.age}
+                </span>
+                {shouldShowFieldError("age") && (
+                  <span className="field-error" id="age-error">
+                    {fieldErrors.age}
+                  </span>
                 )}
               </div>
               <div className="form-row">
