@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -298,12 +299,61 @@ export default function StudyPlanPage() {
   const [planMeta, setPlanMeta] = useState<PlanMeta | null>(null);
   const [history, setHistory] = useState<PlanHistoryItem[]>([]);
   const [historyMessage, setHistoryMessage] = useState<string | null>(null);
+  const [historyState, setHistoryState] = useState<RequestState>("loading");
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
   const planMarkdown = useMemo(() => (plan ? buildPlanMarkdown(plan) : ""), [plan]);
   const latestFollowUps = useMemo(() => {
     const questions = history[0]?.planData?.followUpQuestions;
     return Array.isArray(questions) ? questions : [];
   }, [history]);
+  const profileCompleteness = useMemo(() => {
+    const fields = [
+      prepStartDate,
+      totalStudyDuration,
+      currentProgress,
+      targetExam,
+      targetExamDate,
+      studyResources,
+      interviewExperience,
+      notes
+    ];
+    const completed = fields.filter((item) => item.trim().length > 0).length;
+    return { completed, total: fields.length };
+  }, [
+    currentProgress,
+    interviewExperience,
+    notes,
+    prepStartDate,
+    studyResources,
+    targetExam,
+    targetExamDate,
+    totalStudyDuration
+  ]);
+  const planningReadiness = useMemo(() => {
+    const fields = [
+      weeklyStudyHours,
+      dailyStudyHours,
+      timeSlots.length ? "selected" : "",
+      focusGoal,
+      progressUpdate
+    ];
+    const completed = fields.filter((item) => item.trim().length > 0).length;
+    return { completed, total: fields.length };
+  }, [dailyStudyHours, focusGoal, progressUpdate, timeSlots.length, weeklyStudyHours]);
+  const filteredHistory = useMemo(() => {
+    const keyword = historyQuery.trim().toLowerCase();
+    if (!keyword) {
+      return history;
+    }
+    return history.filter((item) => {
+      const text = `${item.summary ?? ""} ${item.progressUpdate ?? ""} ${formatDateTime(
+        item.createdAt
+      )}`.toLowerCase();
+      return text.includes(keyword);
+    });
+  }, [history, historyQuery]);
 
   const loadProfile = async () => {
     const token = window.localStorage.getItem(sessionKey);
@@ -330,36 +380,43 @@ export default function StudyPlanPage() {
     const token = window.localStorage.getItem(sessionKey);
     if (!token) {
       setHistory([]);
+      setHistoryMessage("请先登录后查看规划历史。");
+      setHistoryState("error");
       return;
     }
+    setHistoryState("loading");
+    setHistoryMessage(null);
     try {
       const res = await fetch(`${apiBase}/study-plan/history?limit=30`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data.history)) {
-        setHistoryMessage(null);
-        setHistory(
-          data.history.map((item: Record<string, unknown>) => ({
-            id: String(item.id),
-            summary:
-              typeof item.summary === "string"
-                ? item.summary
-                : typeof (item.planData as { summary?: string } | undefined)?.summary ===
-                    "string"
-                ? (item.planData as { summary?: string }).summary
-                : null,
-            createdAt: String(item.createdAt),
-            planData: (item.planData ?? null) as PlanResponse | null,
-            planRaw: typeof item.planRaw === "string" ? item.planRaw : null,
-            progressUpdate:
-              typeof item.progressUpdate === "string" ? item.progressUpdate : null
-          }))
-        );
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "获取失败");
       }
+      const items = Array.isArray(data.history) ? data.history : [];
+      setHistory(
+        items.map((item: Record<string, unknown>) => ({
+          id: String(item.id),
+          summary:
+            typeof item.summary === "string"
+              ? item.summary
+              : typeof (item.planData as { summary?: string } | undefined)?.summary ===
+                  "string"
+              ? (item.planData as { summary?: string }).summary
+              : null,
+          createdAt: String(item.createdAt),
+          planData: (item.planData ?? null) as PlanResponse | null,
+          planRaw: typeof item.planRaw === "string" ? item.planRaw : null,
+          progressUpdate:
+            typeof item.progressUpdate === "string" ? item.progressUpdate : null
+        }))
+      );
+      setHistoryState("idle");
     } catch (err) {
       setHistory([]);
       setHistoryMessage(err instanceof Error ? err.message : "获取失败");
+      setHistoryState("error");
     }
   };
 
@@ -504,6 +561,7 @@ export default function StudyPlanPage() {
       }
       setPlan(data);
       setPlanMeta(data.meta ?? null);
+      setSelectedHistoryId(data.historyId ?? null);
       setPlanState("idle");
       if (data.historyId) {
         void loadHistory();
@@ -530,6 +588,9 @@ export default function StudyPlanPage() {
         throw new Error((data as { error?: string }).error ?? "删除失败");
       }
       setHistory((prev) => prev.filter((item) => item.id !== id));
+      if (selectedHistoryId === id) {
+        setSelectedHistoryId(null);
+      }
       setHistoryMessage(null);
     } catch (err) {
       setHistoryMessage(err instanceof Error ? err.message : "删除失败");
@@ -553,6 +614,28 @@ export default function StudyPlanPage() {
             <span>备考档案：动态更新你的学习画像。</span>
             <span>模考成绩：自动引用近 3 次成绩。</span>
             <span>学习时间：由你选择可学习时段。</span>
+          </div>
+          <div className="plan-status-grid" aria-label="规划状态概览">
+            <div>
+              <span>档案</span>
+              <strong>
+                {profileCompleteness.completed}/{profileCompleteness.total}
+              </strong>
+            </div>
+            <div>
+              <span>设置</span>
+              <strong>
+                {planningReadiness.completed}/{planningReadiness.total}
+              </strong>
+            </div>
+            <div>
+              <span>历史</span>
+              <strong>{history.length}</strong>
+            </div>
+            <div>
+              <span>最近</span>
+              <strong>{history[0]?.createdAt ? formatDateTime(history[0].createdAt) : "-"}</strong>
+            </div>
           </div>
         </div>
       </section>
@@ -797,6 +880,7 @@ export default function StudyPlanPage() {
                 setPlanMeta(null);
                 setPlanMessage(null);
                 setPlanState("idle");
+                setSelectedHistoryId(null);
               }}
             >
               清空结果
@@ -815,7 +899,14 @@ export default function StudyPlanPage() {
             <h3>规划建议</h3>
             <span className="form-message">长期策略 + 每周/每日执行</span>
           </div>
-          {plan ? (
+          {planState === "loading" ? (
+            <div className="plan-output-skeleton" aria-label="正在生成规划">
+              <span className="wide" />
+              <span />
+              <span />
+              <span className="short" />
+            </div>
+          ) : plan ? (
             <div className="assist-output">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{planMarkdown}</ReactMarkdown>
             </div>
@@ -881,10 +972,62 @@ export default function StudyPlanPage() {
             <h3>规划历史</h3>
             <span className="form-message">最近 30 次规划记录</span>
           </div>
+          {historyState === "idle" && history.length ? (
+            <div className="plan-history-tools">
+              <div className="plan-history-summary">
+                <span>{history.length} 条记录</span>
+                <span>
+                  {history[0]?.createdAt
+                    ? `最近 ${formatDateTime(history[0].createdAt)}`
+                    : "暂无更新时间"}
+                </span>
+              </div>
+              <label className="plan-history-search">
+                <span>搜索</span>
+                <input
+                  value={historyQuery}
+                  onChange={(event) => setHistoryQuery(event.target.value)}
+                  placeholder="摘要、进度或时间"
+                  aria-label="搜索规划历史"
+                />
+                {historyQuery ? (
+                  <button type="button" onClick={() => setHistoryQuery("")}>
+                    清空
+                  </button>
+                ) : null}
+              </label>
+            </div>
+          ) : null}
           <div className="plan-history-list">
-            {history.length ? (
-              history.map((item) => (
-                <div key={item.id} className="plan-history-item">
+            {historyState === "loading" ? (
+              <div className="plan-history-skeleton" aria-label="正在加载规划历史">
+                <span />
+                <span />
+                <span className="short" />
+              </div>
+            ) : null}
+            {historyState === "error" ? (
+              <div className="knowledge-empty plan-history-state">
+                <span>{historyMessage ?? "规划历史加载失败。"}</span>
+                {historyMessage?.includes("登录") ? (
+                  <Link href="/login" className="primary button-link">
+                    去登录
+                  </Link>
+                ) : (
+                  <button type="button" className="ghost" onClick={() => void loadHistory()}>
+                    重新加载
+                  </button>
+                )}
+              </div>
+            ) : null}
+            {historyState === "idle" && history.length && filteredHistory.length ? (
+              filteredHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className={`plan-history-item${
+                    selectedHistoryId === item.id ? " active" : ""
+                  }`}
+                >
                   <div className="plan-history-header">
                     <div>
                       <strong>备考规划</strong>
@@ -899,6 +1042,7 @@ export default function StudyPlanPage() {
                             item.planData ?? (item.planRaw ? { raw: item.planRaw } : null)
                           );
                           setPlanMeta(null);
+                          setSelectedHistoryId(item.id);
                         }}
                       >
                         查看
@@ -915,11 +1059,22 @@ export default function StudyPlanPage() {
                   <p>{item.summary ?? "未生成摘要。"}</p>
                 </div>
               ))
-            ) : (
+            ) : null}
+            {historyState === "idle" && history.length && filteredHistory.length === 0 ? (
+              <div className="knowledge-empty plan-history-state">
+                <span>没有找到匹配的规划记录。</span>
+                <button type="button" className="ghost" onClick={() => setHistoryQuery("")}>
+                  清空搜索
+                </button>
+              </div>
+            ) : null}
+            {historyState === "idle" && !history.length ? (
               <div className="knowledge-empty">暂无历史记录。</div>
-            )}
+            ) : null}
           </div>
-          {historyMessage ? <p className="form-message">{historyMessage}</p> : null}
+          {historyMessage && historyState !== "error" ? (
+            <p className="form-message">{historyMessage}</p>
+          ) : null}
         </div>
       </section>
     </main>

@@ -4122,6 +4122,39 @@ button {
   line-height: 1.5;
 }
 
+.plan-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.plan-status-grid div {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.plan-status-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.plan-status-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .plan-form-grid {
   display: grid;
   gap: 14px;
@@ -4884,6 +4917,93 @@ button {
   color: var(--muted);
 }
 
+.plan-output-skeleton,
+.plan-history-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-output-skeleton span,
+.plan-history-skeleton span {
+  display: block;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--glass-bg-subtle) 0%,
+    var(--glass-bg-strong) 50%,
+    var(--glass-bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.plan-output-skeleton {
+  padding: 8px 0;
+}
+
+.plan-output-skeleton span.wide {
+  height: 22px;
+}
+
+.plan-output-skeleton span.short,
+.plan-history-skeleton span.short {
+  width: 64%;
+}
+
+.plan-history-tools {
+  display: grid;
+  gap: 12px;
+}
+
+.plan-history-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-history-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.plan-history-search span {
+  color: var(--muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.plan-history-search input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+  padding: 0;
+}
+
+.plan-history-search button {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .plan-history-list {
   display: grid;
   gap: 12px;
@@ -4896,6 +5016,11 @@ button {
   background: var(--glass-bg-subtle);
   display: grid;
   gap: 8px;
+}
+
+.plan-history-item.active {
+  border-color: rgba(181, 82, 43, 0.55);
+  background: rgba(181, 82, 43, 0.12);
 }
 
 .plan-history-header {
@@ -4925,6 +5050,10 @@ button {
   font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
+}
+
+.plan-history-state {
+  gap: 12px;
 }
 
 .daily-section {
@@ -5740,6 +5869,38 @@ button {
 
   .plan-hero {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plan-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plan-history-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .plan-history-search {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plan-history-search button,
+  .plan-history-actions button,
+  .plan-history-state button,
+  .plan-history-state .button-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .plan-history-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plan-history-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .daily-hero {
