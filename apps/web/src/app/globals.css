@@ -8340,12 +8340,15 @@ body.pomodoro-immersive .page {
 }
 
 .leaderboard-header {
-  text-align: center;
-  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
 }
 
 .leaderboard-header h1 {
-  margin: 12px 0 8px;
+  margin: 6px 0 8px;
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
 }
@@ -8354,13 +8357,24 @@ body.pomodoro-immersive .page {
   color: var(--muted);
   font-size: var(--text-sm);
   margin: 0;
+  line-height: 1.55;
+}
+
+.leaderboard-refresh {
+  flex-shrink: 0;
+  padding: 8px 14px;
+}
+
+.leaderboard-refresh:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .leaderboard-tabs {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
   padding: 4px;
   background: var(--glass-bg);
   border-radius: 12px;
@@ -8391,6 +8405,44 @@ body.pomodoro-immersive .page {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+.leaderboard-refresh-meta {
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.leaderboard-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.leaderboard-summary div {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.leaderboard-summary span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.leaderboard-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
 .leaderboard-loading,
 .leaderboard-error,
 .leaderboard-empty {
@@ -8402,6 +8454,79 @@ body.pomodoro-immersive .page {
 
 .leaderboard-error {
   color: #c53030;
+}
+
+.leaderboard-state-card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.leaderboard-state-card strong {
+  color: var(--text);
+}
+
+.leaderboard-state-card span {
+  max-width: 30rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.leaderboard-error.leaderboard-state-card span {
+  color: #c53030;
+}
+
+.leaderboard-skeleton {
+  display: grid;
+  gap: 8px;
+}
+
+.leaderboard-skeleton-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 86px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+}
+
+.leaderboard-skeleton-row span,
+.leaderboard-skeleton-row div,
+.leaderboard-skeleton-row strong {
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.leaderboard-skeleton-row span {
+  width: 28px;
+  height: 28px;
+}
+
+.leaderboard-skeleton-row strong {
+  width: 72px;
+  justify-self: end;
+}
+
+@keyframes skeletonShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .leaderboard-list {
@@ -8537,6 +8662,11 @@ body.pomodoro-immersive .page {
   gap: 12px;
 }
 
+.leaderboard-rank-action {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
 .my-rank-position {
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
@@ -8559,6 +8689,24 @@ body.pomodoro-immersive .page {
     padding: 16px 12px;
   }
 
+  .leaderboard-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .leaderboard-refresh,
+  .leaderboard-tabs {
+    width: 100%;
+  }
+
+  .leaderboard-refresh-meta {
+    text-align: left;
+  }
+
+  .leaderboard-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .leaderboard-row {
     padding: 12px;
   }
@@ -8571,6 +8719,16 @@ body.pomodoro-immersive .page {
     width: 28px;
     height: 28px;
     font-size: 12px;
+  }
+
+  .leaderboard-skeleton-row {
+    grid-template-columns: 36px minmax(0, 1fr) 70px;
+    padding: 12px;
+  }
+
+  .my-rank-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
