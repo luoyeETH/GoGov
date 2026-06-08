@@ -30,8 +30,8 @@ npm install
 ### 环境变量
 后端在 `apps/api/.env` 中配置：
 ```env
-DATABASE_URL=postgresql://user:password@host:5432/gogov
-API_PORT=3001
+DATABASE_URL=postgresql://user:password@host:5435/gogov
+API_PORT=3031
 RESEND_API_KEY=your_resend_key
 GMAIL_USER=your_gmail_address
 GMAIL_APP_PASSWORD=your_gmail_app_password
@@ -69,7 +69,7 @@ npm --workspace @gogov/api run start
 npm --workspace @gogov/web run start
 ```
 
-默认端口：Web `3000`，API `3001`。
+默认端口：Web `3030`，API `3031`。
 
 ## AI 配置
 AI 能力通过用户配置启用。登录后进入「个人资料」页，设置：
