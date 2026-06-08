@@ -5911,6 +5911,22 @@ select {
   flex-wrap: wrap;
 }
 
+.stats-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.stats-refresh {
+  padding: 8px 14px;
+}
+
+.stats-refresh:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .stats-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -5931,6 +5947,62 @@ select {
 
 .stats-summary strong {
   font-size: 18px;
+}
+
+.stats-insights {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats-insights div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+}
+
+.stats-insights span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stats-insights strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-base);
+  color: var(--text);
+}
+
+.stats-status {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.stats-status strong {
+  color: var(--text);
+}
+
+.stats-status-error span {
+  color: #b43c32;
+}
+
+.stats-status-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stats-grid {
@@ -5956,6 +6028,10 @@ select {
   gap: 10px;
 }
 
+.stats-card-header h3 {
+  margin: 0;
+}
+
 .stats-card-header span {
   color: var(--muted);
   font-size: 12px;
@@ -5977,9 +6053,19 @@ select {
   background: var(--glass-bg);
 }
 
+.stats-row-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
 .stats-row strong {
   display: block;
   font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stats-row span {
@@ -5989,8 +6075,133 @@ select {
 }
 
 .stats-metric {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.stats-metric span {
+  font-size: 11px;
+}
+
+.stats-metric strong {
+  font-size: 16px;
   font-weight: 700;
   color: var(--brand-dark);
+}
+
+.stats-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--text-alpha-08);
+}
+
+.stats-progress div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--brand-dark));
+}
+
+.stats-empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.stats-empty strong {
+  color: var(--text);
+}
+
+.stats-skeleton-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--glass-bg-subtle);
+}
+
+.stats-skeleton-row span,
+.stats-skeleton-row strong {
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+@media (max-width: 720px) {
+  .stats-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-header-actions .button-link,
+  .stats-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stats-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .stats-card {
+    padding: 16px;
+  }
+
+  .stats-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-header-actions,
+  .stats-insights,
+  .stats-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stats-metric {
+    justify-items: start;
+  }
+
+  .stats-status-actions,
+  .stats-status-actions .button-link,
+  .stats-status-actions button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .ledger-page {
