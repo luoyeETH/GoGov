@@ -1274,6 +1274,130 @@ button {
   gap: 14px;
 }
 
+.password-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.password-summary div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.password-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.password-summary strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.password-skeleton span {
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--text-alpha-08),
+    var(--text-alpha-16),
+    var(--text-alpha-08)
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.password-state-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.password-state-card strong {
+  color: var(--text);
+}
+
+.password-state-card span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.password-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.password-strength {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.password-strength strong {
+  color: var(--text);
+}
+
+.password-strength-bars {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.password-strength-bars i {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--text-alpha-12);
+}
+
+.password-strength.strength-weak .password-strength-bars i.active {
+  background: var(--danger);
+}
+
+.password-strength.strength-medium .password-strength-bars i.active {
+  background: var(--warning);
+}
+
+.password-strength.strength-strong .password-strength-bars i.active {
+  background: var(--success);
+}
+
+.password-issues {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .email-suggest {
   display: grid;
   gap: 6px;
@@ -6266,6 +6390,28 @@ button {
 
   .register-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .password-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .password-summary div {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .password-state-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .password-state-actions button,
+  .password-state-actions .button-link,
+  .register-panel > button.primary {
+    width: 100%;
+    justify-content: center;
   }
 
   .profile-grid {
