@@ -1264,6 +1264,45 @@ button {
   align-items: start;
 }
 
+.auth-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-summary div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-bg-subtle);
+}
+
+.auth-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-summary strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-readiness {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--glass-bg-subtle);
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .login-card {
   background: var(--card);
   border-radius: 18px;
@@ -1493,12 +1532,16 @@ button {
   color: var(--brand-dark);
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   flex-shrink: 0;
+}
+
+.benefit-list .icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .benefit-list .text {
@@ -6386,6 +6429,16 @@ button {
 
   .login-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .auth-summary div {
+    padding: 12px;
+    border-radius: 12px;
   }
 
   .register-grid {

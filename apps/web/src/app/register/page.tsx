@@ -138,7 +138,7 @@ function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
-  const [verifyState, setVerifyState] = useState<VerifyState>("idle");
+  const [verifyState, setVerifyState] = useState<VerifyState>("loading");
   const [email, setEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [username, setUsername] = useState("");
@@ -181,6 +181,40 @@ function RegisterPageContent() {
         fieldErrors[field] ? [{ field, label: fieldLabels[field], error: fieldErrors[field]! }] : []
       ),
     [fieldErrors]
+  );
+
+  const registerSummary = useMemo(
+    () => [
+      {
+        label: "邮箱验证",
+        value:
+          verifyState === "loading"
+            ? "验证中"
+            : verifyState === "success"
+              ? "已通过"
+              : verifyState === "error"
+                ? "失败"
+                : "待验证"
+      },
+      {
+        label: "资料填写",
+        value: visibleFieldErrors.length ? `${visibleFieldErrors.length} 项待改` : "待提交"
+      },
+      {
+        label: "账号邮箱",
+        value: email ?? "待确认"
+      },
+      {
+        label: "提交状态",
+        value:
+          submitState === "submitting"
+            ? "提交中"
+            : submitState === "success"
+              ? "已完成"
+              : "待提交"
+      }
+    ],
+    [email, submitState, verifyState, visibleFieldErrors.length]
   );
 
   const syncFieldErrors = (nextValues: RegisterFormValues) => {
@@ -353,12 +387,31 @@ function RegisterPageContent() {
         </div>
       </section>
 
+      <section className="auth-summary" aria-label="邮箱注册状态概览">
+        {registerSummary.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
       <section className="register-grid">
         <div className="login-card register-panel">
           {verifyState === "loading" ? (
-            <div className="practice-loading">正在验证邮箱...</div>
+            <div className="password-skeleton" aria-label="正在验证邮箱">
+              <span />
+              <span />
+              <span />
+            </div>
           ) : verifyState === "error" ? (
-            <div className="practice-error">{message}</div>
+            <div className="password-state-card" role="alert">
+              <strong>邮箱验证失败</strong>
+              <span>{message ?? "请检查邮箱链接后重试。"}</span>
+              <div className="password-state-actions">
+                <a href="/login" className="primary button-link">返回登录</a>
+              </div>
+            </div>
           ) : (
             <>
               <div className="form-row">
@@ -545,9 +598,9 @@ function RegisterPageContent() {
           <div className="aside-card">
             <h3>注册后你将获得</h3>
             <div className="aside-list">
-              <div>✔ 专属学习画像</div>
-              <div>✔ 练习与错题同步</div>
-              <div>✔ AI 解析与策略建议</div>
+              <div><span className="aside-list-dot success" />专属学习画像</div>
+              <div><span className="aside-list-dot success" />练习与错题同步</div>
+              <div><span className="aside-list-dot success" />AI 解析与策略建议</div>
             </div>
           </div>
         </aside>

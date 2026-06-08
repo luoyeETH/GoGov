@@ -29,6 +29,8 @@ type Challenge = {
 type RequestState = "idle" | "sending" | "sent" | "error";
 
 type LoginState = "idle" | "loading" | "success" | "error";
+type WalletState = "idle" | "loading" | "success" | "error";
+type SessionState = "checking" | "none" | "authenticated" | "error";
 
 type UserProfile = {
   id: string;
@@ -93,6 +95,37 @@ function buildEmailSuggestions(value: string) {
   return suggestions.filter((item) => item !== raw).slice(0, 6);
 }
 
+function isEmailLike(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function BenefitIcon({ name }: { name: "records" | "ai" | "sync" }) {
+  if (name === "records") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    );
+  }
+  if (name === "ai") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 3l2.2 4.5L19 9.7l-4.8 2.2L12 17l-2.2-5.1L5 9.7l4.8-2.2L12 3z" />
+        <path d="M19 15l.9 1.8L22 18l-2.1 1.2L19 21l-.9-1.8L16 18l2.1-1.2L19 15z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 16.5a4.5 4.5 0 0 0-8.7-1.5H7a4 4 0 0 0 0 8h10a3.5 3.5 0 0 0 0-7z" />
+      <path d="M12 3v6" />
+      <path d="M9 6l3 3 3-3" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
@@ -103,6 +136,8 @@ export default function LoginPage() {
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [loginState, setLoginState] = useState<LoginState>("idle");
+  const [walletState, setWalletState] = useState<WalletState>("idle");
+  const [sessionState, setSessionState] = useState<SessionState>("checking");
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [walletMessage, setWalletMessage] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -141,7 +176,7 @@ export default function LoginPage() {
 
   const canSend = useMemo(
     () =>
-      email.trim().length > 3 &&
+      isEmailLike(email) &&
       Boolean(challenge) &&
       captchaAnswer.trim().length > 0 &&
       requestState !== "sending" &&
@@ -151,10 +186,46 @@ export default function LoginPage() {
 
   const canLogin = useMemo(
     () =>
-      email.trim().length > 3 &&
+      isEmailLike(email) &&
       password.trim().length > 0 &&
       loginState !== "loading",
     [email, password, loginState]
+  );
+
+  const loginSummary = useMemo(
+    () => [
+      {
+        label: "当前方式",
+        value: loginMethod === "wallet" ? "Web3 钱包" : emailMode === "login" ? "邮箱登录" : "邮箱注册"
+      },
+      {
+        label: "会话状态",
+        value:
+          sessionState === "checking"
+            ? "检查中"
+            : sessionState === "authenticated"
+              ? "已登录"
+              : sessionState === "error"
+                ? "检查失败"
+                : "未登录"
+      },
+      {
+        label: "邮箱状态",
+        value: email ? (isEmailLike(email) ? "格式有效" : "格式待修正") : "未输入"
+      },
+      {
+        label: "验证码",
+        value:
+          emailMode === "register"
+            ? challenge
+              ? captchaAnswer
+                ? "已选择"
+                : "待选择"
+              : "加载中"
+            : "无需验证"
+      }
+    ],
+    [captchaAnswer, challenge, email, emailMode, loginMethod, sessionState]
   );
 
   const emailSuggestions = useMemo(() => {
@@ -195,6 +266,7 @@ export default function LoginPage() {
     const loadSession = async () => {
       const stored = window.localStorage.getItem(sessionKey);
       if (!stored) {
+        setSessionState("none");
         return;
       }
       try {
@@ -203,6 +275,7 @@ export default function LoginPage() {
         });
         if (res.status === 401) {
           window.localStorage.removeItem(sessionKey);
+          setSessionState("none");
           return;
         }
         if (!res.ok) {
@@ -211,7 +284,9 @@ export default function LoginPage() {
         const data = await res.json();
         setCurrentUser(data.user);
         setSessionExpiresAt(data.sessionExpiresAt ?? null);
+        setSessionState("authenticated");
       } catch (_err) {
+        setSessionState("error");
         // 网络波动或服务异常时不主动清除本地登录态
       }
     };
@@ -245,6 +320,7 @@ export default function LoginPage() {
         setSessionExpiresAt(data.sessionExpiresAt ?? null);
       }
       setLoginState("success");
+      setSessionState("authenticated");
       setLoginMessage("登录成功。");
       window.dispatchEvent(new Event("auth-change"));
       routeAfterLogin(data);
@@ -287,8 +363,13 @@ export default function LoginPage() {
   };
 
   const connectWallet = async () => {
+    if (walletState === "loading") {
+      return;
+    }
+    setWalletState("loading");
     setWalletMessage(null);
     if (typeof window === "undefined" || !window.ethereum) {
+      setWalletState("error");
       setWalletMessage("未检测到钱包插件，请先安装钱包。");
       return;
     }
@@ -338,10 +419,13 @@ export default function LoginPage() {
         });
         setSessionExpiresAt(data.sessionExpiresAt ?? null);
       }
+      setWalletState("success");
+      setSessionState("authenticated");
       setWalletMessage(`钱包已验证：${address}`);
       window.dispatchEvent(new Event("auth-change"));
       routeAfterLogin(data);
     } catch (err) {
+      setWalletState("error");
       setWalletMessage(err instanceof Error ? err.message : "钱包登录失败");
     }
   };
@@ -362,6 +446,7 @@ export default function LoginPage() {
       window.localStorage.removeItem(sessionKey);
       setCurrentUser(null);
       setSessionExpiresAt(null);
+      setSessionState("none");
       window.dispatchEvent(new Event("auth-change"));
     }
   };
@@ -409,6 +494,15 @@ export default function LoginPage() {
         </div>
       </section>
 
+      <section className="auth-summary" aria-label="账号入口状态概览">
+        {loginSummary.map((item) => (
+          <div key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </section>
+
       <section className="login-grid">
         <div className="login-card login-panel">
           <div className="login-toggle">
@@ -436,12 +530,22 @@ export default function LoginPage() {
             <>
               <h3>Web3 钱包登录</h3>
               <p>连接钱包并签名，完成身份验证。</p>
-              <button type="button" className="primary" onClick={connectWallet}>
-                连接并签名
+              <button
+                type="button"
+                className="primary"
+                onClick={connectWallet}
+                disabled={walletState === "loading"}
+              >
+                {walletState === "loading" ? "等待签名..." : "连接并签名"}
               </button>
               {walletMessage ? (
                 <p className="form-message">{walletMessage}</p>
               ) : null}
+              <div className="auth-readiness" aria-live="polite">
+                {walletState === "loading"
+                  ? "请在钱包插件中确认签名"
+                  : "钱包签名只用于确认身份，不会发起链上交易。"}
+              </div>
             </>
           ) : (
             <>
@@ -480,13 +584,23 @@ export default function LoginPage() {
                   {loginMessage ? (
                     <p className="form-message">{loginMessage}</p>
                   ) : null}
+                  <div className="auth-readiness" aria-live="polite">
+                    {!email
+                      ? "请输入邮箱"
+                      : !isEmailLike(email)
+                      ? "邮箱格式需要修正"
+                      : !password
+                      ? "请输入密码"
+                      : loginState === "loading"
+                      ? "正在登录"
+                      : "可以登录"}
+                  </div>
                   <button
                     type="button"
                     className="ghost"
-                    style={{ fontSize: "13px" }}
                     onClick={() => setEmailMode("register")}
                   >
-                    没有账号？去注册 →
+                    没有账号？去注册
                   </button>
                 </>
               ) : (
@@ -601,13 +715,25 @@ export default function LoginPage() {
                       ) : null}
                     </div>
                   ) : null}
+                  <div className="auth-readiness" aria-live="polite">
+                    {!email
+                      ? "请输入邮箱"
+                      : !isEmailLike(email)
+                      ? "邮箱格式需要修正"
+                      : !challenge
+                      ? "正在加载验证题"
+                      : !captchaAnswer
+                      ? "请选择验证题答案"
+                      : cooldownSeconds > 0
+                      ? "请稍后再发送"
+                      : "可以发送注册邮件"}
+                  </div>
                   <button
                     type="button"
                     className="ghost"
-                    style={{ fontSize: "13px" }}
                     onClick={() => setEmailMode("login")}
                   >
-                    已有账号？去登录 →
+                    已有账号？去登录
                   </button>
                 </>
               )}
@@ -623,21 +749,21 @@ export default function LoginPage() {
             </p>
             <ul className="benefit-list">
               <li>
-                <span className="icon">📊</span>
+                <span className="icon"><BenefitIcon name="records" /></span>
                 <div className="text">
                   <strong>练习记录</strong>
                   <span>永久保存你的答题历史与错题本</span>
                 </div>
               </li>
               <li>
-                <span className="icon">🧠</span>
+                <span className="icon"><BenefitIcon name="ai" /></span>
                 <div className="text">
                   <strong>AI 助教</strong>
                   <span>获得个性化的答题建议与解析</span>
                 </div>
               </li>
               <li>
-                <span className="icon">☁️</span>
+                <span className="icon"><BenefitIcon name="sync" /></span>
                 <div className="text">
                   <strong>多端同步</strong>
                   <span>电脑、手机无缝切换学习进度</span>
