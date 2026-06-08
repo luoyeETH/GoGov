@@ -2,6 +2,12 @@
   font-synthesis-weight: none;
   --floating-chat-viewport-height: 100vh;
   --floating-chat-viewport-offset: 0px;
+  --mobile-bottom-nav-height: 56px;
+  --mobile-bottom-nav-gap: 20px;
+  --mobile-bottom-nav-offset: calc(
+    var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) +
+      var(--mobile-bottom-nav-gap)
+  );
 
   /* Font Size & Weight Variables */
   --text-xs: 12px;
@@ -8494,22 +8500,22 @@ body.pomodoro-immersive .page {
   }
 }
 
-/* Mobile PWA Bottom Navigation - Apple Style */
+/* Mobile Bottom Navigation - Apple Style */
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
+  display: none;
   justify-content: space-around;
   align-items: flex-start;
-  height: calc(56px + env(safe-area-inset-bottom));
+  height: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   background: var(--nav-bg);
   backdrop-filter: saturate(180%) blur(24px);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   border-top: 0.5px solid var(--glass-border);
   padding-top: 6px;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 1000;
 }
 
@@ -8607,6 +8613,24 @@ body.pomodoro-immersive .page {
 
 .mobile-nav-item.active .mobile-nav-label {
   font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+
+  .main {
+    padding-bottom: var(--mobile-bottom-nav-offset);
+  }
+
+  .footer {
+    padding-bottom: var(--mobile-bottom-nav-offset);
+  }
+
+  .floating-chat {
+    display: none;
+  }
 }
 
 /* Mobile first-visit PWA installation guide */
@@ -8858,7 +8882,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 
   .main {
     min-height: calc(100vh - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 20px);
+    padding-bottom: var(--mobile-bottom-nav-offset);
   }
 
   .main.mock-page {
@@ -8913,7 +8937,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   @media (display-mode: standalone) {
     .mobile-bottom-nav {
       padding-bottom: max(env(safe-area-inset-bottom), 20px);
-      height: calc(56px + max(env(safe-area-inset-bottom), 20px));
+      height: calc(var(--mobile-bottom-nav-height) + max(env(safe-area-inset-bottom), 20px));
     }
 
     /* iOS rubber-band effect */
@@ -9691,13 +9715,6 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 
 /* PWA 模式下显示更多功能 */
 @media (display-mode: standalone) and (max-width: 768px) {
-  :root {
-    --mobile-bottom-nav-height: 56px;
-    --mobile-bottom-nav-offset: calc(
-      var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom) + 20px
-    );
-  }
-
   .profile-more-features {
     display: block;
   }
@@ -10062,19 +10079,16 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   flex-shrink: 0;
 }
 
-/* PWA mode: Fix mobile chat input to account for bottom nav */
-@media (display-mode: standalone) and (max-width: 768px) {
+/* Mobile chat input accounts for the fixed bottom nav. */
+@media (max-width: 768px) {
   .mobile-chat-input-area {
-    margin-bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+    margin-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 8px);
     padding-bottom: 10px;
   }
 
   .mobile-chat-history-page {
     min-height: calc(100vh - env(safe-area-inset-top));
-    padding-bottom: var(
-      --mobile-bottom-nav-offset,
-      calc(56px + env(safe-area-inset-bottom) + 20px)
-    );
+    padding-bottom: var(--mobile-bottom-nav-offset);
   }
 }
 

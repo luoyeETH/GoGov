@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 
 // Apple SF Symbols style icons - thinner strokes, refined shapes
 const NAV_ITEMS = [
@@ -90,20 +89,26 @@ const NAV_ITEMS = [
     )
   },
   {
-    href: "/profile",
-    label: "我的",
+    href: "/profile/more",
+    label: "更多",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4" strokeWidth="1.5" stroke="currentColor" />
-        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" strokeWidth="1.5" stroke="currentColor" />
+        <rect x="4" y="4" width="6" height="6" rx="1.5" strokeWidth="1.5" stroke="currentColor" />
+        <rect x="14" y="4" width="6" height="6" rx="1.5" strokeWidth="1.5" stroke="currentColor" />
+        <rect x="4" y="14" width="6" height="6" rx="1.5" strokeWidth="1.5" stroke="currentColor" />
+        <rect x="14" y="14" width="6" height="6" rx="1.5" strokeWidth="1.5" stroke="currentColor" />
       </svg>
     ),
     activeIcon: (
       <svg viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="12" cy="8" r="4" opacity="0.15" />
-        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" opacity="0.15" />
-        <circle cx="12" cy="8" r="4" fill="none" strokeWidth="2" stroke="currentColor" />
-        <path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="none" strokeWidth="2" stroke="currentColor" />
+        <rect x="4" y="4" width="6" height="6" rx="1.5" opacity="0.15" />
+        <rect x="14" y="4" width="6" height="6" rx="1.5" opacity="0.15" />
+        <rect x="4" y="14" width="6" height="6" rx="1.5" opacity="0.15" />
+        <rect x="14" y="14" width="6" height="6" rx="1.5" opacity="0.15" />
+        <rect x="4" y="4" width="6" height="6" rx="1.5" fill="none" strokeWidth="2" stroke="currentColor" />
+        <rect x="14" y="4" width="6" height="6" rx="1.5" fill="none" strokeWidth="2" stroke="currentColor" />
+        <rect x="4" y="14" width="6" height="6" rx="1.5" fill="none" strokeWidth="2" stroke="currentColor" />
+        <rect x="14" y="14" width="6" height="6" rx="1.5" fill="none" strokeWidth="2" stroke="currentColor" />
       </svg>
     )
   }
@@ -111,46 +116,9 @@ const NAV_ITEMS = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const checkVisibility = () => {
-      // 检查是否是移动端 PWA 模式
-      const isMobile = window.innerWidth <= 768;
-      const isStandalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as any).standalone === true;
-
-      setIsVisible(isMobile && isStandalone);
-    };
-
-    checkVisibility();
-    window.addEventListener("resize", checkVisibility);
-
-    // 监听 display-mode 变化
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", checkVisibility);
-    }
-
-    return () => {
-      window.removeEventListener("resize", checkVisibility);
-      if (typeof mediaQuery.removeEventListener === "function") {
-        mediaQuery.removeEventListener("change", checkVisibility);
-      }
-    };
-  }, []);
-
-  if (!isVisible) {
-    return null;
-  }
 
   return (
-    <nav className="mobile-bottom-nav">
+    <nav className="mobile-bottom-nav" aria-label="移动端主要功能导航">
       {NAV_ITEMS.map((item) => {
         const isActive =
           pathname === item.href ||
@@ -161,8 +129,9 @@ export default function MobileBottomNav() {
             key={item.href}
             href={item.href}
             className={`mobile-nav-item ${isActive ? "active" : ""} ${item.highlight ? "highlight" : ""}`}
+            aria-current={isActive ? "page" : undefined}
           >
-            <span className="mobile-nav-icon">
+            <span className="mobile-nav-icon" aria-hidden="true">
               {isActive && item.activeIcon ? item.activeIcon : item.icon}
             </span>
             <span className="mobile-nav-label">{item.label}</span>
