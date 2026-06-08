@@ -9,14 +9,19 @@ const MORE_ITEMS = [
   { href: "/computer", label: "计算机专项" },
   { href: "/practice/quick", label: "速算练习" },
   { href: "/interview", label: "AI 面试教练" },
-  { href: "/mock-report", label: "模考解读" },
+  { href: "/study-plan", label: "备考规划" },
   { href: "/daily-tasks", label: "今日任务" },
   { href: "/study-plan/custom-tasks", label: "待办清单" },
   { href: "/pomodoro", label: "番茄钟" },
-  { href: "/leaderboard", label: "学习排行榜" },
-  { href: "/ledger", label: "记账本" },
+  { href: "/mock-report", label: "模考解读" },
   { href: "/stats", label: "统计看板" },
   { href: "/mistakes", label: "错题本" },
+  { href: "/leaderboard", label: "学习排行榜" },
+  { href: "/chat", label: "AI 对话" },
+  { href: "/ai/assist", label: "AI 答疑" },
+  { href: "/kline", label: "上岸 K 线" },
+  { href: "/ledger", label: "记账本" },
+  { href: "/profile/more", label: "完整目录" }
 ];
 
 export default function MobileMoreNav() {
@@ -43,6 +48,7 @@ export default function MobileMoreNav() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-controls="mobile-more-menu"
+        aria-haspopup="menu"
       >
         <span className="mobile-more-label">更多功能</span>
         <span className="mobile-more-arrow" aria-hidden="true">▼</span>
@@ -54,6 +60,7 @@ export default function MobileMoreNav() {
               key={item.href}
               href={item.href}
               className="dropdown-item"
+              role="menuitem"
               onClick={() => setIsOpen(false)}
             >
               {item.label}

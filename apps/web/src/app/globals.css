@@ -9558,8 +9558,57 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   padding: 12px 12px 24px;
 }
 
+.profile-more-section {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-more-section + .profile-more-section {
+  margin-top: 22px;
+}
+
+.profile-more-section-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
 .profile-more-features--page .profile-more-grid {
   margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.profile-more-features--page .feature-card {
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 132px;
+  padding: 16px;
+  text-align: left;
+}
+
+.profile-more-features--page .feature-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.profile-more-features--page .feature-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.profile-more-features--page .feature-title {
+  text-align: left;
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
+}
+
+.feature-desc {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
 }
 
 .profile-more-back {
@@ -9745,6 +9794,15 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   .features-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .profile-more-features--page .features-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-more-features--page .feature-card {
+    min-height: 128px;
+    padding: 14px 12px;
   }
 }
 
