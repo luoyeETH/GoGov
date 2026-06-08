@@ -474,6 +474,7 @@ export default function MobileChatPage() {
       if (isFreshSend) {
         setNeedsFreshSend(false);
       }
+      setHistoryMessage(null);
       setRequestState("idle");
     } catch (err) {
       if (sendRequestIdRef.current !== sendId || chatModeRef.current !== chatMode) {
@@ -495,6 +496,7 @@ export default function MobileChatPage() {
       });
       setInput(text);
       setSelectedImageDataUrl(imageDataUrl);
+      setHistoryMessage(err instanceof Error ? err.message : "发送失败，内容已放回输入框。");
       setRequestState("error");
     }
   };
@@ -586,6 +588,12 @@ export default function MobileChatPage() {
 
   const canSend =
     requestState !== "loading" && (input.trim().length > 0 || selectedImageDataUrl !== null);
+  const chatNotice =
+    requestState === "error"
+      ? historyMessage ?? "发送失败，内容已放回输入框。"
+      : historyState === "error"
+        ? historyMessage ?? "对话加载失败。"
+        : null;
 
   return (
     <main className="main mobile-chat-page">
@@ -630,6 +638,7 @@ export default function MobileChatPage() {
             className="mobile-chat-action-btn"
             onClick={handleHistoryClick}
             title="历史对话"
+            aria-label="历史对话"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -660,10 +669,29 @@ export default function MobileChatPage() {
         </div>
       ) : null}
 
+      {chatNotice ? (
+        <div className="mobile-chat-notice">
+          <span>{chatNotice}</span>
+          {requestState === "error" ? (
+            <button type="button" onClick={sendMessage} disabled={!canSend}>
+              重新发送
+            </button>
+          ) : (
+            <button type="button" onClick={() => void loadHistory(chatMode)}>
+              重新加载
+            </button>
+          )}
+        </div>
+      ) : null}
+
       {/* Messages */}
       <div className="mobile-chat-messages" ref={listRef}>
         {historyState === "loading" ? (
-          <div className="mobile-chat-loading">加载中...</div>
+          <div className="mobile-chat-loading" aria-label="正在加载对话">
+            <div className="mobile-chat-skeleton assistant" />
+            <div className="mobile-chat-skeleton user" />
+            <div className="mobile-chat-skeleton assistant short" />
+          </div>
         ) : messages.length === 0 ? (
           <div className="mobile-chat-empty">
             <div className="empty-icon">
@@ -714,6 +742,16 @@ export default function MobileChatPage() {
                 ) : msg.content.trim() && msg.content.trim() !== "请看图" ? (
                   <p className="mobile-chat-image-caption">{msg.content}</p>
                 ) : null}
+                {msg.failed ? (
+                  <button
+                    type="button"
+                    className="mobile-chat-retry"
+                    onClick={sendMessage}
+                    disabled={!canSend}
+                  >
+                    重新发送
+                  </button>
+                ) : null}
               </div>
             </div>
           ))
@@ -759,6 +797,7 @@ export default function MobileChatPage() {
             placeholder={selectedImageDataUrl ? "可补充问题，或直接发送" : "输入消息..."}
             rows={1}
             disabled={requestState === "loading"}
+            aria-label="输入消息"
           />
           <button
             type="button"
@@ -771,6 +810,10 @@ export default function MobileChatPage() {
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
           </button>
+        </div>
+        <div className="mobile-chat-input-hint">
+          <span>{chatMode === "planner" ? "规划 AI 会参考学习目标和时间安排" : "导师 AI 支持文字和图片题目"}</span>
+          <span>{input.trim().length} 字</span>
         </div>
       </div>
     </main>
