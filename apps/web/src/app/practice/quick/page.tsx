@@ -541,6 +541,22 @@ export default function QuickPracticePage() {
       ? evaluateAnswer(currentQuestion, currentAnswer ?? "")
       : null;
   const isCorrect = currentEvaluation?.correct ?? false;
+  const answeredCount = Object.keys(answers).length;
+  const remainingCount = questions.length
+    ? Math.max(questions.length - Math.min(answeredCount, questions.length), 0)
+    : 0;
+  const sessionProgressPercent = questions.length
+    ? Math.round((Math.min(answeredCount, questions.length) / questions.length) * 100)
+    : 0;
+  const trimmedInput = inputValue.trim();
+  const isPartialNumericInput =
+    trimmedInput === "-" || trimmedInput === "." || trimmedInput === "-.";
+  const inputInvalid =
+    Boolean(trimmedInput) &&
+    !isPartialNumericInput &&
+    parseNumeric(trimmedInput) === null;
+  const canSubmitInput =
+    !answered && Boolean(trimmedInput) && !inputInvalid && !isPartialNumericInput;
 
   const progressText = questions.length
     ? `${Math.min(currentIndex + 1, questions.length)}/${questions.length}`
@@ -1070,11 +1086,12 @@ export default function QuickPracticePage() {
                 className="primary"
                 type="button"
                 onClick={startSession}
-                disabled={status === "loading"}
+                disabled={status === "loading" || !selected}
               >
                 开始练习
               </button>
             </div>
+            {error ? <div className="practice-error setup-error">{error}</div> : null}
           </div>
         </section>
       ) : (
@@ -1085,6 +1102,7 @@ export default function QuickPracticePage() {
             </span>
             <span>模式：{mode === "drill" ? "背题" : "做题"}</span>
             <span>题量：{setSize} 题</span>
+            <span>已答：{answeredCount} 题</span>
           </div>
           <div className="active-actions">
             <button type="button" className="ghost" onClick={resetSession}>
@@ -1100,6 +1118,22 @@ export default function QuickPracticePage() {
           </div>
         </section>
       )}
+
+      {(status === "active" || status === "done") && questions.length ? (
+        <section className="practice-session-strip" aria-label="本组练习进度">
+          <div className="practice-session-meter">
+            <div
+              style={{ width: `${status === "done" ? 100 : sessionProgressPercent}%` }}
+            />
+          </div>
+          <div className="practice-session-stats">
+            <span>已答 {answeredCount}</span>
+            <span>剩余 {status === "done" ? 0 : remainingCount}</span>
+            <span>正确 {correctCount}</span>
+            <span>当前 {progressText}</span>
+          </div>
+        </section>
+      ) : null}
 
       {selectedCategory ? (
         <section className="practice-category">
@@ -1117,10 +1151,18 @@ export default function QuickPracticePage() {
         {status === "active" ? (
           <div className="practice-timer">用时 {elapsedText}</div>
         ) : null}
-        {error ? (
+        {error && !isSetup ? (
           <div className="practice-error">{error}</div>
         ) : status === "loading" ? (
-          <div className="practice-loading">正在生成题目...</div>
+          <div className="practice-loading-panel" aria-label="正在生成题目">
+            <div className="practice-loading-line wide" />
+            <div className="practice-loading-line" />
+            <div className="practice-loading-grid">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
         ) : status === "done" ? (
           <div className="practice-summary">
             <div className="summary-header">
@@ -1144,6 +1186,14 @@ export default function QuickPracticePage() {
                 <strong>平均用时</strong>
                 <span>{averageSeconds ? `${averageSeconds}s/题` : "--"}</span>
               </div>
+            </div>
+            <div className="summary-actions">
+              <button type="button" className="primary" onClick={startSession}>
+                再练一组
+              </button>
+              <button type="button" className="ghost" onClick={resetSession}>
+                重新设置
+              </button>
             </div>
             <div className="summary-list">
               {results.map((item, index) => (
@@ -1210,6 +1260,8 @@ export default function QuickPracticePage() {
                     placeholder="输入你的答案"
                     inputMode="decimal"
                     pattern="[0-9.%\\-]*"
+                    aria-invalid={inputInvalid}
+                    aria-describedby="practice-input-note"
                     autoFocus
                     onChange={(event) => updateInputValue(event.target.value)}
                     onKeyDown={(event) => {
@@ -1224,15 +1276,21 @@ export default function QuickPracticePage() {
                     type="button"
                     className="primary"
                     onClick={handleSubmitInput}
-                    disabled={
-                      answered ||
-                      !inputValue.trim() ||
-                      parseNumeric(inputValue.trim()) === null
-                    }
+                    disabled={!canSubmitInput}
                   >
                     提交
                   </button>
                 </div>
+                <p
+                  id="practice-input-note"
+                  className={`practice-input-note ${
+                    inputInvalid ? "is-error" : ""
+                  }`}
+                >
+                  {inputInvalid
+                    ? "请输入数字、小数或百分数，例如 12.5 或 12.5%。"
+                    : "可直接输入，也可使用下方数字键盘。"}
+                </p>
                 <div
                   className={`practice-keypad-wrap ${
                     isDesktop ? "floating" : ""
