@@ -11546,7 +11546,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   padding: 6px 12px;
   border-radius: 999px;
   font-size: var(--text-xs);
-  letter-spacing: 0.4px;
+  letter-spacing: 0;
 }
 
 .interview-layout {
@@ -11585,6 +11585,13 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   border-color: var(--brand);
   background: var(--brand-light);
   color: var(--brand-dark);
+}
+
+.interview-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .interview-section {
@@ -11794,10 +11801,17 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 .interview-progress {
   display: flex;
   justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 1.8px;
+  letter-spacing: 0;
   color: var(--muted);
+}
+
+.interview-time-alert {
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
 }
 
 .interview-question {
@@ -11813,7 +11827,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 .interview-question-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -11831,6 +11845,15 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   border-radius: 999px;
   background: var(--card);
   border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.interview-speak svg {
+  width: 20px;
+  height: 20px;
 }
 
 .interview-answer {
@@ -11877,6 +11900,14 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   animation: interviewPulse 1.2s ease-in-out infinite;
 }
 
+.interview-answer-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .interview-actions {
   display: flex;
   gap: 12px;
@@ -11885,6 +11916,16 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 
 .interview-actions button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.interview-action-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
 }
 
 .interview-recording {
@@ -11920,7 +11961,7 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
 .interview-score-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -12032,6 +12073,10 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
   gap: 8px;
 }
 
+.interview-complete-empty {
+  text-align: left;
+}
+
 .interview-complete-title {
   font-size: 18px;
   font-weight: var(--weight-semibold);
@@ -12121,7 +12166,19 @@ body.pwa-guide-lock .page > :not(.pwa-install-guide-overlay) {
     align-items: flex-start;
   }
 
+  .interview-answer-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .interview-actions button {
+    width: 100%;
+  }
+
+  .interview-error-actions,
+  .interview-error-actions .button-link,
+  .interview-complete .interview-restart {
     width: 100%;
   }
 }

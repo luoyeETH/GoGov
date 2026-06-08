@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -259,6 +260,12 @@ export default function InterviewPage() {
     setError(null);
     try {
       const token = getToken();
+      if (!token) throw new Error("请先登录");
+      const trimmedAnswer = answerText.trim();
+      if (!trimmedAnswer) throw new Error("请先输入回答。");
+      if (!session?.id || !currentTurn?.id) {
+        throw new Error("当前面试会话无效，请重新开始。");
+      }
       const res = await fetch(getApiUrl("/interview/answer"), {
         method: "POST",
         headers: {
@@ -268,7 +275,7 @@ export default function InterviewPage() {
         body: JSON.stringify({
           sessionId: session.id,
           turnId: currentTurn.id,
-          answerText
+          answerText: trimmedAnswer
         })
       });
       const data = await res.json();
@@ -513,6 +520,22 @@ export default function InterviewPage() {
     speakWithBrowser(trimmed);
   };
 
+  const resetSession = () => {
+    recognitionRef.current?.stop?.();
+    stopSpeaking();
+    clearQuestionAudioCache();
+    setPhase("setup");
+    setSession(null);
+    setCurrentTurn(null);
+    setAnswerText("");
+    setAnalysis(null);
+    setError(null);
+    setTimeRemaining(null);
+    setTimerActive(false);
+    setLoading(false);
+    setIsRecording(false);
+  };
+
   const selectedType = INTERVIEW_TYPES.find((item) => item.value === type);
   const selectedDifficulty = DIFFICULTY_LEVELS.find((item) => item.value === difficulty);
   const [typeTitle, typeDesc] = (selectedType?.label ?? "").split(" ");
@@ -520,6 +543,7 @@ export default function InterviewPage() {
   const timeLimitSeconds = timePreset.minutes * 60;
   const totalQuestions = session?.totalQuestions ?? "--";
   const turnNumber = currentTurn?.turnNumber ?? "--";
+  const answerLength = answerText.trim().length;
   const scoreValue = typeof analysis?.score === "number" ? analysis.score : null;
   const scoreLabel =
     scoreValue === null
@@ -530,6 +554,17 @@ export default function InterviewPage() {
           ? "继续加强"
           : "需要提升";
   const timeDisplay = timedMode ? formatTime(timeRemaining ?? timeLimitSeconds) : "未计时";
+  const timeIsLow = timedMode && (timeRemaining ?? timeLimitSeconds) <= 120;
+  const canSubmitAnswer =
+    !loading && answerLength > 0 && (!timedMode || timeRemaining !== 0);
+  const answerStatusText =
+    timedMode && timeRemaining === 0
+      ? "时间已到，请重新开始训练"
+      : isRecording
+        ? "正在录音，语音会自动追加到文本框"
+        : answerLength
+          ? "可以提交本题回答"
+          : "输入或语音转写后再提交";
 
   return (
     <main className="main interview-page">
@@ -582,10 +617,23 @@ export default function InterviewPage() {
             ))}
           </div>
 
-          {error && (
+          {error && phase !== "end" && (
             <div className="status-card error">
               <span className="status-title">出现问题</span>
               <span className="status-meta">{error}</span>
+              {error.includes("登录") || phase === "setup" ? (
+                <div className="interview-error-actions">
+                  {error.includes("登录") ? (
+                    <Link href="/login" className="primary button-link">
+                      去登录
+                    </Link>
+                  ) : (
+                    <button type="button" className="ghost" onClick={startSession} disabled={loading}>
+                      重新开始
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -689,6 +737,9 @@ export default function InterviewPage() {
                 <span>
                   第 {turnNumber} / {totalQuestions} 题
                 </span>
+                <span className={timeIsLow ? "interview-time-alert" : ""}>
+                  {timedMode ? `剩余 ${timeDisplay}` : "不限时"}
+                </span>
               </div>
 
               <div className="interview-question">
@@ -697,13 +748,24 @@ export default function InterviewPage() {
                   <p className="interview-question-text">{currentTurn.questionText}</p>
                 </div>
                 <button
+                  type="button"
                   className="ghost interview-speak"
                   onClick={() =>
                     isSpeaking ? stopSpeaking() : speak(currentTurn.questionText)
                   }
                   aria-label={isSpeaking ? "停止播放" : "播放语音"}
                 >
-                  {isSpeaking ? "⏹" : "🔊"}
+                  {isSpeaking ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 10v4h4l5 4V6l-5 4H4z" fill="currentColor" />
+                      <path d="M16 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M18.5 6.5a8 8 0 0 1 0 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  )}
                 </button>
               </div>
 
@@ -726,16 +788,27 @@ export default function InterviewPage() {
                     </div>
                   )}
                 </div>
+                <div className="interview-answer-meta">
+                  <span>{answerStatusText}</span>
+                  <span>{answerLength} 字</span>
+                </div>
                 <div className="interview-actions">
                   <button
+                    type="button"
                     onClick={toggleRecording}
                     className={`ghost${isRecording ? " interview-recording" : ""}`}
                   >
-                    {isRecording ? "停止录音" : "🎤 语音输入"}
+                    <svg className="interview-action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z" fill="none" stroke="currentColor" strokeWidth="2" />
+                      <path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M12 18v3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <span>{isRecording ? "停止录音" : "语音输入"}</span>
                   </button>
                   <button
+                    type="button"
                     onClick={submitAnswer}
-                    disabled={loading || !answerText.trim() || (timedMode && timeRemaining === 0)}
+                    disabled={!canSubmitAnswer}
                     className="interview-submit"
                   >
                     {loading ? "AI 分析中..." : "提交回答"}
@@ -769,7 +842,7 @@ export default function InterviewPage() {
 
               <div className="interview-feedback-grid">
                 <div className="interview-feedback-card">
-                  <div className="interview-feedback-title">📝 面试官点评</div>
+                  <div className="interview-feedback-title">面试官点评</div>
                   <div className="interview-feedback-content">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {analysis.feedback}
@@ -777,7 +850,7 @@ export default function InterviewPage() {
                   </div>
                 </div>
                 <div className="interview-feedback-card highlight">
-                  <div className="interview-feedback-title">💡 参考回答</div>
+                  <div className="interview-feedback-title">参考回答</div>
                   <div className="interview-feedback-content">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {analysis.suggestedAnswer}
@@ -787,20 +860,32 @@ export default function InterviewPage() {
               </div>
 
               {phase === "feedback" ? (
-                <button onClick={nextQuestion} className="primary interview-next">
-                  进入下一题 →
+                <button type="button" onClick={nextQuestion} className="primary interview-next">
+                  进入下一题
                 </button>
               ) : (
                 <div className="interview-complete">
-                  <div className="interview-complete-title">🎉 面试已完成</div>
+                  <div className="interview-complete-title">面试已完成</div>
                   <p className="interview-complete-text">你可以再次训练，保持状态持续在线。</p>
-                  <button onClick={() => window.location.reload()} className="ghost interview-restart">
+                  <button type="button" onClick={resetSession} className="ghost interview-restart">
                     再次挑战
                   </button>
                 </div>
               )}
             </div>
           )}
+
+          {phase === "end" && !analysis ? (
+            <div className="interview-complete interview-complete-empty">
+              <div className="interview-complete-title">本次训练已结束</div>
+              <p className="interview-complete-text">
+                {error ?? "当前没有可展示的评分结果，可以回到准备页重新开始。"}
+              </p>
+              <button type="button" onClick={resetSession} className="ghost interview-restart">
+                返回准备
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <aside className="interview-aside">
